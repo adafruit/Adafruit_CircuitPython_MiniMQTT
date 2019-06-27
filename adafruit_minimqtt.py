@@ -45,6 +45,8 @@ Implementation Notes
 """
 import time
 import struct
+from micropython import const
+import microcontroller
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
@@ -54,24 +56,35 @@ class MQTT:
     """
     MQTT Client for CircuitPython.
     """
-    def __init__(self, esp, socket, wifimanager, client_id, server_address, port=1883, user=None,
-                    password = None, is_ssl=False):
+    TCP_MODE = const(0)
+    TLS_MODE = const(2)
+    def __init__(self, esp, socket, wifimanager, server_address, port=1883, user=None,
+                    password = None, client_id=None, is_ssl=False):
         self._esp = esp
         self._socket = socket
         self._wifi_manager = wifimanager
         self.port = port
+        if is_ssl:
+            self.port = 8883
         self.user = user
         self._pass = password
-        self._client_id = client_id
+        if client_id is not None:
+            self._client_id = client_id
+        else: # randomize client identifier, prevent duplicate devices on broker
+            self._client_id = 'circuitpython-{0}'.format(int(microcontroller.cpu.temperature))
         self.server = server_address
-        self._is_ssl = is_ssl
         self.packet_id = 0
         self._keep_alive = 0
         self._cb = None
         self._lw_topic = None
         self._lw_msg = None
         self._lw_retain = False
-    
+        self._is_connected = False
+
+    def is_connected(self):
+        """Returns if there is an active MQTT connection."""
+        return self._is_connected
+
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session
@@ -80,17 +93,15 @@ class MQTT:
         #TODO: This might be approachable without passing in a socket
         if self._esp:
             self._socket.set_interface(self._esp)
-            conn_type = 2 # TCP Mode
             self._sock = self._socket.socket()
         else:
             raise TypeError('ESP32SPI interface required!')
-        #addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
-        #print(addr)
         self._sock.settimeout(10)
-        if self._is_ssl:
-            raise NotImplementedError('SSL not implemented yet!')
+        if self.port == 8883:
+            self._sock.connect((self.server, self.port), TLS_MODE)
         else:
-            self._sock.connect((self.server, self.port), conn_type)
+            addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
+            self._sock.connect(addr, TCP_MODE)
         premsg = bytearray(b"\x10\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
         msg[6] = clean_session << 1
@@ -126,8 +137,16 @@ class MQTT:
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] !=0:
             raise TypeError(resp[3]) #todo: make this a mqttexception
+        self._is_connected = True
         return resp[2] & 1
-    
+
+    def disconnect(self):
+        """Disconnects from the broker.
+        """
+        self._sock.write(b"\xe0\0")
+        self._sock.close()
+        self._is_connected = False
+
     def _send_str(self, string):
         """Packs a string into a struct. and writes it to a socket.
         :param str string: String to write to the socket.
