@@ -84,6 +84,18 @@ class MQTT:
         self._lw_msg = None
         self._lw_retain = False
         self._is_connected = False
+        self._pid = 0
+
+    def reconnect(self):
+        """Attempts to reconnect the MQTT client."""
+        attempts = 0
+        while 1: #TODO: switch this to better logic
+            try:
+                self.connect(False)
+            except OSError as e:
+                print('Unable to connect, reconnecting...')
+                i+=1
+                self.delay(i)
 
     def is_connected(self):
         """Returns if there is an active MQTT connection."""
@@ -162,19 +174,69 @@ class MQTT:
         """
         assert self._cb is not None, "Subscribe callback is not set - set one up before calling subscribe()."
         pkt = bytearray(b"\x82\0\0\0")
-        self.pid += 11
-        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self.pid)
+        self._pid += 11
+        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
         self._sock.write(pkt)
         self._send_str(topic)
-        self.sock.write(qos.to_bytes(1, "little"))
+        self._sock.write(qos.to_bytes(1, "little"))
         while 1:
             op = self.wait_msg()
             if op == 0x90:
-                resp = self.sock.read(4)
+                resp = self._sock.read(4)
                 assert resp[1] == pkt[2] and resp[2] == pkt[3]
                 if resp[3] == 0x80:
                     raise MQTTException(resp[3])
                 return
+
+    def wait_msg(self, timeout=0):
+        """Waits for and processes an incoming MQTT message.
+        :param int timeout: Socket timeout.
+        """
+        self._sock.settimeout(timeout)
+        res = self._sock.read(1)
+        if res in [None, b""]:
+            return None
+        if res == b"\xd0":  # PINGRESP
+            sz = self._sock.read(1)[0]
+            assert sz == 0
+            return None
+        op = res[0]
+        if op & 0xf0 != 0x30:
+            return op
+        sz = self._recv_len()
+        topic_len = self._sock.read(2)
+        topic_len = (topic_len[0] << 8) | topic_len[1]
+        topic = self._sock.read(topic_len)
+        sz -= topic_len + 2
+        if op & 6:
+            pid = self._sock.read(2)
+            pid = pid[0] << 8 | pid[1]
+            sz -= 2
+        msg = self._sock.read(sz)
+        self._cb(topic, msg)
+        if op & 6 == 2:
+            pkt = bytearray(b"\x40\x02\0\0")
+            struct.pack_into("!H", pkt, 2, pid)
+            self._sock.write(pkt)
+        elif op & 6 == 4:
+            assert 0
+
+    def _recv_len(self):
+        n = 0
+        sh = 0
+        while 1:
+            b = self._sock.read(1)[0]
+            n |= (b & 0x7f) << sh
+            if not b & 0x80:
+                return n
+            sh += 7
+
+    def set_callback(self, f):
+        """Sets a subscription callback function.
+        :param function f: User-defined function to receive a topic/message.
+        format: def function(topic, message)
+        """
+        self._cb = f
 
     def _send_str(self, string):
         """Packs a string into a struct. and writes it to a socket.
