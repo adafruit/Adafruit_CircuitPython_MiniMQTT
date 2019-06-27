@@ -53,6 +53,9 @@ __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 
+class MiniMQTTException(Exception):
+    pass
+
 class MQTT:
     """
     MQTT Client for CircuitPython.
@@ -91,8 +94,7 @@ class MQTT:
         :param bool clean_session: Establishes a persistent session
             with the broker. Defaults to a non-persistent session.
         """
-        #TODO: This might be approachable without passing in a socket
-        if self._esp:
+        if self._esp:   #TODO: This might be approachable without passing in a socket
             self._socket.set_interface(self._esp)
             self._sock = self._socket.socket()
         else:
@@ -147,6 +149,32 @@ class MQTT:
         self._sock.write(b"\xe0\0")
         self._sock.close()
         self._is_connected = False
+
+    def ping(self):
+        """Pings the broker.
+        """
+        self._sock.write(b"\xc0\0")
+    
+    def subscribe(self, topic, qos=0):
+        """Sends a subscribe message to the broker.
+        :param str topic: Unique topic subscription identifier.
+        :param int qos: QoS level for the topic.
+        """
+        assert self._cb is not None, "Subscribe callback is not set - set one up before calling subscribe()."
+        pkt = bytearray(b"\x82\0\0\0")
+        self.pid += 11
+        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self.pid)
+        self._sock.write(pkt)
+        self._send_str(topic)
+        self.sock.write(qos.to_bytes(1, "little"))
+        while 1:
+            op = self.wait_msg()
+            if op == 0x90:
+                resp = self.sock.read(4)
+                assert resp[1] == pkt[2] and resp[2] == pkt[3]
+                if resp[3] == 0x80:
+                    raise MQTTException(resp[3])
+                return
 
     def _send_str(self, string):
         """Packs a string into a struct. and writes it to a socket.
