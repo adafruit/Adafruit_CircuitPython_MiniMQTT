@@ -185,11 +185,55 @@ class MQTT:
         """Pings the broker.
         """
         self._sock.write(b"\xc0\0")
-    
+
+
+    def publish(self, topic, msg, retain=False, qos=0):
+        """Publishes a message to the MQTT broker.
+        :param str topic: Unique topic identifier.
+        :param str msg: Data to send to the broker.
+        :param bool retain: Whether the message is saved by the broker.
+        :param int qos: Quality of Service level for the message.
+        """
+        pkt = bytearray(b"\x30\0")
+        pkt[0] |= qos << 1 | retain
+        sz = 2 + len(topic) + len(msg)
+        if qos > 0:
+            sz += 2
+        assert sz < 2097152
+        i = 1
+        while sz > 0x7f:
+            pkt[i] = (sz & 0x7f) | 0x80
+            sz >>= 7
+            i += 1
+        pkt[i] = sz
+        self._sock.write(pkt)
+        self._send_str(topic)
+        if qos > 0:
+            self.pid += 1
+            pid = self.pid
+            struct.pack_into("!H", pkt, 0, pid)
+            self._sock.write(pkt)
+        if type(msg) == str:
+            msg = str.encode(msg, 'utf-8')
+        self._sock.write(msg)
+        if qos == 1:
+            while 1:
+                op = self.wait_msg()
+                if op == 0x40:
+                    sz = self._sock.read(1)
+                    assert sz == b"\x02"
+                    rcv_pid = self._sock.read(2)
+                    rcv_pid = rcv_pid[0] << 8 | rcv_pid[1]
+                    if pid == rcv_pid:
+                        return
+        elif qos == 2:
+            assert 0 
+
+
     def subscribe(self, topic, qos=0):
-        """Sends a subscribe message to the broker.
-        :param str topic: Unique topic subscription identifier.
-        :param int qos: QoS level for the topic.
+        """Sends a subscribe message to the MQTT broker.
+        :param str topic: Unique topic identifier.
+        :param int qos: Quality of Service level for the topic.
         """
         assert self._cb is not None, "Subscribe callback is not set - set one up before calling subscribe()."
         pkt = bytearray(b"\x82\0\0\0")
