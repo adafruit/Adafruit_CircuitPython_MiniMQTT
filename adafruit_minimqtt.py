@@ -85,6 +85,7 @@ class MQTT:
         self._lw_retain = False
         self._is_connected = False
         self._pid = 0
+        self._sub_callbacks = 0
 
     def reconnect(self):
         """Attempts to reconnect to the MQTT broker."""
@@ -212,11 +213,17 @@ class MQTT:
         elif qos == 2:
             assert 0
 
-    def subscribe(self, topic, qos=0):
+    def subscribe(self, topic, qos=0, callback_method = None):
         """Sends a subscribe message to the MQTT broker.
         :param str topic: Unique topic identifier.
         :param int qos: Quality of Service level for the topic.
+        :param method callback_method: User-defined callback method to attach
+            the subscription feed to.
         """
+        # TODO: Implement a dictionary which holds the callback_method with the topic
+        # identifier 
+        if callback_method is not None:
+            self._sub_callbacks[len(self._sub_callbacks)+1] = callback_method
         assert self._cb is not None, "Subscribe callback is not set - set one up before calling subscribe()."
         pkt = bytearray(b"\x82\0\0\0")
         self._pid += 11
@@ -258,6 +265,7 @@ class MQTT:
             pid = pid[0] << 8 | pid[1]
             sz -= 2
         msg = self._sock.read(sz)
+        # TODO: send to the correct callback method via the topic ID
         self._cb(topic, msg)
         if op & 6 == 2:
             pkt = bytearray(b"\x40\x02\0\0")
@@ -278,11 +286,15 @@ class MQTT:
             sh += 7
 
     def rcv_msg(self, topic, msg):
+        """Default callback method if one is not externally defined.
+        :param string topic: MQTT Topic.
+        :param string msg: MQTT message content.
+        """
         print('new message on {0}\n'.format(topic))
         print(msg)
 
-    def set_callback(self, function):
-        """Sets a subscription callback function.
+    def on_message(self, function):
+        """Defines a function which is executed 
         :param function function: User-defined function to receive a topic/message.
         format: def function(topic, message)
         """
