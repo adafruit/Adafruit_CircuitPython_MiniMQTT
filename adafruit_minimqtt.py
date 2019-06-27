@@ -46,6 +46,7 @@ Implementation Notes
 import time
 import struct
 from micropython import const
+from random import randint
 import microcontroller
 
 __version__ = "0.0.0-auto.0"
@@ -71,7 +72,7 @@ class MQTT:
         if client_id is not None:
             self._client_id = client_id
         else: # randomize client identifier, prevent duplicate devices on broker
-            self._client_id = 'circuitpython-{0}'.format(int(microcontroller.cpu.temperature))
+            self._client_id = 'cpy-{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)], randint(0, 9))
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
