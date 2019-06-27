@@ -87,15 +87,34 @@ class MQTT:
         self._pid = 0
 
     def reconnect(self):
-        """Attempts to reconnect the MQTT client."""
-        attempts = 0
-        while 1: #TODO: switch this to better logic
+        """Attempts to reconnect to the MQTT broker."""
+        failure_count = 0
+        while not self._is_connected:
             try:
                 self.connect(False)
             except OSError as e:
-                print('Unable to connect, reconnecting...')
-                i+=1
-                self.delay(i)
+                print('Failed to connect to the broker, retrying\n', e)
+                failure_count+=1
+                if failure_count >= 30:
+                    failure_count = 0
+                    self._wifi_manager.reset()
+                continue
+
+        while not self._esp.is_connected:
+            try:
+                if self.debug:
+                    print("Connecting to AP...")
+                self.pixel_status((100, 0, 0))
+                self._esp.connect_AP(bytes(self.ssid, 'utf-8'), bytes(self.password, 'utf-8'))
+                failure_count = 0
+                self.pixel_status((0, 100, 0))
+            except (ValueError, RuntimeError) as error:
+                print("Failed to connect, retrying\n", error)
+                failure_count += 1
+                if failure_count >= self.attempts:
+                    failure_count = 0
+                    self.reset()
+                continue
 
     def is_connected(self):
         """Returns if there is an active MQTT connection."""
