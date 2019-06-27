@@ -100,22 +100,6 @@ class MQTT:
                     self._wifi_manager.reset()
                 continue
 
-        while not self._esp.is_connected:
-            try:
-                if self.debug:
-                    print("Connecting to AP...")
-                self.pixel_status((100, 0, 0))
-                self._esp.connect_AP(bytes(self.ssid, 'utf-8'), bytes(self.password, 'utf-8'))
-                failure_count = 0
-                self.pixel_status((0, 100, 0))
-            except (ValueError, RuntimeError) as error:
-                print("Failed to connect, retrying\n", error)
-                failure_count += 1
-                if failure_count >= self.attempts:
-                    failure_count = 0
-                    self.reset()
-                continue
-
     def is_connected(self):
         """Returns if there is an active MQTT connection."""
         return self._is_connected
@@ -170,7 +154,7 @@ class MQTT:
         resp = self._sock.read(4)
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] !=0:
-            raise TypeError(resp[3]) #todo: make this a mqttexception
+            raise MiniMQTTException(resp[3])
         self._is_connected = True
         return resp[2] & 1
 
@@ -185,7 +169,6 @@ class MQTT:
         """Pings the broker.
         """
         self._sock.write(b"\xc0\0")
-
 
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to the MQTT broker.
@@ -227,8 +210,7 @@ class MQTT:
                     if pid == rcv_pid:
                         return
         elif qos == 2:
-            assert 0 
-
+            assert 0
 
     def subscribe(self, topic, qos=0):
         """Sends a subscribe message to the MQTT broker.
@@ -285,6 +267,7 @@ class MQTT:
             assert 0
 
     def _recv_len(self):
+        """Receives the size of the topic length."""
         n = 0
         sh = 0
         while 1:
@@ -294,12 +277,16 @@ class MQTT:
                 return n
             sh += 7
 
-    def set_callback(self, f):
+    def rcv_msg(self, topic, msg):
+        print('new message on {0}\n'.format(topic))
+        print(msg)
+
+    def set_callback(self, function):
         """Sets a subscription callback function.
-        :param function f: User-defined function to receive a topic/message.
+        :param function function: User-defined function to receive a topic/message.
         format: def function(topic, message)
         """
-        self._cb = f
+        self._cb = function
 
     def _send_str(self, string):
         """Packs a string into a struct. and writes it to a socket.
