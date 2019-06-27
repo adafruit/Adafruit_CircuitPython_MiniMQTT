@@ -81,9 +81,38 @@ class MQTT:
         :param bool clean_session: Establishes a persistent session
             with the broker. Defaults to a non-persistent session.
         """
-        # get a socket
+        #TODO: This might be approachable without passing in a socket
         if self._esp:
             self._socket.set_interface(self._esp)
-
-
-
+            conn_type = 0 # TCP Mode
+            self._sock = self._socket.socket()
+        else:
+            raise TypeError('ESP32SPI interface required!')
+        addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
+        print(addr)
+        self._sock.settimeout(10)
+        if self._is_ssl:
+            raise NotImplementedError('SSL not implemented yet!')
+        else:
+            self._sock.connect(addr, conn_type)
+        premsg = bytearray(b"\x10\0\0")
+        msg = bytearray(b"\x04MQTT\x04\x02\0\0")
+        msg[6] = clean_session << 1
+        sz = 10 + 2 + len(self._client_id)
+        if self.user is not None:
+            sz += 2 + len(self.user) + 2 + len(self._pass)
+            msg[6] |= 0xC0
+        if self._keep_alive:
+            assert self._keep_alive < 65536
+            msg[7] |= self._keep_alive >> 8
+            msg[8] |= self._keep_alive & 0x00FF
+        if self._lw_topic:
+            sz += 2 + len(self._lw_topic) + 2 + len(self._lw_msg)
+            msg[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
+            msg[6] |= self._lw_retain << 5
+        i = 1
+        while sz > 0x7f:
+            premsg[i] = (sz & 0x7f) | 0x80
+            sz >>= 7
+            i += 1
+        premsg[i] = sz
