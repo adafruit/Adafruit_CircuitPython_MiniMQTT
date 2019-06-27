@@ -59,10 +59,6 @@ class MQTT:
         self._esp = esp
         self._socket = socket
         self._wifi_manager = wifimanager
-        if port == 0 and ssl:
-            port = 8883
-        else:
-            port = 1883
         self.port = port
         self.user = user
         self._pass = password
@@ -84,17 +80,17 @@ class MQTT:
         #TODO: This might be approachable without passing in a socket
         if self._esp:
             self._socket.set_interface(self._esp)
-            conn_type = 0 # TCP Mode
+            conn_type = 2 # TCP Mode
             self._sock = self._socket.socket()
         else:
             raise TypeError('ESP32SPI interface required!')
-        addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
-        print(addr)
+        #addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
+        #print(addr)
         self._sock.settimeout(10)
         if self._is_ssl:
             raise NotImplementedError('SSL not implemented yet!')
         else:
-            self._sock.connect(addr, conn_type)
+            self._sock.connect((self.server, self.port), conn_type)
         premsg = bytearray(b"\x10\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
         msg[6] = clean_session << 1
@@ -116,3 +112,28 @@ class MQTT:
             sz >>= 7
             i += 1
         premsg[i] = sz
+
+        self._sock.write(premsg)
+        self._sock.write(msg)
+        self._send_str(self._client_id)
+        if self._lw_topic:
+            self._send_str(self._lw_topic)
+            self._send_str(self._lw_msg)
+        if self.user is not None:
+            self._send_str(self.user)
+            self._send_str(self._pass)
+        resp = self._sock.read(4)
+        assert resp[0] == 0x20 and resp[1] == 0x02
+        if resp[3] !=0:
+            raise TypeError(resp[3]) #todo: make this a mqttexception
+        return resp[2] & 1
+    
+    def _send_str(self, string):
+        """Packs a string into a struct. and writes it to a socket.
+        :param str string: String to write to the socket.
+        """
+        self._sock.write(struct.pack("!H", len(string)))
+        if type(string) == str:
+            self._sock.write(str.encode(string, 'utf-8'))
+        else:
+            self._sock.write(string)
