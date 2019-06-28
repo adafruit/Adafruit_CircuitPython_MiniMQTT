@@ -53,6 +53,10 @@ __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 
+# length of maximum mqtt message
+MQTT_MSG_MAX_SZ = const(268435455)
+MQTT_TOPIC_SZ_LIMIT = const(65536)
+
 # MQTT Connection Errors
 MQTT_ERR_INCORRECT_SERVER = const(3)
 
@@ -97,6 +101,7 @@ class MQTT:
         self._lw_retain = False
         self._is_connected = False
         self._pid = 0
+        self._msg_size_lim = const(10000000)
 
     def reconnect(self):
         """Attempts to reconnect to the MQTT broker."""
@@ -189,6 +194,20 @@ class MQTT:
         """
         self._sock.write(b"\xc0\0")
 
+
+    @property
+    def mqtt_msg(self):
+        """Returns maximum MQTT payload and topic size."""
+        return self._msg_size_lim, MQTT_TOPIC_SZ_LIMIT
+
+    @mqtt_msg.setter
+    def mqtt_msg(self, msg_size):
+        """Sets the maximum MQTT message payload size.
+        :param int msg_size: Maximum MQTT payload size.
+        """
+        if msg_size < MQTT_MSG_MAX_SZ:
+            self.__msg_size_lim = msg_size
+
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to the MQTT broker.
         :param str topic: Unique topic identifier.
@@ -200,7 +219,7 @@ class MQTT:
         if qos < 0 or qos > 2:
             raise MQTTException('QoS must be between 0 and 2.')
         # TODO: Message type conversions
-        if len(msg) > 268435455: #TODO: repl with user-defined 
+        if len(msg) > MQTT_MSG_SZ_LIMIT:
             raise MQTTException('Message is larger than MQTT_MSG_SZ_LIMIT.')
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
