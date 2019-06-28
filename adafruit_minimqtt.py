@@ -79,13 +79,14 @@ class MQTT:
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
-        self._cb = None
+        #self._cb = None
+        self._callback_methods = dict()
+        #self._callback_methods = {}
         self._lw_topic = None
         self._lw_msg = None
         self._lw_retain = False
         self._is_connected = False
         self._pid = 0
-        self._sub_callbacks = 0
 
     def reconnect(self):
         """Attempts to reconnect to the MQTT broker."""
@@ -213,18 +214,19 @@ class MQTT:
         elif qos == 2:
             assert 0
 
-    def subscribe(self, topic, qos=0, callback_method = None):
+    def subscribe(self, topic, callback_method=None, qos=0):
         """Sends a subscribe message to the MQTT broker.
         :param str topic: Unique topic identifier.
+        :param method callback_method: Callback method for subscription topic. Defaults to default_sub_callback if None.
         :param int qos: Quality of Service level for the topic.
-        :param method callback_method: User-defined callback method to attach
-            the subscription feed to.
         """
-        # TODO: Implement a dictionary which holds the callback_method with the topic
-        # identifier 
-        if callback_method is not None:
-            self._sub_callbacks[len(self._sub_callbacks)+1] = callback_method
-        assert self._cb is not None, "Subscribe callback is not set - set one up before calling subscribe()."
+        if callback_method is None:
+            print('setting default callback method...')
+            #self._callback_methods.update[{'i': 2}]
+            self._callback_methods.update( {topic : self.default_sub_callback} )
+            print('cb methods: ', self._callback_methods)
+        else:
+            self._callback_methods.update({topic, custom_callback_method})
         pkt = bytearray(b"\x82\0\0\0")
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
@@ -265,8 +267,10 @@ class MQTT:
             pid = pid[0] << 8 | pid[1]
             sz -= 2
         msg = self._sock.read(sz)
-        # TODO: send to the correct callback method via the topic ID
-        self._cb(topic, msg)
+        # call the topic's callback method
+        print('TOPIC: ', topic)
+        if topic in self._callback_methods:
+            print('topic found: ', topic)
         if op & 6 == 2:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
@@ -286,19 +290,15 @@ class MQTT:
             sh += 7
 
     def rcv_msg(self, topic, msg):
-        """Default callback method if one is not externally defined.
-        :param string topic: MQTT Topic.
-        :param string msg: MQTT message content.
-        """
         print('new message on {0}\n'.format(topic))
         print(msg)
 
-    def on_message(self, function):
-        """Defines a function which is executed 
-        :param function function: User-defined function to receive a topic/message.
-        format: def function(topic, message)
+    def default_sub_callback(self, topic, msg):
+        """Default feed subscription callback method.
+        :param str topic: Subscription topic.
+        :param str msg: Payload content.
         """
-        self._cb = function
+        print('New message on {0}: {1}\n'.format(topic, msg))
 
     def _send_str(self, string):
         """Packs a string into a struct. and writes it to a socket.
