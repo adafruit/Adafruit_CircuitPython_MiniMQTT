@@ -138,6 +138,7 @@ class MQTT:
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
                 self.handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
+
         premsg = bytearray(b"\x10\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
         msg[6] = clean_session << 1
@@ -195,6 +196,12 @@ class MQTT:
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message.
         """
+        # TODO: handle if MQTT topic is a wild card, we cant publish!
+        if qos < 0 or qos > 2:
+            raise MQTTException('QoS must be between 0 and 2.')
+        # TODO: Message type conversions
+        if len(msg) > 268435455: #TODO: repl with user-defined 
+            raise MQTTException('Message is larger than MQTT_MSG_SZ_LIMIT.')
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
