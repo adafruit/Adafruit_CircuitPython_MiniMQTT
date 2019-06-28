@@ -57,6 +57,16 @@ MQTT_TOPIC_SZ_LIMIT = const(65536)
 MQTT_ERR_INCORRECT_SERVER = const(3)
 MQTT_ERR_INVALID = const(4)
 
+# MQTT Spec. Commands
+MQTT_TLS_PORT = const(8883)
+MQTT_TCP_PORT = const(1883)
+MQTT_PINGRESP = b'\xd0'
+MQTT_SUB_PKT_TYPE = bytearray(b'\x82\0\0\0')
+MQTT_DISCONNECT = b'\xe0\0'
+MQTT_PING_REQ = b'\xc0\0'
+MQTT_CON_PREMSG = bytearray(b"\x10\0\0") 
+MQTT_CON_MSG = bytearray(b"\x04MQTT\x04\x02\0\0")
+
 def handle_mqtt_error(mqtt_err):
     """Returns string associated with MQTT error number.
     :param int mqtt_err: MQTT error number.
@@ -74,45 +84,57 @@ class MiniMQTTException(Exception):
 class MQTT:
     """
     MQTT Client for CircuitPython.
+    :param esp: ESP32SPI object.
+    :param socket: ESP32SPI Socket object.
+    :param wifimanager: WiFiManager object.
+    :param str server_address: Server URL or IP Address.
+    :param int port: Optional port definition, defaults to 8883.
+    :param str user: Username for broker authentication.
+    :param str password: Password for broker authentication.
+    :param str client_id: Optional client identifier, defaults to a randomly generated id.
+    :param bool is_ssl: Enables TCP mode if false (port 1883). Defaults to True (port 8883).
     """
     TCP_MODE = const(0)
     TLS_MODE = const(2)
-    def __init__(self, esp, socket, wifimanager, server_address, port=1883, user=None,
-                    password = None, client_id=None, is_ssl=False):
+    def __init__(self, esp, socket, wifimanager, server_address, port=8883, user=None,
+                    password = None, client_id=None, is_ssl=True):
         self._esp = esp
         self._socket = socket
         self._wifi_manager = wifimanager
         self.port = port
-        if is_ssl:
-            self.port = 8883
+        if not is_ssl:
+            self.port = MQTT_TCP_PORT
         self.user = user
         self._pass = password
         if client_id is not None:
             self._client_id = client_id
-        else: # randomize client identifier, prevent duplicate devices on broker
+        else: # randomize client identifier, prevents duplicate devices on broker
             self._client_id = 'cpy-{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)], randint(0, 9))
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
-        self._handler_methods = {}
         self._lw_topic = None
         self._lw_msg = None
         self._lw_retain = False
         self._is_connected = False
         self._pid = 0
+        # subscription method handler dictionary
+        self._handler_methods = {}
         self._msg_size_lim = const(10000000)
 
-    def reconnect(self):
-        """Attempts to reconnect to the MQTT broker."""
-        failure_count = 0
+    def reconnect(self, retries=30):
+        """Attempts to reconnect to the MQTT broker.
+        :param int retries: Amount of retries before resetting the ESP32 hardware.
+        """
+        retries = 0
         while not self._is_connected:
             try:
                 self.connect(False)
             except OSError as e:
                 print('Failed to connect to the broker, retrying\n', e)
-                failure_count+=1
-                if failure_count >= 30:
-                    failure_count = 0
+                retries+=1
+                if retries >= 30:
+                    retries = 0
                     self._wifi_manager.reset()
                 continue
 
@@ -143,15 +165,15 @@ class MQTT:
             except RuntimeError:
                 self.handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
 
-        premsg = bytearray(b"\x10\0\0")
-        msg = bytearray(b"\x04MQTT\x04\x02\0\0")
+        premsg = MQTT_CON_PREMSG
+        msg = MQTT_CON_MSG
         msg[6] = clean_session << 1
-        sz = 10 + 2 + len(self._client_id)
+        sz = 12 + len(self._client_id)
         if self.user is not None:
             sz += 2 + len(self.user) + 2 + len(self._pass)
             msg[6] |= 0xC0
         if self._keep_alive:
-            assert self._keep_alive < 65536
+            assert self._keep_alive < MQTT_TOPIC_SZ_LIMIT
             msg[7] |= self._keep_alive >> 8
             msg[8] |= self._keep_alive & 0x00FF
         if self._lw_topic:
@@ -184,15 +206,14 @@ class MQTT:
     def disconnect(self):
         """Disconnects from the broker.
         """
-        self._sock.write(b"\xe0\0")
+        self._sock.write(MQTT_DISCONNECT)
         self._sock.close()
         self._is_connected = False
 
     def ping(self):
         """Pings the broker.
         """
-        self._sock.write(b"\xc0\0")
-
+        self._sock.write(MQTT_PING_REQ)
 
     @property
     def mqtt_msg(self):
@@ -215,22 +236,24 @@ class MQTT:
         :param int qos: Quality of Service level for the message.
         """
         # check topic kwarg
-        if topic is None or len(topic) == 0:
+        topic_str = str(topic).encode('utf-8')
+        if topic_str is None or len(topic_str) == 0:
             raise MQTTException('Invalid topic.')
-        if b'+' in topic or b'#' in topic:
+        if b'+' in topic_str or b'#' in topic_str:
             raise MQTTException('Topic can not contain wildcards.')
-        # check msg/qos args
-        if len(msg) > MQTT_MSG_SZ_LIMIT:
-            raise MQTTException('Message size larger than %db.'%MQTT_MSG_SZ_LIMIT)
-        if qos < 0 or qos > 2:
-            raise MQTTException('Invalid QoS, must be between 0 and 2.')
-        # msg kwarg type conversions
+        # check msg/qos kwargs
         if msg is None:
             raise MQTTException('Message can not be None.')
         elif isinstance(msg, (int, float)):
             msg = str(msg).encode('ascii')
-        elif isinstance(msg, unicode):
+        elif isinstance(msg, str):
             msg = str(msg).encode('utf-8')
+        else:
+            raise MQTTException('Invalid message data type.')
+        if len(msg) > MQTT_MSG_MAX_SZ:
+            raise MQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
+        if qos < 0 or qos > 2:
+            raise MQTTException('Invalid QoS, must be between 0 and 2.')
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
@@ -239,7 +262,7 @@ class MQTT:
         assert sz < 2097152
         i = 1
         while sz > 0x7f:
-            pkt[i] = (sz & 0x7f) | 0x80
+            pkt[i] = (sz & 0x7f) | const(0x80)
             sz >>= 7
             i += 1
         pkt[i] = sz
@@ -250,13 +273,11 @@ class MQTT:
             pid = self.pid
             struct.pack_into("!H", pkt, 0, pid)
             self._sock.write(pkt)
-        if type(msg) == str:
-            msg = str.encode(msg, 'utf-8')
         self._sock.write(msg)
         if qos == 1:
             while 1:
                 op = self.wait_msg()
-                if op == 0x40:
+                if op == const(0x40):
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
                     rcv_pid = self._sock.read(2)
@@ -276,7 +297,7 @@ class MQTT:
             self._handler_methods.update( {topic : self.default_sub_handler} )
         else:
             self._handler_methods.update( {topic : custom_handler_method} )
-        pkt = bytearray(b"\x82\0\0\0")
+        pkt = MQTT_SUB_PKT_TYPE
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
         self._sock.write(pkt)
@@ -299,7 +320,7 @@ class MQTT:
         res = self._sock.read(1)
         if res in [None, b""]:
             return None
-        if res == b"\xd0":  # PINGRESP
+        if res == MQTT_PINGRESP:
             sz = self._sock.read(1)[0]
             assert sz == 0
             return None
@@ -310,6 +331,7 @@ class MQTT:
         topic_len = self._sock.read(2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
         topic = self._sock.read(topic_len)
+        topic = str(topic, 'utf-8')
         sz -= topic_len + 2
         if op & 6:
             pid = self._sock.read(2)
@@ -317,9 +339,9 @@ class MQTT:
             sz -= 2
         msg = self._sock.read(sz)
         # call the topic's handler method
-        if str(topic, 'utf-8') in self._handler_methods:
-            handler_method = self._handler_methods[str(topic, 'utf-8')]
-            handler_method(str(topic, 'utf-8'), str(topic, 'utf-8'))
+        if topic in self._handler_methods:
+            handler_method = self._handler_methods[topic]
+            handler_method(topic, str(msg, 'utf-8'))
         if op & 6 == 2:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
@@ -343,6 +365,7 @@ class MQTT:
         :param str topic: Subscription topic.
         :param str msg: Payload content.
         """
+        print(msg)
         print('New message on {0}: {1}'.format(topic, msg))
 
     def _send_str(self, string):
