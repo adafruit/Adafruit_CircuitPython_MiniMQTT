@@ -79,9 +79,7 @@ class MQTT:
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
-        #self._cb = None
-        self._callback_methods = dict()
-        #self._callback_methods = {}
+        self._callback_methods = {}
         self._lw_topic = None
         self._lw_msg = None
         self._lw_retain = False
@@ -221,12 +219,9 @@ class MQTT:
         :param int qos: Quality of Service level for the topic.
         """
         if callback_method is None:
-            print('setting default callback method...')
-            #self._callback_methods.update[{'i': 2}]
             self._callback_methods.update( {topic : self.default_sub_callback} )
-            print('cb methods: ', self._callback_methods)
         else:
-            self._callback_methods.update({topic, custom_callback_method})
+            self._callback_methods.update( {topic : custom_callback_method} )
         pkt = bytearray(b"\x82\0\0\0")
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
@@ -268,9 +263,10 @@ class MQTT:
             sz -= 2
         msg = self._sock.read(sz)
         # call the topic's callback method
-        print('TOPIC: ', topic)
-        if topic in self._callback_methods:
-            print('topic found: ', topic)
+        #topic = str(topic, 'utf-8')
+        if str(topic, 'utf-8') in self._callback_methods:
+            callback_method = self._callback_methods[str(topic, 'utf-8')]
+            callback_method(str(topic, 'utf-8'), str(topic, 'utf-8'))
         if op & 6 == 2:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
@@ -288,10 +284,6 @@ class MQTT:
             if not b & 0x80:
                 return n
             sh += 7
-
-    def rcv_msg(self, topic, msg):
-        print('new message on {0}\n'.format(topic))
-        print(msg)
 
     def default_sub_callback(self, topic, msg):
         """Default feed subscription callback method.
