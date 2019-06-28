@@ -26,8 +26,7 @@
 `adafruit_minimqtt`
 ================================================================================
 
-MQTT client library for CircuitPython
-
+MQTT Library for CircuitPython.
 
 * Author(s): Brent Rubell
 
@@ -39,9 +38,6 @@ Implementation Notes
 * Adafruit CircuitPython firmware for the supported boards:
   https://github.com/adafruit/circuitpython/releases
 
-.. todo:: Uncomment or remove the Bus Device and/or the Register library dependencies based on the library's use of either.
-
-* Adafruit's ESP32SPI library: https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/
 """
 import time
 import struct
@@ -59,6 +55,7 @@ MQTT_TOPIC_SZ_LIMIT = const(65536)
 
 # MQTT Connection Errors
 MQTT_ERR_INCORRECT_SERVER = const(3)
+MQTT_ERR_INVALID = const(4)
 
 def handle_mqtt_error(mqtt_err):
     """Returns string associated with MQTT error number.
@@ -66,6 +63,8 @@ def handle_mqtt_error(mqtt_err):
     """
     if mqtt_err == MQTT_ERR_INCORRECT_SERVER:
         raise MiniMQTTException("Invalid server address defined.")
+    elif mqtt_err == MQTT_ERR_INVALID:
+        raise MiniMQTTException("Invalid method arguments provided.")
     else:
         raise MiniMQTTException("Unknown error!")
 
@@ -215,12 +214,23 @@ class MQTT:
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message.
         """
-        # TODO: handle if MQTT topic is a wild card, we cant publish!
-        if qos < 0 or qos > 2:
-            raise MQTTException('QoS must be between 0 and 2.')
-        # TODO: Message type conversions
+        # check topic kwarg
+        if topic is None or len(topic) == 0:
+            raise MQTTException('Invalid topic.')
+        if b'+' in topic or b'#' in topic:
+            raise MQTTException('Topic can not contain wildcards.')
+        # check msg/qos args
         if len(msg) > MQTT_MSG_SZ_LIMIT:
-            raise MQTTException('Message is larger than MQTT_MSG_SZ_LIMIT.')
+            raise MQTTException('Message size larger than %db.'%MQTT_MSG_SZ_LIMIT)
+        if qos < 0 or qos > 2:
+            raise MQTTException('Invalid QoS, must be between 0 and 2.')
+        # msg kwarg type conversions
+        if msg is None:
+            raise MQTTException('Message can not be None.')
+        elif isinstance(msg, (int, float)):
+            msg = str(msg).encode('ascii')
+        elif isinstance(msg, unicode):
+            msg = str(msg).encode('utf-8')
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
