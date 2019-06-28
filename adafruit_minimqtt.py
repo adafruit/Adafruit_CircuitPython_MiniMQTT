@@ -53,6 +53,18 @@ __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 
+# MQTT Connection Errors
+MQTT_ERR_INCORRECT_SERVER = const(3)
+
+def handle_mqtt_error(mqtt_err):
+    """Returns string associated with MQTT error number.
+    :param int mqtt_err: MQTT error number.
+    """
+    if mqtt_err == MQTT_ERR_INCORRECT_SERVER:
+        raise MiniMQTTException("Invalid server address defined.")
+    else:
+        raise MiniMQTTException("Unknown error!")
+
 class MiniMQTTException(Exception):
     pass
 
@@ -79,7 +91,7 @@ class MQTT:
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
-        self._callback_methods = {}
+        self._handler_methods = {}
         self._lw_topic = None
         self._lw_msg = None
         self._lw_retain = False
@@ -116,10 +128,16 @@ class MQTT:
             raise TypeError('ESP32SPI interface required!')
         self._sock.settimeout(10)
         if self.port == 8883:
-            self._sock.connect((self.server, self.port), TLS_MODE)
+            try:
+                self._sock.connect((self.server, self.port), TLS_MODE)
+            except RuntimeError:
+                handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
         else:
             addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
-            self._sock.connect(addr, TCP_MODE)
+            try:
+                self._sock.connect(addr, TCP_MODE)
+            except RuntimeError:
+                self.handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
         premsg = bytearray(b"\x10\0\0")
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
         msg[6] = clean_session << 1
@@ -212,16 +230,16 @@ class MQTT:
         elif qos == 2:
             assert 0
 
-    def subscribe(self, topic, callback_method=None, qos=0):
+    def subscribe(self, topic, handler_method=None, qos=0):
         """Sends a subscribe message to the MQTT broker.
         :param str topic: Unique topic identifier.
-        :param method callback_method: Callback method for subscription topic. Defaults to default_sub_callback if None.
+        :param method handler_method: handler method for subscription topic. Defaults to default_sub_handler if None.
         :param int qos: Quality of Service level for the topic.
         """
-        if callback_method is None:
-            self._callback_methods.update( {topic : self.default_sub_callback} )
+        if handler_method is None:
+            self._handler_methods.update( {topic : self.default_sub_handler} )
         else:
-            self._callback_methods.update( {topic : custom_callback_method} )
+            self._handler_methods.update( {topic : custom_handler_method} )
         pkt = bytearray(b"\x82\0\0\0")
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
@@ -262,11 +280,10 @@ class MQTT:
             pid = pid[0] << 8 | pid[1]
             sz -= 2
         msg = self._sock.read(sz)
-        # call the topic's callback method
-        #topic = str(topic, 'utf-8')
-        if str(topic, 'utf-8') in self._callback_methods:
-            callback_method = self._callback_methods[str(topic, 'utf-8')]
-            callback_method(str(topic, 'utf-8'), str(topic, 'utf-8'))
+        # call the topic's handler method
+        if str(topic, 'utf-8') in self._handler_methods:
+            handler_method = self._handler_methods[str(topic, 'utf-8')]
+            handler_method(str(topic, 'utf-8'), str(topic, 'utf-8'))
         if op & 6 == 2:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
@@ -285,12 +302,12 @@ class MQTT:
                 return n
             sh += 7
 
-    def default_sub_callback(self, topic, msg):
-        """Default feed subscription callback method.
+    def default_sub_handler(self, topic, msg):
+        """Default feed subscription handler method.
         :param str topic: Subscription topic.
         :param str msg: Payload content.
         """
-        print('New message on {0}: {1}\n'.format(topic, msg))
+        print('New message on {0}: {1}'.format(topic, msg))
 
     def _send_str(self, string):
         """Packs a string into a struct. and writes it to a socket.
