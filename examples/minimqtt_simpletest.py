@@ -46,7 +46,7 @@ status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment 
 wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
 
 # Instanciate a MQTT Client
-mqtt_client = MQTT(esp, socket, wifi, secrets['aio_url']
+mqtt_client = MQTT(esp, socket, wifi, secrets['aio_url'],
                     user=secrets['aio_user'], password=secrets['aio_password'],
                     is_ssl = True)
 
@@ -60,19 +60,18 @@ while not esp.is_connected:
 print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
 print("My IP address is", esp.pretty_ip(esp.ip_address))
 
-# Set up MQTT Client callback
-# TODO: We could probably make this a kwarg...
-mqtt_client.set_callback(mqtt_client.rcv_msg)
 print('Connecting to {0}:{1}...'.format(mqtt_client.server, mqtt_client.port))
+
+# Connect MQTT Client
 mqtt_client.connect()
 
-# MQTT Feed (Adafruit IO Format!)
-mqtt_feed = "brubell/feeds/temperature"
+# Subscribe to MQTT feed
+print('Subscribing to feed')
+mqtt_client.subscribe('brubell/feeds/temperature')
 
-print('Listening for a message on {0}...'.format(mqtt_feed))
-mqtt_client.subscribe(mqtt_feed)
 while True:
-    print('Publishing a message...')
-    mqtt_client.publish(mqtt_feed, '42')
+    print('Publishing msg to feed')
+    mqtt_client.publish('brubell/feeds/temperature', "cat")
+    print('Listening for msg...')
     mqtt_client.wait_msg()
-    time.sleep(0.5)
+    time.sleep(5)
