@@ -382,15 +382,20 @@ class MQTT:
                     raise MQTTException(resp[3])
                 return
 
-    # TODO: Implement unsubscibe
+    def unsubscribe(self, topic):
+        """Unsubscribes the MQTT client from the MQTT Broker.
+        :param str topic: MQTT subscription topic.
+        """
+        if not topic in self._handler_methods:
+            raise MiniMQTTException('Can not unsubscribe - topic was not subscribed to.')
 
-    def wait_for_msg(self, timeout = 1.0):
+
+    def wait_for_msg(self, blocking=True):
         """Waits for and processes network events.
+        :param bool blocking: Set the blocking or non-blocking mode of the socket.
         :param float timeout: The time in seconds to wait for network traffic before returning.
         """
-        if timeout < 0.0:
-            raise ValueError('timeout must be > 0.0 seconds.')
-        self._sock.settimeout(timeout)
+        self._sock.settimeout(0.0)
         res = self._sock.read(1)
         if res in [None, b""]:
             return None
@@ -422,6 +427,11 @@ class MQTT:
             self._sock.write(pkt)
         elif op & 6 == 4:
             assert 0
+    
+    def check_msg(self):
+        """Non-blocking version of wait_for_msg
+        """
+        return self.wait_for_msg(False)
 
     def _recv_len(self):
         """Receives the size of the topic length."""
