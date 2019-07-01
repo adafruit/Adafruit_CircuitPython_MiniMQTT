@@ -78,6 +78,10 @@ def handle_mqtt_error(mqtt_err):
         raise MiniMQTTException("Invalid method arguments provided.")
     elif mqtt_err == MQTT_ERR_NO_CONN:
         raise MiniMQTTException("MiniMQTT not connected.")
+    elif mqtt_err == MQTT_INVALID_TOPIC:
+        raise MiniMQTTException("Invalid MQTT Topic, must have length > 0.")
+    elif mqtt_err == MQTT_INVALID_QOS:
+        raise MiniMQTTException("Invalid QoS level,  must be between 0 and 2.")
     else:
         raise MiniMQTTException("Unknown error!")
 
@@ -273,7 +277,7 @@ class MQTT:
         # check topic kwarg
         topic_str = str(topic).encode('utf-8')
         if topic_str is None or len(topic_str) == 0:
-            raise MQTTException('Invalid topic.')
+            self.handle_mqtt_error(MQTT_INVALID_TOPIC)
         if b'+' in topic_str or b'#' in topic_str:
             raise MQTTException('Topic can not contain wildcards.')
         # check msg/qos kwargs
@@ -288,7 +292,7 @@ class MQTT:
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
         if qos < 0 or qos > 2:
-            raise MQTTException('Invalid QoS, must be between 0 and 2.')
+            self.handle_mqtt_error(MQTT_INVALID_QOS)
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
@@ -325,9 +329,17 @@ class MQTT:
     def subscribe(self, topic, handler_method=None, qos=0):
         """Sends a subscribe message to the MQTT broker.
         :param str topic: Unique topic identifier.
-        :param method handler_method: handler method for subscription topic. Defaults to default_sub_handler if None.
+        :param method handler_method: Method for handling messages recieved from a 
+            topic. Defaults to default_sub_handler if None.
         :param int qos: Quality of Service level for the topic.
         """
+        if qos < 0 or qos > 2:
+            raise MQTTException('QoS level must be between 1 and 2.')
+        if topic is None or len(topic) == 0:
+            self.handle_mqtt_error(MQTT_INVALID_TOPIC)
+        # [MQTT-3.8.3-1]
+        topic = topic.encode('utf-8')
+        # associate topic subscription with handler_method.
         if handler_method is None:
             self._handler_methods.update( {topic : self.default_sub_handler} )
         else:
