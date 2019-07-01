@@ -142,7 +142,7 @@ class MQTT:
             if len(self._client_id) > 23 or len(self._client_id) < 1:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
         # subscription method handler dictionary
-        self._handler_methods = {}
+        self._method_handlers = {}
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
@@ -376,11 +376,11 @@ class MQTT:
         elif qos == 2:
             assert 0
 
-    def subscribe(self, topic, handler_method=None, qos=0):
+    def subscribe(self, topic, method_handler=None, qos=0):
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topics or multiple topics.
         :param str topic: Unique topic identifier.
-        :param method handler_method: Predefined method for handling messages
+        :param method method_handler: Predefined method for handling messages
             recieved from a topic. Defaults to default_sub_handler if None.
         :param int qos: Quality of Service level for the topic.
 
@@ -395,31 +395,16 @@ class MQTT:
         Example of subscribing to one topic and attaching a method handler:
         .. code-block:: python
             mqtt_client.subscribe('topics/ledState', led_setter)
-        
-        Example of subscribing to multiple topics:
-        .. code-block:: python
-            mqtt_client.subscribe([('brubell/feeds/ledState'), ('topics/ServoState')])
         """
-        # TODO: Topic tuple list implementation
-        # multiple subscriptions to different topics, handler methods
-        if isinstance(topic, list):
-            print("Topics: ", topic)
-            for i in len(topic):
-                topics = topic[i][0]
-                method_handlers = topic[i][1]
-                if topic[i][2]:
-                    qos = topic[i][2]
-                else:
-                    qos = 2
         if qos < 0 or qos > 2:
             raise MQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
             handle_mqtt_error(MQTT_INVALID_TOPIC)
-        # associate topic subscription with handler_method.
-        if handler_method is None:
-            self._handler_methods.update( {topic : self.default_sub_handler} )
+        # associate topic subscription with method_handler.
+        if method_handler is None:
+            self._method_handlers.update( {topic : self.default_sub_handler} )
         else:
-            self._handler_methods.update( {topic : custom_handler_method} )
+            self._method_handlers.update( {topic : custom_method_handler} )
         if self._sock is None:
             handle_mqtt_error(MQTT_ERR_NO_CONN)
         pkt = MQTT_SUB_PKT_TYPE
@@ -438,17 +423,45 @@ class MQTT:
                     raise MQTTException(resp[3])
                 return
 
+    def subscribe_multiple(self, topic_info, timeout=1.0):
+        """Subscribes to multiple MQTT broker topics.
+        :param tuple topic_info: A list of tuple format:
+            :param str topic: Unique topic identifier.
+            :param method method_handler: Predefined method for handling messages
+                recieved from a topic. Defaults to default_sub_handler if None.
+            :param int qos: Quality of Service level for the topic. Defaults to 0.
+        :param float timeout: Timeout between calls to subscribe().
+        """
+        print('topics:', topic_info)
+        for i in range(len(topic_info)):
+            topic = topic_info[i][0]
+            try:
+                if topic_info[i][1]:
+                    method_handler = topic_info[i][1]
+            except IndexError:
+                method_handler = None
+                pass
+            try:
+                if topic_info[i][2]:
+                    qos = topic_info[i][2]
+            except IndexError:
+                qos = 0
+                pass
+            print('Subscribing to:', topic, method_handler, qos)
+            self.subscribe(topic, method_handler, qos)
+            time.sleep(timeout)
+
     def unsubscribe(self, topic):
         """Unsubscribes the MQTT client from the MQTT Broker.
         :param str topic: MQTT subscription topic.
         """
-        if not topic in self._handler_methods:
+        if not topic in self._method_handlers:
             raise MiniMQTTException('Can not unsubscribe - topic was not subscribed to.')
         if topic is None or len(topic) == 0:
             handle_mqtt_error(MQTT_INVALID_TOPIC)
         # remove topic from handler methods dict.
-        self._handler_methods.pop(topic)
-        print(self._handler_methods)
+        self._method_handlers.pop(topic)
+        print(self._method_handlers)
 
 
     def wait_for_msg(self, blocking=True):
@@ -479,9 +492,9 @@ class MQTT:
             sz -= 2
         msg = self._sock.read(sz)
         # call the topic's handler method
-        if topic in self._handler_methods:
-            handler_method = self._handler_methods[topic]
-            handler_method(topic, str(msg, 'utf-8'))
+        if topic in self._method_handlers:
+            method_handler = self._method_handlers[topic]
+            method_handler(topic, str(msg, 'utf-8'))
         if op & 6 == 2:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
