@@ -288,6 +288,34 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self.__msg_size_lim = msg_size
 
+    def publish_multiple(self, data, timeout=1.0):
+        """Publishes to multiple MQTT broker topics.
+        :param tuple data: A list of tuple format:
+            :param str topic: Unique topic identifier.
+            :param str msg: Data to send to the broker.
+            :param bool retain: Whether the message is saved by the broker.
+            :param int qos: Quality of Service level for the message.
+        :param float timeout: Timeout between calls to publish(). This value
+            is usually set by your MQTT broker. Defaults to 1.0
+        """
+        for i in range(len(data)):
+            topic = data[i][0]
+            msg = data[i][1]
+            try:
+                if data[i][2]:
+                    retain = data[i][2]
+            except IndexError:
+                retain = False
+                pass
+            try:
+                if data[i][3]:
+                    qos = data[i][3]
+            except IndexError:
+                qos = 0
+                pass
+            self.publish(topic, msg, retain, qos)
+            time.sleep(timeout)
+
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to the MQTT broker.
         :param str topic: Unique topic identifier.
@@ -403,7 +431,6 @@ class MQTT:
         self._sock.write(qos.to_bytes(1, "little"))
         while 1:
             op = self.wait_for_msg()
-            print('OP: ', op)
             if op == 0x90:
                 resp = self._sock.read(4)
                 assert resp[1] == pkt[2] and resp[2] == pkt[3]
