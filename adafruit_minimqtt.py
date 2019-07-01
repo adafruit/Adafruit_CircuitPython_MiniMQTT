@@ -54,13 +54,24 @@ MQTT_MSG_MAX_SZ = const(268435455)
 MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_SZ_LIMIT = const(65536)
 
-# MQTT Errors (for handle_mqtt_error method)
+# General MQTT Errors
 MQTT_ERR_INCORRECT_SERVER = const(3)
 MQTT_ERR_INVALID = const(4)
 MQTT_ERR_NO_CONN = const(5)
 MQTT_INVALID_TOPIC = const(6)
 MQTT_INVALID_QOS = const(7)
 MQTT_INVALID_WILDCARD = const(8)
+
+# PUBACK Errors
+MQTT_PUBACK_OK = const(0x00)
+MQTT_PUBACK_ERR_SUBS = const(0x10)
+MQTT_PUBACK_ERR_UNSPECIFIED = const(0x80)
+MQTT_PUBACK_ERR_IMPL = const(0x83)
+MQTT_PUBACK_ERR_UNAUTHORIZED = const(0x87)
+MQTT_PUBACK_ERR_INVALID_TOPIC = const(0x90)
+MQTT_PUBACK_ERR_PACKETID = const(0x91)
+MQTT_PUBACK_ERR_QUOTA = const(0x97)
+MQTT_PUBACK_ERR_PAYLOAD = const(0x99)
 
 # MQTT Spec. Commands
 MQTT_TLS_PORT = const(8883)
@@ -101,14 +112,14 @@ class MQTT:
     :param socket: ESP32SPI Socket object.
     :param str server_address: Server URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
-    :param str user: Username for broker authentication.
+    :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
     :param str client_id: Optional client identifier, defaults to a randomly generated id.
     :param bool is_ssl: Enables TCP mode if false (port 1883). Defaults to True (port 8883).
     """
     TCP_MODE = const(0)
     TLS_MODE = const(2)
-    def __init__(self, esp, socket, server_address, port=8883, user=None,
+    def __init__(self, esp, socket, server_address, port=8883, username=None,
                     password = None, client_id=None, is_ssl=True):
         if esp and socket is not None:
             self._esp = esp
@@ -118,7 +129,8 @@ class MQTT:
         self.port = port
         if not is_ssl:
             self.port = MQTT_TCP_PORT
-        self._set_username_password(user, password)
+        self._user = username
+        self._pass = password
         if client_id is not None:
             # user-defined client_id MAY allow client_id's > 23 bytes or
             # non-alpha-numeric characters
@@ -134,9 +146,7 @@ class MQTT:
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
-        self._lw_topic = None
-        self._lw_msg = None
-        self._lw_retain = False
+        self.last_will(None, None, 0, False)
         self._is_connected = False
         self._pid = 0
         self._msg_size_lim = MQTT_MSG_SZ_LIM
@@ -152,16 +162,19 @@ class MQTT:
         """
         self.disconnect()
 
-    def _set_username_password(self, username, password=None):
-        """Set up username and optional password for authentication.
-        :param str username: MQTT broker username
+    def last_will(self, topic=None, message=None, qos=0, retain=False):
+        """Sets the last will and testament properties. MUST be called before connect().
+        :param str topic: MQTT Broker topic.
+        :param str message: Last will disconnection message.
+        :param int qos: Quality of Service level.
+        :param bool retain: Specifies if the message is to be retained when it is published. 
         """
-        if username is None:
-            self._user = None
-        else:
-            # Username must be a UTF-8 encoded string [MQTT-3.1.3-12]
-            self._user = username.encode('utf-8')
-        self._pass = password
+        if qos < 0 or qos > 2:
+            handle_mqtt_error(MQTT_INVALID_QOS)
+        self._lw_qos = qos
+        self._lw_topic = topic
+        self._lw_msg = message
+        self._lw_retain = retain
 
     def reconnect(self, retries=30):
         """Attempts to reconnect to the MQTT broker.
@@ -233,9 +246,12 @@ class MQTT:
         # [MQTT-3.1.3-4]
         self._send_str(self._client_id)
         if self._lw_topic:
+            # [MQTT-3.1.3-11]
             self._send_str(self._lw_topic)
             self._send_str(self._lw_msg)
-        if self._user is not None:
+        if self._user is None:
+            self._user = None
+        else:
             self._send_str(self._user)
             self._send_str(self._pass)
         resp = self._sock.read(4)
@@ -323,6 +339,7 @@ class MQTT:
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
                     rcv_pid = self._sock.read(2)
+                    print('RCV PID: ', rcv_pid)
                     rcv_pid = rcv_pid[0] << 8 | rcv_pid[1]
                     if pid == rcv_pid:
                         return
@@ -365,6 +382,7 @@ class MQTT:
                     raise MQTTException(resp[3])
                 return
 
+    # TODO: Implement unsubscibe
 
     def wait_for_msg(self, timeout = 1.0):
         """Waits for and processes network events.
