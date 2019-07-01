@@ -349,14 +349,40 @@ class MQTT:
             assert 0
 
     def subscribe(self, topic, handler_method=None, qos=0):
-        """Sends a subscribe message to the MQTT broker.
+        """Subscribes to a topic on the MQTT Broker.
+        This method can subscribe to one topics or multiple topics.
         :param str topic: Unique topic identifier.
-        :param 
-        :param method handler_method: Method for handling messages recieved from a 
-            topic. Defaults to default_sub_handler if None.
+        :param method handler_method: Predefined method for handling messages
+            recieved from a topic. Defaults to default_sub_handler if None.
         :param int qos: Quality of Service level for the topic.
-        """
 
+        Example of subscribing to one topic:
+        .. code-block:: python
+            mqtt_client.subscribe('topics/ledState')
+
+        Example of subscribing to one topic and setting the Quality of Service level to 1:
+        .. code-block:: python
+            mqtt_client.subscribe('topics/ledState', 1)
+        
+        Example of subscribing to one topic and attaching a method handler:
+        .. code-block:: python
+            mqtt_client.subscribe('topics/ledState', led_setter)
+        
+        Example of subscribing to multiple topics:
+        .. code-block:: python
+            mqtt_client.subscribe([('brubell/feeds/ledState'), ('topics/ServoState')])
+        """
+        # TODO: Topic tuple list implementation
+        # multiple subscriptions to different topics, handler methods
+        if isinstance(topic, list):
+            print("Topics: ", topic)
+            for i in len(topic):
+                topics = topic[i][0]
+                method_handlers = topic[i][1]
+                if topic[i][2]:
+                    qos = topic[i][2]
+                else:
+                    qos = 2
         if qos < 0 or qos > 2:
             raise MQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
@@ -368,7 +394,6 @@ class MQTT:
             self._handler_methods.update( {topic : custom_handler_method} )
         if self._sock is None:
             handle_mqtt_error(MQTT_ERR_NO_CONN)
-        # TODO: Allow topic to be a tuple, multiple topic subscriptions
         pkt = MQTT_SUB_PKT_TYPE
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
