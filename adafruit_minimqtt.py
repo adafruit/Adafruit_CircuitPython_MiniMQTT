@@ -86,7 +86,6 @@ class MQTT:
     MQTT Client for CircuitPython.
     :param esp: ESP32SPI object.
     :param socket: ESP32SPI Socket object.
-    :param wifimanager: WiFiManager object.
     :param str server_address: Server URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str user: Username for broker authentication.
@@ -96,12 +95,11 @@ class MQTT:
     """
     TCP_MODE = const(0)
     TLS_MODE = const(2)
-    def __init__(self, esp, socket, wifimanager, server_address, port=8883, user=None,
+    def __init__(self, esp, socket, server_address, port=8883, user=None,
                     password = None, client_id=None, is_ssl=True):
-        if esp and socket and wifimanager is not None:
+        if esp and socket is not None:
             self._esp = esp
             self._socket = socket
-            self._wifi_manager = wifimanager
         else:
             raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI connection.')
         self.port = port
@@ -156,7 +154,7 @@ class MQTT:
                 retries+=1
                 if retries >= 30:
                     retries = 0
-                    self._wifi_manager.reset()
+                    self._esp.reset()
                 continue
 
     def is_connected(self):
