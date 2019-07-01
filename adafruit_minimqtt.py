@@ -76,6 +76,8 @@ def handle_mqtt_error(mqtt_err):
         raise MiniMQTTException("Invalid server address defined.")
     elif mqtt_err == MQTT_ERR_INVALID:
         raise MiniMQTTException("Invalid method arguments provided.")
+    elif mqtt_err == MQTT_ERR_NO_CONN:
+        raise MiniMQTTException("MiniMQTT not connected.")
     else:
         raise MiniMQTTException("Unknown error!")
 
@@ -106,8 +108,7 @@ class MQTT:
         self.port = port
         if not is_ssl:
             self.port = MQTT_TCP_PORT
-        self.user = user
-        self._pass = password
+        self._set_username_password(user, password)
         if client_id is not None:
             # user-defined client_id MAY allow client_id's > 23 bytes or
             # non-alpha-numeric characters
@@ -142,6 +143,17 @@ class MQTT:
         """Disconnects the MQTT client from the broker.
         """
         self.disconnect()
+
+    def _set_username_password(self, username, password=None):
+        """Set up username and optional password for authentication.
+        :param str username: MQTT broker username
+        """
+        if username is None:
+            self._user = None
+        else:
+            # Username must be a UTF-8 encoded string [MQTT-3.1.3-12]
+            self._user = username.encode('utf-8')
+        self._pass = password
 
     def reconnect(self, retries=30):
         """Attempts to reconnect to the MQTT broker.
@@ -190,8 +202,8 @@ class MQTT:
         msg = MQTT_CON_MSG
         msg[6] = clean_session << 1
         sz = 12 + len(self._client_id)
-        if self.user is not None:
-            sz += 2 + len(self.user) + 2 + len(self._pass)
+        if self._user is not None:
+            sz += 2 + len(self._user) + 2 + len(self._pass)
             msg[6] |= 0xC0
         if self._keep_alive:
             assert self._keep_alive < MQTT_TOPIC_SZ_LIMIT
@@ -214,8 +226,8 @@ class MQTT:
         if self._lw_topic:
             self._send_str(self._lw_topic)
             self._send_str(self._lw_msg)
-        if self.user is not None:
-            self._send_str(self.user)
+        if self._user is not None:
+            self._send_str(self._user)
             self._send_str(self._pass)
         resp = self._sock.read(4)
         assert resp[0] == 0x20 and resp[1] == 0x02
@@ -227,6 +239,8 @@ class MQTT:
     def disconnect(self):
         """Disconnects from the broker.
         """
+        if self._sock is None:
+            self.handle_mqtt_error(MQTT_ERR_NO_CONN)
         self._sock.write(MQTT_DISCONNECT)
         self._sock.close()
         self._is_connected = False
