@@ -54,9 +54,13 @@ MQTT_MSG_MAX_SZ = const(268435455)
 MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_SZ_LIMIT = const(65536)
 
-# MQTT Connection Errors
+# MQTT Errors (for handle_mqtt_error method)
 MQTT_ERR_INCORRECT_SERVER = const(3)
 MQTT_ERR_INVALID = const(4)
+MQTT_ERR_NO_CONN = const(5)
+MQTT_INVALID_TOPIC = const(6)
+MQTT_INVALID_QOS = const(7)
+MQTT_INVALID_WILDCARD = const(8)
 
 # MQTT Spec. Commands
 MQTT_TLS_PORT = const(8883)
@@ -82,6 +86,8 @@ def handle_mqtt_error(mqtt_err):
         raise MiniMQTTException("Invalid MQTT Topic, must have length > 0.")
     elif mqtt_err == MQTT_INVALID_QOS:
         raise MiniMQTTException("Invalid QoS level,  must be between 0 and 2.")
+    elif mqtt_err == MQTT_INVALID_WILDCARD:
+        raise MiniMQTTException("Invalid MQTT Wildcard - must be * or #.")
     else:
         raise MiniMQTTException("Unknown error!")
 
@@ -200,7 +206,7 @@ class MQTT:
             try:
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
-                self.handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
+                handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
 
         premsg = MQTT_CON_PREMSG
         msg = MQTT_CON_MSG
@@ -244,7 +250,7 @@ class MQTT:
         """Disconnects from the broker.
         """
         if self._sock is None:
-            self.handle_mqtt_error(MQTT_ERR_NO_CONN)
+            handle_mqtt_error(MQTT_ERR_NO_CONN)
         self._sock.write(MQTT_DISCONNECT)
         self._sock.close()
         self._is_connected = False
@@ -277,7 +283,7 @@ class MQTT:
         # check topic kwarg
         topic_str = str(topic).encode('utf-8')
         if topic_str is None or len(topic_str) == 0:
-            self.handle_mqtt_error(MQTT_INVALID_TOPIC)
+            handle_mqtt_error(MQTT_INVALID_TOPIC)
         if b'+' in topic_str or b'#' in topic_str:
             raise MQTTException('Topic can not contain wildcards.')
         # check msg/qos kwargs
@@ -292,7 +298,7 @@ class MQTT:
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
         if qos < 0 or qos > 2:
-            self.handle_mqtt_error(MQTT_INVALID_QOS)
+            handle_mqtt_error(MQTT_INVALID_QOS)
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
@@ -336,18 +342,18 @@ class MQTT:
         if qos < 0 or qos > 2:
             raise MQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
-            self.handle_mqtt_error(MQTT_INVALID_TOPIC)
-        # [MQTT-3.8.3-1]
-        topic = topic.encode('utf-8')
+            handle_mqtt_error(MQTT_INVALID_TOPIC)
         # associate topic subscription with handler_method.
         if handler_method is None:
             self._handler_methods.update( {topic : self.default_sub_handler} )
         else:
             self._handler_methods.update( {topic : custom_handler_method} )
+        # TODO: Allow topic to be a tuple, multiple topic subscriptions
         pkt = MQTT_SUB_PKT_TYPE
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
         self._sock.write(pkt)
+        # [MQTT-3.8.3-1]
         self._send_str(topic)
         self._sock.write(qos.to_bytes(1, "little"))
         while 1:
@@ -419,7 +425,7 @@ class MQTT:
         print('New message on {0}: {1}'.format(topic, msg))
 
     def _send_str(self, string):
-        """Packs a string into a struct. and writes it to a socket.
+        """Packs a string into a struct, and writes it to a socket as a utf-8 encoded string.
         :param str string: String to write to the socket.
         """
         self._sock.write(struct.pack("!H", len(string)))
