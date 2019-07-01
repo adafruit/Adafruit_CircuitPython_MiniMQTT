@@ -279,11 +279,9 @@ class MQTT:
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message.
         """
-        # check topic kwarg
-        topic_str = str(topic).encode('utf-8')
-        if topic_str is None or len(topic_str) == 0:
+        if topic is None or len(topic) == 0:
             handle_mqtt_error(MQTT_INVALID_TOPIC)
-        if b'+' in topic_str or b'#' in topic_str:
+        if '+' in topic or '#' in topic:
             raise MQTTException('Topic can not contain wildcards.')
         # check msg/qos kwargs
         if msg is None:
@@ -359,6 +357,7 @@ class MQTT:
         self._sock.write(qos.to_bytes(1, "little"))
         while 1:
             op = self.wait_for_msg()
+            print('OP: ', op)
             if op == 0x90:
                 resp = self._sock.read(4)
                 assert resp[1] == pkt[2] and resp[2] == pkt[3]
