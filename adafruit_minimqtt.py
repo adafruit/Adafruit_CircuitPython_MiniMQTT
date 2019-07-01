@@ -312,6 +312,8 @@ class MQTT:
             raise MQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
         if qos < 0 or qos > 2:
             handle_mqtt_error(MQTT_INVALID_QOS)
+        if self._sock is None:
+            handle_mqtt_error(MQTT_ERR_NO_CONN)
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
@@ -364,6 +366,8 @@ class MQTT:
             self._handler_methods.update( {topic : self.default_sub_handler} )
         else:
             self._handler_methods.update( {topic : custom_handler_method} )
+        if self._sock is None:
+            handle_mqtt_error(MQTT_ERR_NO_CONN)
         # TODO: Allow topic to be a tuple, multiple topic subscriptions
         pkt = MQTT_SUB_PKT_TYPE
         self._pid += 11
@@ -388,6 +392,11 @@ class MQTT:
         """
         if not topic in self._handler_methods:
             raise MiniMQTTException('Can not unsubscribe - topic was not subscribed to.')
+        if topic is None or len(topic) == 0:
+            handle_mqtt_error(MQTT_INVALID_TOPIC)
+        # remove topic from handler methods dict.
+        self._handler_methods.pop(topic)
+        print(self._handler_methods)
 
 
     def wait_for_msg(self, blocking=True):
