@@ -129,8 +129,6 @@ class MQTT:
             # generated client_id's enforce length rules
             if len(self._client_id) > 23 or len(self._client_id) < 1:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
-        # client_id MUST be a UTF-8 encoded string [MQTT-3.1.3-4].
-        self._client_id = self._client_id.encode('utf-8')
         # subscription method handler dictionary
         self._handler_methods = {}
         self.server = server_address
@@ -232,6 +230,7 @@ class MQTT:
 
         self._sock.write(premsg)
         self._sock.write(msg)
+        # [MQTT-3.1.3-4]
         self._send_str(self._client_id)
         if self._lw_topic:
             self._send_str(self._lw_topic)
@@ -335,10 +334,12 @@ class MQTT:
     def subscribe(self, topic, handler_method=None, qos=0):
         """Sends a subscribe message to the MQTT broker.
         :param str topic: Unique topic identifier.
+        :param 
         :param method handler_method: Method for handling messages recieved from a 
             topic. Defaults to default_sub_handler if None.
         :param int qos: Quality of Service level for the topic.
         """
+
         if qos < 0 or qos > 2:
             raise MQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
