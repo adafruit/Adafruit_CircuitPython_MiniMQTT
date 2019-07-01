@@ -51,6 +51,7 @@ __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 # length of maximum mqtt message
 MQTT_MSG_MAX_SZ = const(268435455)
+MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_SZ_LIMIT = const(65536)
 
 # MQTT Connection Errors
@@ -108,14 +109,19 @@ class MQTT:
         self.user = user
         self._pass = password
         if client_id is not None:
+            # user-defined client_id MAY allow client_id's > 23 bytes or
+            # non-alpha-numeric characters
             self._client_id = client_id
         else:
+            # assign a unique client_id
             self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)], randint(0, 9))
-        # ._clientid MUST be a UTF-8 encoded string [MQTT-3.1.3-4].
+            # generated client_id's enforce length rules
+            if len(self._client_id) > 23 or len(self._client_id) < 1:
+                raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
+        # client_id MUST be a UTF-8 encoded string [MQTT-3.1.3-4].
         self._client_id = self._client_id.encode('utf-8')
-        # server must allow clientid btween 1 and 23 bytes [MQTT-3.1.3-5]
-        if len(self._client_id) > 23 or len(self._client_id) < 1:
-            raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
+        # subscription method handler dictionary
+        self._handler_methods = {}
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
@@ -124,9 +130,7 @@ class MQTT:
         self._lw_retain = False
         self._is_connected = False
         self._pid = 0
-        # subscription method handler dictionary
-        self._handler_methods = {}
-        self._msg_size_lim = const(10000000)
+        self._msg_size_lim = MQTT_MSG_SZ_LIM
 
     def __enter__(self):
         return self
