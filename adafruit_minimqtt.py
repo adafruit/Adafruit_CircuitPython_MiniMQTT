@@ -139,11 +139,9 @@ class MQTT:
         self.deinit()
 
     def deinit(self):
-        """Disconnects the MQTT client from the broker and
-        deinitializes the defined hardware.
+        """Disconnects the MQTT client from the broker.
         """
         self.disconnect()
-        #TODO: deinit the esp object if possible...
 
     def reconnect(self, retries=30):
         """Attempts to reconnect to the MQTT broker.
@@ -299,7 +297,7 @@ class MQTT:
         self._sock.write(msg)
         if qos == 1:
             while 1:
-                op = self.wait_msg()
+                op = self.wait_for_msg()
                 if op == const(0x40):
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
@@ -327,7 +325,7 @@ class MQTT:
         self._send_str(topic)
         self._sock.write(qos.to_bytes(1, "little"))
         while 1:
-            op = self.wait_msg()
+            op = self.wait_for_msg()
             if op == 0x90:
                 resp = self._sock.read(4)
                 assert resp[1] == pkt[2] and resp[2] == pkt[3]
@@ -335,10 +333,13 @@ class MQTT:
                     raise MQTTException(resp[3])
                 return
 
-    def wait_msg(self, timeout=0):
-        """Waits for and processes an incoming MQTT message.
-        :param int timeout: Socket timeout.
+
+    def wait_for_msg(self, timeout = 1.0):
+        """Waits for and processes network events.
+        :param float timeout: The time in seconds to wait for network traffic before returning.
         """
+        if timeout < 0.0:
+            raise ValueError('timeout must be > 0.0 seconds.')
         self._sock.settimeout(timeout)
         res = self._sock.read(1)
         if res in [None, b""]:
