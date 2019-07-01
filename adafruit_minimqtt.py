@@ -98,9 +98,12 @@ class MQTT:
     TLS_MODE = const(2)
     def __init__(self, esp, socket, wifimanager, server_address, port=8883, user=None,
                     password = None, client_id=None, is_ssl=True):
-        self._esp = esp
-        self._socket = socket
-        self._wifi_manager = wifimanager
+        if esp and socket and wifimanager is not None:
+            self._esp = esp
+            self._socket = socket
+            self._wifi_manager = wifimanager
+        else:
+            raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI connection.')
         self.port = port
         if not is_ssl:
             self.port = MQTT_TCP_PORT
@@ -108,8 +111,13 @@ class MQTT:
         self._pass = password
         if client_id is not None:
             self._client_id = client_id
-        else: # randomize client identifier, prevents duplicate devices on broker
-            self._client_id = 'cpy-{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)], randint(0, 9))
+        else:
+            self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)], randint(0, 9))
+        # ._clientid MUST be a UTF-8 encoded string [MQTT-3.1.3-4].
+        self._client_id = self._client_id.encode('utf-8')
+        # server must allow clientid btween 1 and 23 bytes [MQTT-3.1.3-5]
+        if len(self._client_id) > 23 or len(self._client_id) < 1:
+            raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
@@ -121,6 +129,19 @@ class MQTT:
         # subscription method handler dictionary
         self._handler_methods = {}
         self._msg_size_lim = const(10000000)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.deinit()
+
+    def deinit(self):
+        """Disconnects the MQTT client from the broker and
+        deinitializes the defined hardware.
+        """
+        self.disconnect()
+        #TODO: deinit the esp object if possible...
 
     def reconnect(self, retries=30):
         """Attempts to reconnect to the MQTT broker.
