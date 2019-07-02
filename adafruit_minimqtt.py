@@ -62,6 +62,8 @@ MQTT_INVALID_TOPIC = const(6)
 MQTT_INVALID_QOS = const(7)
 MQTT_INVALID_WILDCARD = const(8)
 
+# TODO: Set Puback and Connack to dicionary items so they can be handled by handle_mqtt_error!!
+
 # PUBACK Errors
 MQTT_PUBACK_OK = const(0x00)
 MQTT_PUBACK_ERR_SUBS = const(0x10)
@@ -72,6 +74,17 @@ MQTT_PUBACK_ERR_INVALID_TOPIC = const(0x90)
 MQTT_PUBACK_ERR_PACKETID = const(0x91)
 MQTT_PUBACK_ERR_QUOTA = const(0x97)
 MQTT_PUBACK_ERR_PAYLOAD = const(0x99)
+
+# CONNACK Errors
+CONACK_RESP = {const(0x00) : 'Connection Accepted!',
+                const(0x05) : 'Connection Refused - Incorrect Protocol Version'}
+
+MQTT_CONACK_ACCEPTED = const(0x00)
+MQTT_CONACK_ERR_VER = const(0x01)
+MQTT_CONACK_ERR_ID = const(0x02)
+MQTT_CONACK_ERR_SERVER = const(0x03)
+MQTT_CONACK_ERR_CREDS = const(0x04)
+MQTT_CONACK_ERR_UNAUTHORIZED = const(0x05) 
 
 # MQTT Spec. Commands
 MQTT_TLS_PORT = const(8883)
@@ -85,7 +98,7 @@ MQTT_CON_MSG = bytearray(b"\x04MQTT\x04\x02\0\0")
 
 def handle_mqtt_error(mqtt_err):
     """Returns string associated with MQTT error number.
-    :param int mqtt_err: MQTT error number.
+    :param int mqtt_err: MQTT error number or type.
     """
     if mqtt_err == MQTT_ERR_INCORRECT_SERVER:
         raise MMQTTException("Invalid server address defined.")
@@ -262,7 +275,7 @@ class MQTT:
 
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] !=0:
-            raise MMQTTException(resp[3])
+            raise MMQTTException(CONACK_RESP[resp[3]])
         self._is_connected = True
         return resp[2] & 1
 
@@ -370,11 +383,11 @@ class MQTT:
         if qos == 1:
             while 1:
                 op = self.wait_for_msg()
+                print(op)
                 if op == const(0x40):
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
                     rcv_pid = self._sock.read(2)
-                    print('RCV PID: ', rcv_pid)
                     rcv_pid = rcv_pid[0] << 8 | rcv_pid[1]
                     if pid == rcv_pid:
                         return
