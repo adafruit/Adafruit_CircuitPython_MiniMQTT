@@ -261,7 +261,7 @@ class MQTT:
         self._sock.close()
         self._is_connected = False
         if self._on_disconnect is not None:
-            self._on_disconnect(self._user_data, 0)
+            self._on_disconnect(self, self._user_data, 0)
 
     def ping(self):
         """Pings the MQTT Broker to confirm if the server is alive or
@@ -316,24 +316,32 @@ class MQTT:
         pkt[i] = sz
         self._sock.write(pkt)
         self._send_str(topic)
+        print('self: ', self._on_publish, qos)
         if qos > 0:
             self.pid += 1
             pid = self.pid
             struct.pack_into("!H", pkt, 0, pid)
             self._sock.write(pkt)
+            print('self: ', self._on_publish)
+            if self._on_publish is not None:
+                self._on_publish(self, self._user_data, pid)
         self._sock.write(msg)
         if qos == 1:
             while 1:
                 op = self.wait_for_msg()
-                print(op)
                 if op == const(0x40):
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
                     rcv_pid = self._sock.read(2)
                     rcv_pid = rcv_pid[0] << 8 | rcv_pid[1]
+                    print('PUB: ', self._on_publish)
+                    if self._on_publish is not None:
+                        self._on_publish(self, self._user_data, rcv_pid)
                     if pid == rcv_pid:
                         return
         elif qos == 2:
+            if self._on_publish is not None:
+                raise NotImplementedError('on_publish callback not implemented for QoS > 1.')
             assert 0
 
     def subscribe(self, topic, method_handler=None, qos=0):
@@ -545,7 +553,7 @@ class MQTT:
     def on_connect(self):
         """Called when the MQTT broker responds to a connection request.
         """
-        return self._on_callback
+        return self._on_connect
     
     @on_connect.setter
     def on_connect(self, method):
@@ -588,9 +596,9 @@ class MQTT:
         """
         return self._on_publish
     
-    @on_disconnect.setter
-    def on_disconnect(self, method):
-        """Defines the method which runs when the client is disconnected.
+    @on_publish.setter
+    def on_publish(self, method):
+        """Defines the method which runs when the client publishes data to a feed.
         :param unbound_method method: user-defined method for disconnection.
         
         The on_publish method signature takes the following format:
@@ -623,4 +631,25 @@ class MQTT:
         """
         self._on_subscribe = method
 
-    # TODO:, on_publish, on_log
+    @property
+    def on_publish(self):
+        """Called when the MQTT broker successfully publishes to a feed.
+        """
+        return self._on_publish
+
+    @on_publish.setter
+    def on_publish(self, method):
+        """Defines the method which runs when a client publishes to a feed.
+
+        :param unbound_method method: user-defined method for disconnection.
+        
+        The on_publish method signature takes the following format:
+            on_publish(client, userdata, rc)
+        and expects the following parameters:
+        :param client: MiniMQTT Client Instance.
+        :param userdata: User data, previously set in the user_data method.
+        :param int granted_qos: QoS level the broker has granted the subscription request..
+        """
+        self._on_publish = method
+
+    # TODO: Implement on_log
