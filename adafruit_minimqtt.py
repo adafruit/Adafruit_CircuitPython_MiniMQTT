@@ -125,6 +125,7 @@ class MQTT:
         self._on_subscribe = None
         self._on_log = None
         self._user_data = None
+        self._is_loop = False
         self.last_will()
 
     def __enter__(self):
@@ -178,8 +179,10 @@ class MQTT:
                     self.subscribe(feed)
 
     def is_connected(self):
-        """Returns MQTT session status."""
+        """Returns MQTT client session status."""
         return self._is_connected
+
+    ### Core MQTT Methods ###
 
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
@@ -418,6 +421,7 @@ class MQTT:
         :param float timeout: Timeout between calls to publish(). This value
             is usually set by your MQTT broker. Defaults to 1.0
         """
+        # TODO: Untested!
         for i in range(len(data)):
             topic = data[i][0]
             msg = data[i][1]
@@ -445,6 +449,8 @@ class MQTT:
             :param int qos: Quality of Service level for the topic. Defaults to 0.
         :param float timeout: Timeout between calls to subscribe().
         """
+        #TODO: This could be simplified
+        # 1 mqtt subscription call, multiple topics
         print('topics:', topic_info)
         for i in range(len(topic_info)):
             topic = topic_info[i][0]
@@ -464,12 +470,12 @@ class MQTT:
             self.subscribe(topic, method_handler, qos)
             time.sleep(timeout)
 
-    def wait_for_msg(self, blocking=True):
+    def wait_for_msg(self, timeout=0.0):
         """Waits for and processes network events. Returns if successful.
         :param bool blocking: Set the blocking or non-blocking mode of the socket.
         :param float timeout: The time in seconds to wait for network traffic before returning.
         """
-        self._sock.settimeout(0.0)
+        self._sock.settimeout(timeout)
         res = self._sock.read(1)
         if res in [None, b""]:
             return None
@@ -530,6 +536,25 @@ class MQTT:
             self._sock.write(str.encode(string, 'utf-8'))
         else:
             self._sock.write(string)
+
+    # Network Loop Methods
+
+    def loop(self, timeout=1.0):
+        """Call regularly to process network events.
+        This function blocks for up to timeout seconds. 
+        Timeout must not exceed the keepalive value for the client or
+        your client will be regularly disconnected by the broker.
+        :param float timeout: Blocks between calls to wait_for_msg()
+        """
+        # TODO: Untested!
+        self.wait_for_msg(timeout)
+    
+    def loop_forever(self):
+        """Blocking network loop, will not return until disconnect() is called from
+        the client. Automatically handles the re-connection.
+        """
+        # TODO!
+        return None
 
     ## Logging ##
     # TODO: Set up Logging with the CircuitPython logger module.
