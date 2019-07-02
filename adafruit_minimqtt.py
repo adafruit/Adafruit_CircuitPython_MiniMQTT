@@ -316,13 +316,14 @@ class MQTT:
         pkt[i] = sz
         self._sock.write(pkt)
         self._send_str(topic)
-        print('self: ', self._on_publish, qos)
+        if qos == 0:
+            if self._on_publish is not None:
+                self._on_publish(self, self._user_data, self._pid)
         if qos > 0:
             self.pid += 1
             pid = self.pid
             struct.pack_into("!H", pkt, 0, pid)
             self._sock.write(pkt)
-            print('self: ', self._on_publish)
             if self._on_publish is not None:
                 self._on_publish(self, self._user_data, pid)
         self._sock.write(msg)
@@ -334,7 +335,6 @@ class MQTT:
                     assert sz == b"\x02"
                     rcv_pid = self._sock.read(2)
                     rcv_pid = rcv_pid[0] << 8 | rcv_pid[1]
-                    print('PUB: ', self._on_publish)
                     if self._on_publish is not None:
                         self._on_publish(self, self._user_data, rcv_pid)
                     if pid == rcv_pid:
