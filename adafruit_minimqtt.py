@@ -405,11 +405,8 @@ class MQTT:
             raise MMQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
             handle_mqtt_error(MQTT_INVALID_TOPIC)
-        try:
-            if self._method_handlers[topic]:
-                raise MMQTTException('Already subscribed to %s!'%topic)
-        except:
-            pass
+        if topic in self._method_handlers:
+            raise MMQTTException('Already subscribed to topic.')
         # associate topic subscription with method_handler.
         if method_handler is None:
             self._method_handlers.update( {topic : self.default_sub_handler} )
