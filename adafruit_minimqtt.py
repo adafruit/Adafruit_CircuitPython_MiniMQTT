@@ -54,38 +54,6 @@ MQTT_MSG_MAX_SZ = const(268435455)
 MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_SZ_LIMIT = const(65536)
 
-# General MQTT Errors
-MQTT_ERR_INCORRECT_SERVER = const(3)
-MQTT_ERR_INVALID = const(4)
-MQTT_ERR_NO_CONN = const(5)
-MQTT_INVALID_TOPIC = const(6)
-MQTT_INVALID_QOS = const(7)
-MQTT_INVALID_WILDCARD = const(8)
-
-# TODO: Set Puback and Connack to dicionary items so they can be handled by handle_mqtt_error!!
-
-# PUBACK Errors
-MQTT_PUBACK_OK = const(0x00)
-MQTT_PUBACK_ERR_SUBS = const(0x10)
-MQTT_PUBACK_ERR_UNSPECIFIED = const(0x80)
-MQTT_PUBACK_ERR_IMPL = const(0x83)
-MQTT_PUBACK_ERR_UNAUTHORIZED = const(0x87)
-MQTT_PUBACK_ERR_INVALID_TOPIC = const(0x90)
-MQTT_PUBACK_ERR_PACKETID = const(0x91)
-MQTT_PUBACK_ERR_QUOTA = const(0x97)
-MQTT_PUBACK_ERR_PAYLOAD = const(0x99)
-
-# CONNACK Errors
-CONACK_RESP = {const(0x00) : 'Connection Accepted!',
-                const(0x05) : 'Connection Refused - Incorrect Protocol Version'}
-
-MQTT_CONACK_ACCEPTED = const(0x00)
-MQTT_CONACK_ERR_VER = const(0x01)
-MQTT_CONACK_ERR_ID = const(0x02)
-MQTT_CONACK_ERR_SERVER = const(0x03)
-MQTT_CONACK_ERR_CREDS = const(0x04)
-MQTT_CONACK_ERR_UNAUTHORIZED = const(0x05) 
-
 # MQTT Spec. Commands
 MQTT_TLS_PORT = const(8883)
 MQTT_TCP_PORT = const(1883)
@@ -96,24 +64,11 @@ MQTT_PING_REQ = b'\xc0\0'
 MQTT_CON_PREMSG = bytearray(b"\x10\0\0") 
 MQTT_CON_MSG = bytearray(b"\x04MQTT\x04\x02\0\0")
 
-def handle_mqtt_error(mqtt_err):
-    """Returns string associated with MQTT error number.
-    :param int mqtt_err: MQTT error number or type.
-    """
-    if mqtt_err == MQTT_ERR_INCORRECT_SERVER:
-        raise MMQTTException("Invalid server address defined.")
-    elif mqtt_err == MQTT_ERR_INVALID:
-        raise MMQTTException("Invalid method arguments provided.")
-    elif mqtt_err == MQTT_ERR_NO_CONN:
-        raise MMQTTException("MiniMQTT not connected.")
-    elif mqtt_err == MQTT_INVALID_TOPIC:
-        raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
-    elif mqtt_err == MQTT_INVALID_QOS:
-        raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
-    elif mqtt_err == MQTT_INVALID_WILDCARD:
-        raise MMQTTException("Invalid MQTT Wildcard - must be * or #.")
-    else:
-        raise MMQTTException("Unknown error!")
+CONNACK_ERRORS = {const(0x01) : 'Connection Refused - Incorrect Protocol Version',
+                const(0x02) : 'Connection Refused - ID Rejected',
+                const(0x03) : 'Connection Refused - Server unavailable',
+                const(0x04) : 'Connection Refused - Incorrect username/password',
+                const(0x05) : 'Connection Refused - Unauthorized'}
 
 class MMQTTException(Exception):
     pass
@@ -157,12 +112,12 @@ class MQTT:
         # subscription method handler dictionary
         self._method_handlers = {}
         self._is_connected = False
+        self._msg_size_lim = MQTT_MSG_SZ_LIM
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
-        self.last_will()
         self._pid = 0
-        self._msg_size_lim = MQTT_MSG_SZ_LIM
+        self.last_will()
 
     def __enter__(self):
         return self
@@ -185,7 +140,7 @@ class MQTT:
         if self._is_connected:
             raise MMQTTException('Last Will should be defined BEFORE connect() is called.')
         if qos < 0 or qos > 2:
-            handle_mqtt_error(MQTT_INVALID_QOS)
+            raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
         self._lw_qos = qos
         self._lw_topic = topic
         self._lw_msg = message
@@ -218,7 +173,7 @@ class MQTT:
         :param bool clean_session: Establishes a persistent session
             with the broker. Defaults to a non-persistent session.
         """
-        if self._esp:   #TODO: This might be approachable without passing in a socket
+        if self._esp:
             self._socket.set_interface(self._esp)
             self._sock = self._socket.socket()
         else:
@@ -228,13 +183,13 @@ class MQTT:
             try:
                 self._sock.connect((self.server, self.port), TLS_MODE)
             except RuntimeError:
-                handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
+                raise MMQTTException("Invalid server address defined.")
         else:
             addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
             try:
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
-                handle_mqtt_error(MQTT_ERR_INCORRECT_SERVER)
+                raise MMQTTException("Invalid server address defined.")
 
         premsg = MQTT_CON_PREMSG
         msg = MQTT_CON_MSG
@@ -271,19 +226,19 @@ class MQTT:
         else:
             self._send_str(self._user)
             self._send_str(self._pass)
-        resp = self._sock.read(4)
+        rc = self._sock.read(4)
 
-        assert resp[0] == 0x20 and resp[1] == 0x02
-        if resp[3] !=0:
-            raise MMQTTException(CONACK_RESP[resp[3]])
+        assert rc[0] == 0x20 and rc[1] == 0x02
+        if rc[3] !=0:
+            raise MMQTTException(CONNACK_ERRORS[rc[3]])
         self._is_connected = True
-        return resp[2] & 1
+        return rc[2] & 1
 
     def disconnect(self):
         """Disconnects from the broker.
         """
         if self._sock is None:
-            handle_mqtt_error(MQTT_ERR_NO_CONN)
+            raise MMQTTException("MiniMQTT not connected.")
         self._sock.write(MQTT_DISCONNECT)
         self._sock.close()
         self._is_connected = False
@@ -342,7 +297,7 @@ class MQTT:
         :param int qos: Quality of Service level for the message.
         """
         if topic is None or len(topic) == 0:
-            handle_mqtt_error(MQTT_INVALID_TOPIC)
+            raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
         if '+' in topic or '#' in topic:
             raise MMQTTException('Topic can not contain wildcards.')
         # check msg/qos kwargs
@@ -357,9 +312,9 @@ class MQTT:
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MMQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
         if qos < 0 or qos > 2:
-            handle_mqtt_error(MQTT_INVALID_QOS)
+            raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
         if self._sock is None:
-            handle_mqtt_error(MQTT_ERR_NO_CONN)
+            raise MMQTTException("MiniMQTT not connected.")
         pkt = bytearray(b"\x30\0")
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
@@ -417,7 +372,7 @@ class MQTT:
         if qos < 0 or qos > 2:
             raise MMQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
-            handle_mqtt_error(MQTT_INVALID_TOPIC)
+            raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
         if topic in self._method_handlers:
             raise MMQTTException('Already subscribed to topic.')
         # associate topic subscription with method_handler.
@@ -426,7 +381,7 @@ class MQTT:
         else:
             self._method_handlers.update( {topic : custom_method_handler} )
         if self._sock is None:
-            handle_mqtt_error(MQTT_ERR_NO_CONN)
+            raise MMQTTException("MiniMQTT not connected.")
         pkt = MQTT_SUB_PKT_TYPE
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
@@ -437,10 +392,10 @@ class MQTT:
         while 1:
             op = self.wait_for_msg()
             if op == 0x90:
-                resp = self._sock.read(4)
-                assert resp[1] == pkt[2] and resp[2] == pkt[3]
-                if resp[3] == 0x80:
-                    raise MMQTTException(resp[3])
+                rc = self._sock.read(4)
+                assert rc[1] == pkt[2] and rc[2] == pkt[3]
+                if rc[3] == 0x80:
+                    raise MMQTTException(rc[3])
                 return
 
     def subscribe_multiple(self, topic_info, timeout=1.0):
