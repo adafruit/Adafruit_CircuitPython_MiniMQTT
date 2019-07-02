@@ -383,6 +383,8 @@ class MQTT:
                 assert rc[1] == pkt[2] and rc[2] == pkt[3]
                 if rc[3] == 0x80:
                     raise MMQTTException('SUBACK Failure!')
+                if self._on_subscribe is not None:
+                    self.on_subscribe(self, self._user_data, rc[3])
                 return
 
     @property
@@ -578,7 +580,47 @@ class MQTT:
         :param userdata: User data, previously set in the user_data method.
         :param int rc: Response code.
         """
-        return self._on_disconnect
+        self._on_disconnect = method
 
+    @property
+    def on_publish(self):
+        """Called when the MQTT broker responds to a publish request.
+        """
+        return self._on_publish
+    
+    @on_disconnect.setter
+    def on_disconnect(self, method):
+        """Defines the method which runs when the client is disconnected.
+        :param unbound_method method: user-defined method for disconnection.
+        
+        The on_publish method signature takes the following format:
+            on_publish(client, userdata, rc)
+        and expects the following parameters:
+        :param client: MiniMQTT Client Instance.
+        :param userdata: User data, previously set in the user_data method.
+        :param int rc: Response code.
+        """
+        self._on_publish = method
 
-    # TODO:, on_publish, on_subscribe, on_log
+    @property
+    def on_subscribe(self):
+        """Called when the MQTT broker successfully subscribes to a feed.
+        """
+        return self._on_subscribe
+
+    @on_subscribe.setter
+    def on_subscribe(self, method):
+        """Defines the method which runs when a client subscribes to a feed.
+
+        :param unbound_method method: user-defined method for disconnection.
+        
+        The on_subscribe method signature takes the following format:
+            on_subscribe(client, userdata, rc)
+        and expects the following parameters:
+        :param client: MiniMQTT Client Instance.
+        :param userdata: User data, previously set in the user_data method.
+        :param int granted_qos: QoS level the broker has granted the subscription request..
+        """
+        self._on_subscribe = method
+
+    # TODO:, on_publish, on_log
