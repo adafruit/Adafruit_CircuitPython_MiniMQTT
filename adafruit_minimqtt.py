@@ -124,6 +124,7 @@ class MQTT:
         self._on_publish = None
         self._on_subscribe = None
         self._on_log = None
+        self._user_data = None
         self.last_will()
 
     def __enter__(self):
@@ -246,7 +247,7 @@ class MQTT:
         flags_dict = {}
         #flags_dict['session present'] = 
         result = rc[2] & 1
-        self._on_connect(self, rc, flags_dict, result) 
+        self._on_connect(self._user_data, rc, flags_dict, result) 
         self._is_connected = True
         return result
 
@@ -516,8 +517,25 @@ class MQTT:
             self._sock.write(str.encode(string, 'utf-8'))
         else:
             self._sock.write(string)
+
+    ## Logging ##
+    # TODO: Set up Logging with the CircuitPython logger module.
+
+    ## Acknowledgement Callbacks ##
+
+    @property
+    def user_data(self):
+        """Returns the user_data variable passed to callbacks.
+        """
+        return self._user_data
     
-    # Acknowledgement Callbacks
+    @user_data.setter
+    def user_data(self, data):
+        """Sets the private user_data variable passed to callbacks.
+        :param data: Any data type.
+        """
+        self._user_data = data
+
     @property
     def on_connect(self):
         """Called when the MQTT broker responds to a connection request.
@@ -525,7 +543,16 @@ class MQTT:
         return self._on_callback
     
     @on_connect.setter
-    def on_connect(self, rc, flags_dict, result):
-        """Sets the on_connect parameter
+    def on_connect(self, method):
+        """Defines the method which will run when the client is connected.
+        :param unbound_method method: user-defined method for connections.
+
+        The on_connect method signature takes the following format:
+            on_connect_method(client, userdata, flags, rc)
+        and expects the following parameters:
+        :param client: MiniMQTT Client Instance.
+        :param userdata: User data, previously set in the user_data method.
+        :param flags: CONNACK flags.
+        :param int rc: Response code.
         """
         self._on_connect = method
