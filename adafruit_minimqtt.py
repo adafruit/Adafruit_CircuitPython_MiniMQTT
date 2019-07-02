@@ -244,50 +244,17 @@ class MQTT:
         self._is_connected = False
 
     def ping(self):
-        """Pings the broker.
+        """Pings the MQTT Broker to confirm if the server is alive or
+        if the network connection is active.
+        Raises an error if server is not alive.
+        Returns PINGRESP if server is alive. 
         """
+        # note: sock.write handles the PINGRESP
         self._sock.write(MQTT_PING_REQ)
-
-    @property
-    def mqtt_msg(self):
-        """Returns maximum MQTT payload and topic size."""
-        return self._msg_size_lim, MQTT_TOPIC_SZ_LIMIT
-
-    @mqtt_msg.setter
-    def mqtt_msg(self, msg_size):
-        """Sets the maximum MQTT message payload size.
-        :param int msg_size: Maximum MQTT payload size.
-        """
-        if msg_size < MQTT_MSG_MAX_SZ:
-            self.__msg_size_lim = msg_size
-
-    def publish_multiple(self, data, timeout=1.0):
-        """Publishes to multiple MQTT broker topics.
-        :param tuple data: A list of tuple format:
-            :param str topic: Unique topic identifier.
-            :param str msg: Data to send to the broker.
-            :param bool retain: Whether the message is saved by the broker.
-            :param int qos: Quality of Service level for the message.
-        :param float timeout: Timeout between calls to publish(). This value
-            is usually set by your MQTT broker. Defaults to 1.0
-        """
-        for i in range(len(data)):
-            topic = data[i][0]
-            msg = data[i][1]
-            try:
-                if data[i][2]:
-                    retain = data[i][2]
-            except IndexError:
-                retain = False
-                pass
-            try:
-                if data[i][3]:
-                    qos = data[i][3]
-            except IndexError:
-                qos = 0
-                pass
-            self.publish(topic, msg, retain, qos)
-            time.sleep(timeout)
+        res = self._sock.read(1)
+        if res != MQTT_PINGRESP:
+            raise MMQTTException('PINGRESP was not received')
+        return res
 
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to the MQTT broker.
@@ -395,8 +362,49 @@ class MQTT:
                 rc = self._sock.read(4)
                 assert rc[1] == pkt[2] and rc[2] == pkt[3]
                 if rc[3] == 0x80:
-                    raise MMQTTException(rc[3])
+                    raise MMQTTException('SUBACK Failure!')
                 return
+
+    @property
+    def mqtt_msg(self):
+        """Returns maximum MQTT payload and topic size."""
+        return self._msg_size_lim, MQTT_TOPIC_SZ_LIMIT
+
+    @mqtt_msg.setter
+    def mqtt_msg(self, msg_size):
+        """Sets the maximum MQTT message payload size.
+        :param int msg_size: Maximum MQTT payload size.
+        """
+        if msg_size < MQTT_MSG_MAX_SZ:
+            self.__msg_size_lim = msg_size
+
+    def publish_multiple(self, data, timeout=1.0):
+        """Publishes to multiple MQTT broker topics.
+        :param tuple data: A list of tuple format:
+            :param str topic: Unique topic identifier.
+            :param str msg: Data to send to the broker.
+            :param bool retain: Whether the message is saved by the broker.
+            :param int qos: Quality of Service level for the message.
+        :param float timeout: Timeout between calls to publish(). This value
+            is usually set by your MQTT broker. Defaults to 1.0
+        """
+        for i in range(len(data)):
+            topic = data[i][0]
+            msg = data[i][1]
+            try:
+                if data[i][2]:
+                    retain = data[i][2]
+            except IndexError:
+                retain = False
+                pass
+            try:
+                if data[i][3]:
+                    qos = data[i][3]
+            except IndexError:
+                qos = 0
+                pass
+            self.publish(topic, msg, retain, qos)
+            time.sleep(timeout)
 
     def subscribe_multiple(self, topic_info, timeout=1.0):
         """Subscribes to multiple MQTT broker topics.
@@ -428,7 +436,7 @@ class MQTT:
 
 
     def wait_for_msg(self, blocking=True):
-        """Waits for and processes network events.
+        """Waits for and processes network events. Returns if successful.
         :param bool blocking: Set the blocking or non-blocking mode of the socket.
         :param float timeout: The time in seconds to wait for network traffic before returning.
         """
@@ -464,7 +472,7 @@ class MQTT:
             self._sock.write(pkt)
         elif op & 6 == 4:
             assert 0
-        # TODO: return a value if successful, RETURN OP
+        return op
 
     def _recv_len(self):
         """Receives the size of the topic length."""
@@ -480,13 +488,12 @@ class MQTT:
     def default_sub_handler(self, topic, msg):
         """Default feed subscription handler method.
         :param str topic: Subscription topic.
-        :param str msg: Payload content.
+        :param str msg: Message content.
         """
-        print(msg)
         print('New message on {0}: {1}'.format(topic, msg))
 
     def _send_str(self, string):
-        """Packs a string into a struct, and writes it to a socket as a utf-8 encoded string.
+        """Packs a string into a struct, and writes it to a socket as an utf-8 encoded string.
         :param str string: String to write to the socket.
         """
         self._sock.write(struct.pack("!H", len(string)))
