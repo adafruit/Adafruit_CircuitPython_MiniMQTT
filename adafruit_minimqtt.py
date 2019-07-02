@@ -88,21 +88,21 @@ def handle_mqtt_error(mqtt_err):
     :param int mqtt_err: MQTT error number.
     """
     if mqtt_err == MQTT_ERR_INCORRECT_SERVER:
-        raise MiniMQTTException("Invalid server address defined.")
+        raise MMQTTException("Invalid server address defined.")
     elif mqtt_err == MQTT_ERR_INVALID:
-        raise MiniMQTTException("Invalid method arguments provided.")
+        raise MMQTTException("Invalid method arguments provided.")
     elif mqtt_err == MQTT_ERR_NO_CONN:
-        raise MiniMQTTException("MiniMQTT not connected.")
+        raise MMQTTException("MiniMQTT not connected.")
     elif mqtt_err == MQTT_INVALID_TOPIC:
-        raise MiniMQTTException("Invalid MQTT Topic, must have length > 0.")
+        raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
     elif mqtt_err == MQTT_INVALID_QOS:
-        raise MiniMQTTException("Invalid QoS level,  must be between 0 and 2.")
+        raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
     elif mqtt_err == MQTT_INVALID_WILDCARD:
-        raise MiniMQTTException("Invalid MQTT Wildcard - must be * or #.")
+        raise MMQTTException("Invalid MQTT Wildcard - must be * or #.")
     else:
-        raise MiniMQTTException("Unknown error!")
+        raise MMQTTException("Unknown error!")
 
-class MiniMQTTException(Exception):
+class MMQTTException(Exception):
     pass
 
 class MQTT:
@@ -170,7 +170,7 @@ class MQTT:
         :param bool retain: Specifies if the message is to be retained when it is published. 
         """
         if self._is_connected:
-            raise MiniMQTTException('Last Will should be defined BEFORE connect() is called.')
+            raise MMQTTException('Last Will should be defined BEFORE connect() is called.')
         if qos < 0 or qos > 2:
             handle_mqtt_error(MQTT_INVALID_QOS)
         self._lw_qos = qos
@@ -262,7 +262,7 @@ class MQTT:
 
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] !=0:
-            raise MiniMQTTException(resp[3])
+            raise MMQTTException(resp[3])
         self._is_connected = True
         return resp[2] & 1
 
@@ -331,18 +331,18 @@ class MQTT:
         if topic is None or len(topic) == 0:
             handle_mqtt_error(MQTT_INVALID_TOPIC)
         if '+' in topic or '#' in topic:
-            raise MQTTException('Topic can not contain wildcards.')
+            raise MMQTTException('Topic can not contain wildcards.')
         # check msg/qos kwargs
         if msg is None:
-            raise MQTTException('Message can not be None.')
+            raise MMQTTException('Message can not be None.')
         elif isinstance(msg, (int, float)):
             msg = str(msg).encode('ascii')
         elif isinstance(msg, str):
             msg = str(msg).encode('utf-8')
         else:
-            raise MQTTException('Invalid message data type.')
+            raise MMQTTException('Invalid message data type.')
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise MQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
+            raise MMQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
         if qos < 0 or qos > 2:
             handle_mqtt_error(MQTT_INVALID_QOS)
         if self._sock is None:
@@ -402,9 +402,14 @@ class MQTT:
             mqtt_client.subscribe('topics/ledState', led_setter)
         """
         if qos < 0 or qos > 2:
-            raise MQTTException('QoS level must be between 1 and 2.')
+            raise MMQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
             handle_mqtt_error(MQTT_INVALID_TOPIC)
+        try:
+            if self._method_handlers[topic]:
+                raise MMQTTException('Already subscribed to %s!'%topic)
+        except:
+            pass
         # associate topic subscription with method_handler.
         if method_handler is None:
             self._method_handlers.update( {topic : self.default_sub_handler} )
@@ -425,7 +430,7 @@ class MQTT:
                 resp = self._sock.read(4)
                 assert resp[1] == pkt[2] and resp[2] == pkt[3]
                 if resp[3] == 0x80:
-                    raise MQTTException(resp[3])
+                    raise MMQTTException(resp[3])
                 return
 
     def subscribe_multiple(self, topic_info, timeout=1.0):
@@ -455,18 +460,6 @@ class MQTT:
             print('Subscribing to:', topic, method_handler, qos)
             self.subscribe(topic, method_handler, qos)
             time.sleep(timeout)
-
-    def unsubscribe(self, topic):
-        """Unsubscribes the MQTT client from the MQTT Broker.
-        :param str topic: MQTT subscription topic.
-        """
-        if not topic in self._method_handlers:
-            raise MiniMQTTException('Can not unsubscribe - topic was not subscribed to.')
-        if topic is None or len(topic) == 0:
-            handle_mqtt_error(MQTT_INVALID_TOPIC)
-        # remove topic from handler methods dict.
-        self._method_handlers.pop(topic)
-        print(self._method_handlers)
 
 
     def wait_for_msg(self, blocking=True):
