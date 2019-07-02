@@ -247,8 +247,9 @@ class MQTT:
         flags_dict = {}
         #flags_dict['session present'] = 
         result = rc[2] & 1
-        self._on_connect(self._user_data, rc, flags_dict, result) 
         self._is_connected = True
+        if self._on_connect is not None:
+            self._on_connect(self._user_data, rc, flags_dict, result) 
         return result
 
     def disconnect(self):
@@ -259,6 +260,8 @@ class MQTT:
         self._sock.write(MQTT_DISCONNECT)
         self._sock.close()
         self._is_connected = False
+        if self._on_disconnect is not None:
+            self._on_disconnect(self._user_data, 0)
 
     def ping(self):
         """Pings the MQTT Broker to confirm if the server is alive or
@@ -544,8 +547,8 @@ class MQTT:
     
     @on_connect.setter
     def on_connect(self, method):
-        """Defines the method which will run when the client is connected.
-        :param unbound_method method: user-defined method for connections.
+        """Defines the method which runs when the client is connected.
+        :param unbound_method method: user-defined method for connection.
 
         The on_connect method signature takes the following format:
             on_connect_method(client, userdata, flags, rc)
@@ -556,3 +559,26 @@ class MQTT:
         :param int rc: Response code.
         """
         self._on_connect = method
+    
+    @property
+    def on_disconnect(self):
+        """Called when the MQTT broker responds to a disconnection request.
+        """
+        return self._on_disconnect
+    
+    @on_disconnect.setter
+    def on_disconnect(self, method):
+        """Defines the method which runs when the client is disconnected.
+        :param unbound_method method: user-defined method for disconnection.
+        
+        The on_disconnect method signature takes the following format:
+            on_disconnect_method(client, userdata, rc)
+        and expects the following parameters:
+        :param client: MiniMQTT Client Instance.
+        :param userdata: User data, previously set in the user_data method.
+        :param int rc: Response code.
+        """
+        return self._on_disconnect
+
+
+    # TODO:, on_publish, on_subscribe, on_log
