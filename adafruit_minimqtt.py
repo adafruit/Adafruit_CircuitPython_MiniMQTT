@@ -49,33 +49,34 @@ __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 
-# length of maximum mqtt message
+# Client-specific variables
 MQTT_MSG_MAX_SZ = const(268435455)
 MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_SZ_LIMIT = const(65536)
-
-# MQTT Spec. Commands
-MQTT_TLS_PORT = const(8883)
 MQTT_TCP_PORT = const(1883)
+
+# MQTT Commands
+MQTT_PING_REQ = b'\xc0'
 MQTT_PINGRESP = b'\xd0'
-MQTT_SUB_PKT_TYPE = bytearray(b'\x82\0\0\0')
+MQTT_SUB = bytearray(b'\x82\0\0\0')
+MQTT_PUB = bytearray(b'\x30\0')
+MQTT_CON = bytearray(b'\x10\0\0')
+# Variable header [MQTT 3.1.2]
+MQTT_CON_HEADER = bytearray(b"\x04MQTT\x04\x02\0\0")
 MQTT_DISCONNECT = b'\xe0\0'
-MQTT_PING_REQ = b'\xc0\0'
-MQTT_CON_PREMSG = bytearray(b"\x10\0\0") 
-MQTT_CON_MSG = bytearray(b"\x04MQTT\x04\x02\0\0")
 
 CONNACK_ERRORS = {const(0x01) : 'Connection Refused - Incorrect Protocol Version',
-                const(0x02) : 'Connection Refused - ID Rejected',
-                const(0x03) : 'Connection Refused - Server unavailable',
-                const(0x04) : 'Connection Refused - Incorrect username/password',
-                const(0x05) : 'Connection Refused - Unauthorized'}
+                   const(0x02) : 'Connection Refused - ID Rejected',
+                   const(0x03) : 'Connection Refused - Server unavailable',
+                   const(0x04) : 'Connection Refused - Incorrect username/password',
+                   const(0x05) : 'Connection Refused - Unauthorized'}
 
 class MMQTTException(Exception):
     pass
 
 class MQTT:
     """
-    MQTT Client for CircuitPython.
+    MQTT client interface for CircuitPython devices.
     :param esp: ESP32SPI object.
     :param socket: ESP32SPI Socket object.
     :param str server_address: Server URL or IP Address.
@@ -117,6 +118,12 @@ class MQTT:
         self.packet_id = 0
         self._keep_alive = 0
         self._pid = 0
+        # paho-style method callbacks
+        self._on_connect = None
+        self._on_disconnect = None
+        self._on_publish = None
+        self._on_subscribe = None
+        self._on_log = None
         self.last_will()
 
     def __enter__(self):
@@ -138,7 +145,7 @@ class MQTT:
         :param bool retain: Specifies if the message is to be retained when it is published. 
         """
         if self._is_connected:
-            raise MMQTTException('Last Will should be defined BEFORE connect() is called.')
+            raise MMQTTException('Last Will should be defined before connect() is called.')
         if qos < 0 or qos > 2:
             raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
         self._lw_qos = qos
@@ -146,9 +153,11 @@ class MQTT:
         self._lw_msg = message
         self._lw_retain = retain
 
-    def reconnect(self, retries=30):
+    def reconnect(self, retries=30, resub_topics=False):
         """Attempts to reconnect to the MQTT broker.
         :param int retries: Amount of retries before resetting the ESP32 hardware.
+        :param bool resub_topics: Client resubscribes to previously subscribed topics upon
+            a successful reconnection.
         """
         retries = 0
         while not self._is_connected:
@@ -161,11 +170,14 @@ class MQTT:
                     retries = 0
                     self._esp.reset()
                 continue
-            # TODO: If we disconnected, we should re-subscribe to 
-            # all the topics held in the dict!
+            self._is_connected = True
+            if resub_topics:
+                while len(self._method_handlers) > 0:
+                    feed = self._method_handlers.popitem()
+                    self.subscribe(feed)
 
     def is_connected(self):
-        """Returns if there is an active MQTT connection."""
+        """Returns MQTT session status."""
         return self._is_connected
 
     def connect(self, clean_session=True):
@@ -190,9 +202,8 @@ class MQTT:
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
                 raise MMQTTException("Invalid server address defined.")
-
-        premsg = MQTT_CON_PREMSG
-        msg = MQTT_CON_MSG
+        premsg = MQTT_CON
+        msg = MQTT_CON_HEADER
         msg[6] = clean_session << 1
         sz = 12 + len(self._client_id)
         if self._user is not None:
@@ -212,7 +223,6 @@ class MQTT:
             sz >>= 7
             i += 1
         premsg[i] = sz
-
         self._sock.write(premsg)
         self._sock.write(msg)
         # [MQTT-3.1.3-4]
@@ -227,18 +237,24 @@ class MQTT:
             self._send_str(self._user)
             self._send_str(self._pass)
         rc = self._sock.read(4)
-
-        assert rc[0] == 0x20 and rc[1] == 0x02
+        print('Packet: ', rc)
+        assert rc[0] == const(0x20) and rc[1] == const(0x02)
         if rc[3] !=0:
             raise MMQTTException(CONNACK_ERRORS[rc[3]])
+        # connack rx'd
+        # TODO: figure out flag extracting
+        flags_dict = {}
+        #flags_dict['session present'] = 
+        result = rc[2] & 1
+        self._on_connect(self, rc, flags_dict, result) 
         self._is_connected = True
-        return rc[2] & 1
+        return result
 
     def disconnect(self):
         """Disconnects from the broker.
         """
         if self._sock is None:
-            raise MMQTTException("MiniMQTT not connected.")
+            raise MMQTTException("MiniMQTT is not connected.")
         self._sock.write(MQTT_DISCONNECT)
         self._sock.close()
         self._is_connected = False
@@ -282,7 +298,7 @@ class MQTT:
             raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
-        pkt = bytearray(b"\x30\0")
+        pkt = MQTT_PUB
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
         if qos > 0:
@@ -349,7 +365,7 @@ class MQTT:
             self._method_handlers.update( {topic : custom_method_handler} )
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
-        pkt = MQTT_SUB_PKT_TYPE
+        pkt = MQTT_SUB
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
         self._sock.write(pkt)
@@ -434,7 +450,6 @@ class MQTT:
             self.subscribe(topic, method_handler, qos)
             time.sleep(timeout)
 
-
     def wait_for_msg(self, blocking=True):
         """Waits for and processes network events. Returns if successful.
         :param bool blocking: Set the blocking or non-blocking mode of the socket.
@@ -501,3 +516,16 @@ class MQTT:
             self._sock.write(str.encode(string, 'utf-8'))
         else:
             self._sock.write(string)
+    
+    # Acknowledgement Callbacks
+    @property
+    def on_connect(self):
+        """Called when the MQTT broker responds to a connection request.
+        """
+        return self._on_callback
+    
+    @on_connect.setter
+    def on_connect(self, rc, flags_dict, result):
+        """Sets the on_connect parameter
+        """
+        self._on_connect = method
