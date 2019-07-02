@@ -143,11 +143,11 @@ class MQTT:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
         # subscription method handler dictionary
         self._method_handlers = {}
+        self._is_connected = False
         self.server = server_address
         self.packet_id = 0
         self._keep_alive = 0
-        self.last_will(None, None, 0, False)
-        self._is_connected = False
+        self.last_will()
         self._pid = 0
         self._msg_size_lim = MQTT_MSG_SZ_LIM
 
@@ -169,6 +169,8 @@ class MQTT:
         :param int qos: Quality of Service level.
         :param bool retain: Specifies if the message is to be retained when it is published. 
         """
+        if self._is_connected:
+            raise MiniMQTTException('Last Will should be defined BEFORE connect() is called.')
         if qos < 0 or qos > 2:
             handle_mqtt_error(MQTT_INVALID_QOS)
         self._lw_qos = qos
@@ -191,6 +193,8 @@ class MQTT:
                     retries = 0
                     self._esp.reset()
                 continue
+            # TODO: If we disconnected, we should re-subscribe to 
+            # all the topics held in the dict!
 
     def is_connected(self):
         """Returns if there is an active MQTT connection."""
@@ -255,6 +259,7 @@ class MQTT:
             self._send_str(self._user)
             self._send_str(self._pass)
         resp = self._sock.read(4)
+
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] !=0:
             raise MiniMQTTException(resp[3])
@@ -501,11 +506,7 @@ class MQTT:
             self._sock.write(pkt)
         elif op & 6 == 4:
             assert 0
-    
-    def check_msg(self):
-        """Non-blocking version of wait_for_msg
-        """
-        return self.wait_for_msg(False)
+        # TODO: return a value if successful, RETURN OP
 
     def _recv_len(self):
         """Receives the size of the topic length."""
