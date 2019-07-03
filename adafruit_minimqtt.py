@@ -39,11 +39,12 @@ Implementation Notes
   https://github.com/adafruit/circuitpython/releases
 
 """
-import time
 import struct
-from micropython import const
+import time
 from random import randint
 import microcontroller
+import adafruit_logging as logging
+from micropython import const
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
@@ -86,11 +87,12 @@ class MQTT:
     :param str password: Password for broker authentication.
     :param str client_id: Optional client identifier, defaults to a randomly generated id.
     :param bool is_ssl: Enables TCP mode if false (port 1883). Defaults to True (port 8883).
+    :param bool log: Creates a logger module for debugging. Defaults to ERROR level.
     """
     TCP_MODE = const(0)
     TLS_MODE = const(2)
     def __init__(self, esp, socket, server_address, port=8883, username=None,
-                    password = None, client_id=None, is_ssl=True):
+                    password = None, client_id=None, is_ssl=True, log=False):
         if esp and socket is not None:
             self._esp = esp
             self._socket = socket
@@ -111,6 +113,9 @@ class MQTT:
             # generated client_id's enforce length rules
             if len(self._client_id) > 23 or len(self._client_id) < 1:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
+        if log:
+            self._logger = logging.getLogger('log')
+            self._logger.setLevel(logging.ERROR)
         # subscription method handler dictionary
         self._method_handlers = {}
         self._is_connected = False
@@ -119,6 +124,7 @@ class MQTT:
         self.packet_id = 0
         self._keep_alive = 0
         self._pid = 0
+        self._user_data = None
         # paho-style method callbacks
         self.on_connect = None
         self.on_disconnect = None
@@ -126,8 +132,6 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
         self.on_log = None
-        self._user_data = None
-        self._is_loop = False
         self.last_will()
 
     def __enter__(self):
@@ -269,7 +273,7 @@ class MQTT:
         Raises an error if server is not alive.
         Returns PINGRESP if server is alive. 
         """
-        # note: sock.write handles the PINGRESP
+        self._logger.debug('Sending PINGREQ')
         self._sock.write(MQTT_PING_REQ)
         res = self._sock.read(1)
         if res != MQTT_PINGRESP:
@@ -315,6 +319,7 @@ class MQTT:
             sz >>= 7
             i += 1
         pkt[i] = sz
+        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {1}\n Retain: {2}'.format(topic, msg, qos, retain))
         self._sock.write(pkt)
         self._send_str(topic)
         if qos == 0:
@@ -581,5 +586,26 @@ class MQTT:
         """
         return None
 
-    ## Logging ##
-    # TODO: Set up Logging with the CircuitPython logger module.
+    # Logging
+    @property
+    def logging(self):
+        """Returns the logger object.
+        """
+        return self._logger
+    
+    @logging.setter
+    def logging(self, log_level):
+        """Sets the level of the logger, if defined during init.
+        :param string log_level: Level of logging to output to the REPL. Accepted
+            levels are DEBUG, INFO, WARNING, EROR, and CRITICIAL.
+        """
+        if log_level == 'DEBUG':
+            self._logger.setLevel(logger.DEBUG)
+        elif log_level == 'INFO':
+            self._logger.setLevel(logger.INFO)
+        elif log_level == 'WARNING':
+            self._logger.setLevel(logger.WARNING)
+        elif log_level == 'ERROR':
+            self._logger.setLevel(logger.CRITICIAL)
+        else:
+            raise MMQTTException('Incorrect logging level provided!')
