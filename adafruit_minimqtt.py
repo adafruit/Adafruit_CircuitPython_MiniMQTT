@@ -480,9 +480,8 @@ class MQTT:
             self.subscribe(topic, method_handler, qos)
             time.sleep(timeout)
 
-    def wait_for_msg(self, timeout=0.0):
+    def wait_for_msg(self, timeout=0.1):
         """Waits for and processes network events. Returns if successful.
-        :param bool blocking: Set the blocking or non-blocking mode of the socket.
         :param float timeout: The time in seconds to wait for network traffic before returning.
         """
         self._sock.settimeout(timeout)
