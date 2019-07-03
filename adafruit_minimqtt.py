@@ -419,8 +419,8 @@ class MQTT:
                 op = self.wait_for_msg(0.1)
                 # remove topic and method from method_handlers
                 self._method_handlers.pop(topic)
-                if self._on_subscribe is not None:
-                    self.on_subscribe(self, self._user_data)
+                if self._on_unsubscribe is not None:
+                    self._on_unsubscribe(self, self._user_data)
                 return
             except RuntimeError:
                 raise MMQTTException('Could not unsubscribe from feed.')
