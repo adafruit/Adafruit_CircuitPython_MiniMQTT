@@ -274,6 +274,8 @@ class MQTT:
             raise MMQTTException('PINGRESP was not received')
         return res
 
+
+
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to the MQTT broker.
         :param str topic: Unique topic identifier.
@@ -392,6 +394,19 @@ class MQTT:
                 if self._on_subscribe is not None:
                     self.on_subscribe(self, self._user_data, rc[3])
                 return
+
+    def unsubscribe(self, topic, qos=0):
+        """Unsubscribes from a MQTT topic.
+        """
+        pkt = bytearray(b'\xA0\0\0\0')
+        self._pid += 11
+        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
+        print(pkt)
+        self._sock.write(pkt)
+        while 1:
+            print('waiting for response...')
+            op = self.wait_for_msg()
+            print('op,', op)
 
     @property
     def mqtt_msg(self):
