@@ -347,7 +347,7 @@ class MQTT:
     def subscribe(self, topic, method_handler=None, qos=0):
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topics or multiple topics.
-        :param str topic: Unique topic identifier.
+        :param str topic: Unique MQTT topic identifier.
         :param method method_handler: Predefined method for handling messages
             recieved from a topic. Defaults to default_sub_handler if None.
         :param int qos: Quality of Service level for the topic.
@@ -395,18 +395,24 @@ class MQTT:
                     self.on_subscribe(self, self._user_data, rc[3])
                 return
 
-    def unsubscribe(self, topic, qos=0):
+    def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
+        :param str topic: Unique MQTT topic identifier.
         """
-        pkt = bytearray(b'\xA0\0\0\0')
-        self._pid += 11
-        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
-        print(pkt)
+        pkt = bytearray(b'\xA2\0\0\0')
+        self._pid+=1
+        # variable header length
+        remaining_length = 2
+        remaining_length += 2 + len(topic)
+        struct.pack_into("!BH", pkt, 1, remaining_length, self._pid)
         self._sock.write(pkt)
+        self._send_str(topic)
         while 1:
             print('waiting for response...')
             op = self.wait_for_msg()
-            print('op,', op)
+            if op is not None:
+                print('OK!')
+                return
 
     @property
     def mqtt_msg(self):
@@ -421,7 +427,7 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self.__msg_size_lim = msg_size
 
-    def publish_multiple(self, data, timeout=1.0):
+    def publish_multiple(self, data, timeout=0.0):
         """Publishes to multiple MQTT broker topics.
         :param tuple data: A list of tuple format:
             :param str topic: Unique topic identifier.
