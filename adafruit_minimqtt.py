@@ -241,18 +241,13 @@ class MQTT:
             self._send_str(self._user)
             self._send_str(self._pass)
         rc = self._sock.read(4)
-        print('Packet: ', rc)
         assert rc[0] == const(0x20) and rc[1] == const(0x02)
         if rc[3] !=0:
             raise MMQTTException(CONNACK_ERRORS[rc[3]])
-        # connack rx'd
-        # TODO: figure out flag extracting
-        flags_dict = {}
-        #flags_dict['session present'] = 
-        result = rc[2] & 1
         self._is_connected = True
+        result = rc[2] & 1
         if self._on_connect is not None:
-            self._on_connect(self._user_data, rc, flags_dict, result) 
+            self._on_connect(self, self._user_data, result, rc[3]) 
         return result
 
     def disconnect(self):
