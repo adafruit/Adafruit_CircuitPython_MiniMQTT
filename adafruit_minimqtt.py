@@ -587,25 +587,19 @@ class MQTT:
         return None
 
     # Logging
-    @property
-    def logging(self):
-        """Returns the logger object.
-        """
-        return self._logger
-    
-    @logging.setter
+
     def logging(self, log_level):
         """Sets the level of the logger, if defined during init.
         :param string log_level: Level of logging to output to the REPL. Accepted
             levels are DEBUG, INFO, WARNING, EROR, and CRITICIAL.
         """
         if log_level == 'DEBUG':
-            self._logger.setLevel(logger.DEBUG)
+            self._logger.setLevel(logging.DEBUG)
         elif log_level == 'INFO':
-            self._logger.setLevel(logger.INFO)
+            self._logger.setLevel(logging.INFO)
         elif log_level == 'WARNING':
-            self._logger.setLevel(logger.WARNING)
+            self._logger.setLevel(logging.WARNING)
         elif log_level == 'ERROR':
-            self._logger.setLevel(logger.CRITICIAL)
+            self._logger.setLevel(logging.CRITICIAL)
         else:
             raise MMQTTException('Incorrect logging level provided!')
