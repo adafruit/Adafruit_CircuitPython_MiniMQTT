@@ -59,6 +59,7 @@ MQTT_TCP_PORT = const(1883)
 MQTT_PING_REQ = b'\xc0'
 MQTT_PINGRESP = b'\xd0'
 MQTT_SUB = bytearray(b'\x82\0\0\0')
+MQTT_UNSUB = (b'\xA2\0\0\0')
 MQTT_PUB = bytearray(b'\x30\0')
 MQTT_CON = bytearray(b'\x10\0\0')
 # Variable header [MQTT 3.1.2]
@@ -275,7 +276,6 @@ class MQTT:
         return res
 
 
-
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to the MQTT broker.
         :param str topic: Unique topic identifier.
@@ -396,23 +396,22 @@ class MQTT:
                 return
 
     def unsubscribe(self, topic):
-        """Unsubscribes from a MQTT topic.
+        """Unsubscribes from a MQTT topic. Topic must be previously subscribed to.
         :param str topic: Unique MQTT topic identifier.
         """
-        pkt = bytearray(b'\xA2\0\0\0')
-        self._pid+=1
-        # variable header length
+        pkt = MQTT_UNSUB
+        self._pid += 1
         remaining_length = 2
-        remaining_length += 2 + len(topic)
-        struct.pack_into("!BH", pkt, 1, remaining_length, self._pid)
+        struct.pack_into("!BH", pkt, 1, remaining_length += 2 + len(topic), self._pid)
         self._sock.write(pkt)
         self._send_str(topic)
         while 1:
-            print('waiting for response...')
-            op = self.wait_for_msg()
-            if op is not None:
-                print('OK!')
+            try:
+                # Attempt to rx UNSUBACK
+                op = self.wait_for_msg(0.1)
                 return
+            except RuntimeError:
+                raise MMQTTException('Could not unsubscribe from feed.')
 
     @property
     def mqtt_msg(self):
