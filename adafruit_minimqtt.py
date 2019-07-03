@@ -59,7 +59,7 @@ MQTT_TCP_PORT = const(1883)
 MQTT_PING_REQ = b'\xc0'
 MQTT_PINGRESP = b'\xd0'
 MQTT_SUB = bytearray(b'\x82\0\0\0')
-MQTT_UNSUB = (b'\xA2\0\0\0')
+MQTT_UNSUB = bytearray(b'\xA2\0\0\0')
 MQTT_PUB = bytearray(b'\x30\0')
 MQTT_CON = bytearray(b'\x10\0\0')
 # Variable header [MQTT 3.1.2]
@@ -124,6 +124,7 @@ class MQTT:
         self._on_disconnect = None
         self._on_publish = None
         self._on_subscribe = None
+        self._on_unsubscribe = None
         self._on_log = None
         self._user_data = None
         self._is_loop = False
@@ -395,20 +396,31 @@ class MQTT:
                     self.on_subscribe(self, self._user_data, rc[3])
                 return
 
+
     def unsubscribe(self, topic):
-        """Unsubscribes from a MQTT topic. Topic must be previously subscribed to.
+        """Unsubscribes from a MQTT topic.
         :param str topic: Unique MQTT topic identifier.
         """
+        if topic is None or len(topic) == 0:
+            raise MMQTTException("Invalid MQTT topic - must have a length > 0.")
+        if topic not in self._method_handlers:
+            raise MMQTTException('Must be subscribed to %s before unsubscribing'%topic)
         pkt = MQTT_UNSUB
-        self._pid += 1
+        self._pid+=1
+        # variable header length
         remaining_length = 2
-        struct.pack_into("!BH", pkt, 1, remaining_length += 2 + len(topic), self._pid)
+        remaining_length += 2 + len(topic)
+        struct.pack_into("!BH", pkt, 1, remaining_length, self._pid)
         self._sock.write(pkt)
         self._send_str(topic)
         while 1:
             try:
-                # Attempt to rx UNSUBACK
+                # attempt to UNSUBACK
                 op = self.wait_for_msg(0.1)
+                # remove topic and method from method_handlers
+                self._method_handlers.pop(topic)
+                if self._on_subscribe is not None:
+                    self.on_subscribe(self, self._user_data)
                 return
             except RuntimeError:
                 raise MMQTTException('Could not unsubscribe from feed.')
@@ -659,7 +671,7 @@ class MQTT:
     def on_subscribe(self, method):
         """Defines the method which runs when a client subscribes to a feed.
 
-        :param unbound_method method: user-defined method for disconnection.
+        :param unbound_method method: user-defined method for subscribing to a feed.
         
         The on_subscribe method signature takes the following format:
             on_subscribe(client, userdata, rc)
@@ -669,6 +681,25 @@ class MQTT:
         :param int granted_qos: QoS level the broker has granted the subscription request..
         """
         self._on_subscribe = method
+
+    @property
+    def on_unsubscribe(self):
+        """Called when the MQTT broker responds to a call to unsubscribe().
+        """
+        return self._on_unsubscribe
+
+    @on_unsubscribe.setter
+    def on_unsubscribe(self, method):
+        """Defines the method which runs when a client unsubscribes from a feed.
+        :param unbound_method method: user-defined method for unsubscribing from a feed.
+
+        The on_unsubscribe signature takes the following format:
+            on_unsubscribe(client, userdata)
+        and expects the following parameters:
+        :param client: MiniMQTT Client Instance.
+        :param userdata: User data, previously set in the user_data method.
+        """
+        self._on_unsubscribe = method
 
     @property
     def on_publish(self):
