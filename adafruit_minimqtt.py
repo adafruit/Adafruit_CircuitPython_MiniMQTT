@@ -393,18 +393,17 @@ class MQTT:
                     raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
                 topic_qos_list.append((t, q))
             print('TOPIC QOS LIST:', topic_qos_list) # TODO: remove this!
-        if topic_qos_list is not None:
-            packet_length = 2 + (2 * len(topic)) + (1 * len(topic)) + sum(len(t) for t, qos in topic_qos_list)
-        else:
-            packet_length = 2 + 2 + len(topic) + 1
-        packet_length_byte = packet_length.to_bytes(2, 'big')
+        
+        #              PID toplen  topic    qos
+        packet_length = 2 + 2 + len(topic) + 1
+        packet_length_byte = packet_length.to_bytes(1, 'big')
         
         self._pid += 1
         packet_id_bytes = self._pid.to_bytes(2, 'big')
 
         topic_size = len(topic).to_bytes(2, 'big')
         topic_bytes = topic
-        qos_byte = qos.to_bytes(1, 'little')
+        qos_byte = qos.to_bytes(1, 'big')
         # Assembled packet
         packet = b'\x82' + packet_length_byte + packet_id_bytes + topic_size + topic_bytes +qos_byte
         print(packet)
@@ -413,7 +412,7 @@ class MQTT:
             op = self.wait_for_msg()
             if op == 0x90:
                 rc = self._sock.read(4)
-                assert rc[1] == pkt[2] and rc[2] == pkt[3]
+                assert rc[1] == packet[2] and rc[2] == packet[3]
                 if rc[3] == 0x80:
                     raise MMQTTException('SUBACK Failure!')
                 if self.on_subscribe is not None:
