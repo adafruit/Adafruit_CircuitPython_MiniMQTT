@@ -115,7 +115,7 @@ class MQTT:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
         if log:
             self._logger = logging.getLogger('log')
-            self._logger.setLevel(logging.ERROR)
+            self._logger.setLevel(logging.DEBUG)
         # subscription method handler dictionary
         self._method_handlers = {}
         self._is_connected = False
@@ -156,6 +156,7 @@ class MQTT:
             raise MMQTTException('Last Will should be defined before connect() is called.')
         if qos < 0 or qos > 2:
             raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
+        self._logger.debug('Setting last will properties')
         self._lw_qos = qos
         self._lw_topic = topic
         self._lw_msg = message
@@ -169,6 +170,7 @@ class MQTT:
         """
         retries = 0
         while not self._is_connected:
+            self._logger.debug('Attempting to reconnect to broker')
             try:
                 self.connect(False)
             except OSError as e:
@@ -179,7 +181,9 @@ class MQTT:
                     self._esp.reset()
                 continue
             self._is_connected = True
+            self._logger.debug('Reconnected to broker')
             if resub_topics:
+                self._logger.debug('Attempting to resubscribe to prv. subscribed topics.')
                 while len(self._method_handlers) > 0:
                     feed = self._method_handlers.popitem()
                     self.subscribe(feed)
@@ -189,13 +193,13 @@ class MQTT:
         return self._is_connected
 
     # Core MQTT Methods
-
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session
             with the broker. Defaults to a non-persistent session.
         """
         if self._esp:
+            self._logger.debug('Creating new socket')
             self._socket.set_interface(self._esp)
             self._sock = self._socket.socket()
         else:
@@ -203,12 +207,14 @@ class MQTT:
         self._sock.settimeout(10)
         if self.port == 8883:
             try:
+                self._logger.debug('Attempting to establish secure MQTT connection with %s'%self.server)
                 self._sock.connect((self.server, self.port), TLS_MODE)
             except RuntimeError:
                 raise MMQTTException("Invalid server address defined.")
         else:
             addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
             try:
+                self._logger.debug('Attempting to establish an insecure MQTT connection with %s'%self.server)
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
                 raise MMQTTException("Invalid server address defined.")
@@ -233,6 +239,7 @@ class MQTT:
             sz >>= 7
             i += 1
         premsg[i] = sz
+        self._logger.debug('Sending CONNECT packet to server')
         self._sock.write(premsg)
         self._sock.write(msg)
         # [MQTT-3.1.3-4]
@@ -246,6 +253,7 @@ class MQTT:
         else:
             self._send_str(self._user)
             self._send_str(self._pass)
+        self._logger.debug('Receiving CONNACK packet from server')
         rc = self._sock.read(4)
         assert rc[0] == const(0x20) and rc[1] == const(0x02)
         if rc[3] !=0:
@@ -261,7 +269,9 @@ class MQTT:
         """
         if self._sock is None:
             raise MMQTTException("MiniMQTT is not connected.")
+        self._logger.debug('Sending DISCONNECT packet to server')
         self._sock.write(MQTT_DISCONNECT)
+        self._logger.debug('Closing socket')
         self._sock.close()
         self._is_connected = False
         if self.on_disconnect is not None:
@@ -334,6 +344,7 @@ class MQTT:
             self._sock.write(pkt)
             if self.on_publish is not None:
                 self.on_publish(self, self._user_data, pid)
+        self._logger.debug('Sending PUBACK')
         self._sock.write(msg)
         if qos == 1:
             while 1:
@@ -388,6 +399,7 @@ class MQTT:
         pkt = MQTT_SUB
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
+        self._logger.debug('Subscribing to {0} with a QOS of {1}'.format(topic, qos))
         self._sock.write(pkt)
         # [MQTT-3.8.3-1]
         self._send_str(topic)
@@ -418,11 +430,13 @@ class MQTT:
         remaining_length = 2
         remaining_length += 2 + len(topic)
         struct.pack_into("!BH", pkt, 1, remaining_length, self._pid)
+        self._logger.debug('Unsubscribing from %s'%topic)
         self._sock.write(pkt)
         self._send_str(topic)
         while 1:
             try:
                 # attempt to UNSUBACK
+                self._logger.debug('Sending UNSUBACK')
                 op = self.wait_for_msg(0.1)
                 # remove topic and method from method_handlers
                 self._method_handlers.pop(topic)
@@ -506,7 +520,8 @@ class MQTT:
 
     def wait_for_msg(self, timeout=0.1):
         """Waits for and processes network events. Returns if successful.
-        :param float timeout: The time in seconds to wait for network traffic before returning.
+        :param float timeout: The time in seconds to wait for network before returning.
+            Setting this to 0.0 will cause the socket to block until it reads.
         """
         self._sock.settimeout(timeout)
         res = self._sock.read(1)
@@ -516,31 +531,30 @@ class MQTT:
             sz = self._sock.read(1)[0]
             assert sz == 0
             return None
-        op = res[0]
-        if op & 0xf0 != 0x30:
-            return op
+        if res[0] & const(0xf0) != const(0x30):
+            return res[0]
         sz = self._recv_len()
         topic_len = self._sock.read(2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
         topic = self._sock.read(topic_len)
         topic = str(topic, 'utf-8')
         sz -= topic_len + 2
-        if op & 6:
+        if res[0] & const(0x06):
             pid = self._sock.read(2)
-            pid = pid[0] << 8 | pid[1]
-            sz -= 2
+            pid = pid[0] << const(0x08) | pid[1]
+            sz -= const(0x02)
         msg = self._sock.read(sz)
         # call the topic's handler method
         if topic in self._method_handlers:
             method_handler = self._method_handlers[topic]
             method_handler(topic, str(msg, 'utf-8'))
-        if op & 6 == 2:
+        if res[0] & const(0x06) == const(0x02):
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
             self._sock.write(pkt)
-        elif op & 6 == 4:
+        elif res[0] & 6 == 4:
             assert 0
-        return op
+        return res[0]
 
     def _recv_len(self):
         """Receives the size of the topic length."""
@@ -558,6 +572,7 @@ class MQTT:
         :param str topic: Subscription topic.
         :param str msg: Message content.
         """
+        self._logger.debug('default_sub_handler called')
         print('New message on {0}: {1}'.format(topic, msg))
 
     def _send_str(self, string):
