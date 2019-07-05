@@ -87,12 +87,11 @@ class MQTT:
     :param str password: Password for broker authentication.
     :param str client_id: Optional client identifier, defaults to a randomly generated id.
     :param bool is_ssl: Enables TCP mode if false (port 1883). Defaults to True (port 8883).
-    :param bool log: Creates a logger module for debugging. Defaults to ERROR level.
     """
     TCP_MODE = const(0)
     TLS_MODE = const(2)
     def __init__(self, esp, socket, server_address, port=8883, username=None,
-                    password = None, client_id=None, is_ssl=True, log=False):
+                    password = None, client_id=None, is_ssl=True):
         if esp and socket is not None:
             self._esp = esp
             self._socket = socket
@@ -113,9 +112,8 @@ class MQTT:
             # generated client_id's enforce length rules
             if len(self._client_id) > 23 or len(self._client_id) < 1:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
-        if log:
-            self._logger = logging.getLogger('log')
-            self._logger.setLevel(logging.DEBUG)
+        self._logger = logging.getLogger('log')
+        self._logger.setLevel(logging.INFO)
         # subscription method handler dictionary
         self._method_handlers = {}
         self._is_connected = False
@@ -547,7 +545,7 @@ class MQTT:
         # call the topic's handler method
         if topic in self._method_handlers:
             method_handler = self._method_handlers[topic]
-            method_handler(topic, str(msg, 'utf-8'))
+            method_handler(self, topic, str(msg, 'utf-8'))
         if res[0] & const(0x06) == const(0x02):
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
