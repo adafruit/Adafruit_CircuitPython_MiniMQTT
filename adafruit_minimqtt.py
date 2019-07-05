@@ -367,6 +367,8 @@ class MQTT:
         :param str topic: Unique MQTT topic identifier.
         :param method method_handler: Predefined method for handling messages
             recieved from a topic. Defaults to default_sub_handler if None.
+        A user-defined metod_handler MUST use the following signature:
+            method_handler(client, topic, message)
         :param int qos: Quality of Service level for the topic.
 
         Example of subscribing to one topic:
