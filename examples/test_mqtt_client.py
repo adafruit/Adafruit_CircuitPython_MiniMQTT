@@ -3,7 +3,6 @@ CircuitPython_MiniMQTT Module Tester
 
 by Brent Rubell for Adafruit Industries, 2019
 """
-
 import time
 import board
 import busio
@@ -96,26 +95,46 @@ def unsubscribe(P1, P2):
     print('Client successfully unsubscribed from feed!')
 
 # MQTT Client Tests
-def create_insecure_mqtt_client_esp32spi(esp, socket):
-    """Creates a new INSECURE (port 1883) MiniMQTT client for boards with an ESP32 module.
-    :param esp: ESP32SPI object.
-    :param socket: ESP32SPI_Socket object.
-    """
+def test_create_insecure_mqtt_client_esp32spi():
+    """Creates an insecure MQTT client using an ESP32SPI socket connection."""
     mqtt_client = MQTT(esp, socket, secrets['aio_url'],
                         username=secrets['aio_user'], password=secrets['aio_password'],
                         is_ssl=False)
+    assertEqual(mqtt_client.port, 1883)
 
-def create_secure_mqtt_client_esp32spi(esp, socket):
-    """Creates a new SECURE (port 8883) MiniMQTT client for boards with an ESP32 module.
-    :param esp: ESP32SPI object.
-    :param socket: ESP32SPI_Socket object.
-    """
+def test_create_secure_mqtt_client_esp32spi():
+    """Creates a secure MQTT client using an ESP32SPI socket connection."""
     mqtt_client = MQTT(esp, socket, secrets['aio_url'],
                         username=secrets['aio_user'], password=secrets['aio_password'],
                         is_ssl=True)
+    assertEqual(mqtt_client.port, 8883)
+
+def test_connect_mqtts_esp32spi():
+    """Securely connects to a MQTT broker using an ESP32SPI_Socket connection."""
+    mqtt_client = MQTT(esp, socket, secrets['aio_url'],
+                    username=secrets['aio_user'], password=secrets['aio_password'],
+                    is_ssl=True)
+    mqtt_client.connect()
+    assertEqual(mqtt_client._is_connected, True)
+
+def test_connect_mqtt_esp32spi():
+    """Inesecurely connects to a MQTT broker using an ESP32SPI_Socket connection."""
+    mqtt_client = MQTT(esp, socket, secrets['aio_url'],
+                    username=secrets['aio_user'], password=secrets['aio_password'],
+                    is_ssl=False)
+    mqtt_client.connect()
+    assertEqual(mqtt_client._is_connected, True)
 
 
-# Test Scripting
+# Timeout between tests, in seconds. This value depends on the timeout of your MQTT broker.
+TEST_TIMEOUT = 1
+
+# Tests methods
+tests = [test_create_insecure_mqtt_client_esp32spi, test_create_secure_mqtt_client_esp32spi,
+            test_connect_mqtts_esp32spi, test_connect_mqtt_esp32spi]
+
+
+# Establish ESP32SPI connection
 print("Connecting to AP...")
 while not esp.is_connected:
     try:
@@ -124,3 +143,13 @@ while not esp.is_connected:
         print("could not connect to AP, retrying: ",e)
         continue
 print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
+
+# Test harness
+
+start_time = time.monotonic()
+for i in enumerate(tests):
+    print('Running test: ', i)
+    i[1]()
+    print('OK!')
+    time.sleep(TEST_TIMEOUT)
+print('Ran {0} tests in {1}s.'.format(len(tests), time.monotonic() - start_time))
