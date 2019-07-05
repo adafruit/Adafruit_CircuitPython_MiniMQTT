@@ -268,18 +268,20 @@ class MQTT:
             self.on_disconnect(self, self._user_data, 0)
 
     def ping(self):
-        """Pings the MQTT Broker to confirm if the server is alive or
-        if the network connection is active.
-        Raises an error if server is not alive.
-        Returns PINGRESP if server is alive. 
+        """Pings the MQTT Broker to confirm if the server is alive or if
+        there is an active network connection.
+        Raises a MMQTTException if the server does not respond with a PINGRESP packet.
         """
         self._logger.debug('Sending PINGREQ')
         self._sock.write(MQTT_PING_REQ)
         res = self._sock.read(1)
-        if res != MQTT_PINGRESP:
-            raise MMQTTException('PINGRESP was not received')
-        return res
-
+        self._logger.debug('Checking PINGRESP')
+        if res == MQTT_PINGRESP:
+            sz = self._sock.read(1)[0]
+            assert sz == 0
+            return None
+        else:
+            raise MMQTTException('Server did not return with PINGRESP')
 
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to the MQTT broker.
@@ -380,7 +382,7 @@ class MQTT:
         if method_handler is None:
             self._method_handlers.update( {topic : self.default_sub_handler} )
         else:
-            self._method_handlers.update( {topic : custom_method_handler} )
+            self._method_handlers.update( {topic : method_handler} )
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
         pkt = MQTT_SUB
@@ -429,7 +431,6 @@ class MQTT:
                 return
             except RuntimeError:
                 raise MMQTTException('Could not unsubscribe from feed.')
-
 
     @property
     def mqtt_msg(self):
@@ -587,7 +588,6 @@ class MQTT:
         return None
 
     # Logging
-
     def logging(self, log_level):
         """Sets the level of the logger, if defined during init.
         :param string log_level: Level of logging to output to the REPL. Accepted
