@@ -382,18 +382,34 @@ class MQTT:
             raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
+        topic_qos_list = None
         if isinstance(topic, list):
             topic_qos_list = []
-        pkt = MQTT_SUB
+            for t, q in topic:
+                if q < 0 or q > 2:
+                    raise MMQTTException('QoS level must be between 1 and 2.')
+                if t is None or len(t) == 0:
+                    raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
+                topic_qos_list.append((t, q))
+            print('TOPIC QOS LIST:', topic_qos_list) # TODO: remove this!
+        payload = bytearray(b'\x82\0\0\0')
+        # generate message ID
         self._pid += 11
-        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
-        self._logger.debug('Subscribing to {0} with a QOS of {1}'.format(topic, qos))
-        self._sock.write(pkt)
+        # calculate the length
+        remaining_length = 2
+        for t in topic_qos_list:
+            remaining_length += 2 + len(t) +1
+        struct.pack_into("!BH", payload, 1, remaining_length, self._pid)
+        print('payload: ', payload)
+        self._sock.write(payload)
         # [MQTT-3.8.3-1]
-        self._send_str(topic)
-        self._sock.write(qos.to_bytes(1, "little"))
+        for t, q in topic_qos_list:
+            self._send_str(t)
+            self._sock.write(q.to_bytes(1, "little"))
         while 1:
+            print('waiting for OP.')
             op = self.wait_for_msg()
+            print('OP:', op)
             if op == 0x90:
                 rc = self._sock.read(4)
                 assert rc[1] == pkt[2] and rc[2] == pkt[3]
@@ -402,6 +418,7 @@ class MQTT:
                 if self.on_subscribe is not None:
                     self.on_subscribe(self, self._user_data, rc[3])
                 return
+
 
 
     def unsubscribe(self, topic):
