@@ -330,7 +330,7 @@ class MQTT:
             sz >>= 7
             i += 1
         pkt[i] = sz
-        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {1}\n Retain: {2}'.format(topic, msg, qos, retain))
+        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {2}\n Retain: {3}'.format(topic, msg, qos, retain))
         self._sock.write(pkt)
         self._send_str(topic)
         if qos == 0:
