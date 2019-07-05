@@ -115,7 +115,6 @@ class MQTT:
         self._logger = logging.getLogger('log')
         self._logger.setLevel(logging.INFO)
         # subscription method handler dictionary
-        self._method_handlers = {}
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self.server = server_address
@@ -123,7 +122,8 @@ class MQTT:
         self._keep_alive = 0
         self._pid = 0
         self._user_data = None
-        # paho-style method callbacks
+        # Server callbacks
+        self.on_message = None
         self.on_connect = None
         self.on_disconnect = None
         self.on_publish = None
@@ -182,9 +182,10 @@ class MQTT:
             self._logger.debug('Reconnected to broker')
             if resub_topics:
                 self._logger.debug('Attempting to resubscribe to prv. subscribed topics.')
-                while len(self._method_handlers) > 0:
-                    feed = self._method_handlers.popitem()
-                    self.subscribe(feed)
+                # TODO - add topic-based resubscription
+                #while len(self._method_handlers) > 0:
+                #    feed = self._method_handlers.popitem()
+                #    self.subscribe(feed)
 
     def is_connected(self):
         """Returns MQTT client session status."""
@@ -361,14 +362,10 @@ class MQTT:
                 raise NotImplementedError('on_publish callback not implemented for QoS > 1.')
             assert 0
 
-    def subscribe(self, topic, method_handler=None, qos=0):
+    def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topics or multiple topics.
         :param str topic: Unique MQTT topic identifier.
-        :param method method_handler: Predefined method for handling messages
-            recieved from a topic. Defaults to default_sub_handler if None.
-        A user-defined metod_handler MUST use the following signature:
-            method_handler(client, topic, message)
         :param int qos: Quality of Service level for the topic.
 
         Example of subscribing to one topic:
@@ -378,22 +375,11 @@ class MQTT:
         Example of subscribing to one topic and setting the Quality of Service level to 1:
         .. code-block:: python
             mqtt_client.subscribe('topics/ledState', 1)
-        
-        Example of subscribing to one topic and attaching a method handler:
-        .. code-block:: python
-            mqtt_client.subscribe('topics/ledState', led_setter)
         """
         if qos < 0 or qos > 2:
             raise MMQTTException('QoS level must be between 1 and 2.')
         if topic is None or len(topic) == 0:
             raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
-        if topic in self._method_handlers:
-            raise MMQTTException('Already subscribed to topic.')
-        # associate topic subscription with method_handler.
-        if method_handler is None:
-            self._method_handlers.update( {topic : self.default_sub_handler} )
-        else:
-            self._method_handlers.update( {topic : method_handler} )
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
         pkt = MQTT_SUB
@@ -422,8 +408,7 @@ class MQTT:
         """
         if topic is None or len(topic) == 0:
             raise MMQTTException("Invalid MQTT topic - must have a length > 0.")
-        if topic not in self._method_handlers:
-            raise MMQTTException('Must be subscribed to %s before unsubscribing'%topic)
+        # TODO: Check if topic is already subscribed before attempting to unsubscribe
         pkt = MQTT_UNSUB
         self._pid+=1
         # variable header length
@@ -438,8 +423,7 @@ class MQTT:
                 # attempt to UNSUBACK
                 self._logger.debug('Sending UNSUBACK')
                 op = self.wait_for_msg(0.1)
-                # remove topic and method from method_handlers
-                self._method_handlers.pop(topic)
+                # TODO: Remove topic from topic list!
                 if self.on_unsubscribe is not None:
                     self.on_unsubscribe(self, self._user_data)
                 return
@@ -488,36 +472,6 @@ class MQTT:
             self.publish(topic, msg, retain, qos)
             time.sleep(timeout)
 
-    def subscribe_multiple(self, topic_info, timeout=1.0):
-        """Subscribes to multiple MQTT broker topics.
-        :param tuple topic_info: A list of tuple format:
-            :param str topic: Unique topic identifier.
-            :param method method_handler: Predefined method for handling messages
-                recieved from a topic. Defaults to default_sub_handler if None.
-            :param int qos: Quality of Service level for the topic. Defaults to 0.
-        :param float timeout: Timeout between calls to subscribe().
-        """
-        #TODO: This could be simplified
-        # 1 mqtt subscription call, multiple topics
-        print('topics:', topic_info)
-        for i in range(len(topic_info)):
-            topic = topic_info[i][0]
-            try:
-                if topic_info[i][1]:
-                    method_handler = topic_info[i][1]
-            except IndexError:
-                method_handler = None
-                pass
-            try:
-                if topic_info[i][2]:
-                    qos = topic_info[i][2]
-            except IndexError:
-                qos = 0
-                pass
-            print('Subscribing to:', topic, method_handler, qos)
-            self.subscribe(topic, method_handler, qos)
-            time.sleep(timeout)
-
     def wait_for_msg(self, timeout=0.1):
         """Waits for and processes network events. Returns if successful.
         :param float timeout: The time in seconds to wait for network before returning.
@@ -544,10 +498,6 @@ class MQTT:
             pid = pid[0] << const(0x08) | pid[1]
             sz -= const(0x02)
         msg = self._sock.read(sz)
-        # call the topic's handler method
-        if topic in self._method_handlers:
-            method_handler = self._method_handlers[topic]
-            method_handler(self, topic, str(msg, 'utf-8'))
         if res[0] & const(0x06) == const(0x02):
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
