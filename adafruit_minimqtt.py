@@ -393,21 +393,20 @@ class MQTT:
                 if t is None or len(t) == 0 or len(t.encode('utf-8')) > 65536:
                     raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
                 topics.append((t, q))
-        #              PID toplen  topic    qos
-        #packet_length = 2 + 2 + len(topic) + 1
+        # Assemble packet
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics)) + sum(len(topic) for topic, qos in topics)
         packet_length_byte = packet_length.to_bytes(1, 'big')
-
-        self._pid += 1
+        self._pid += 11
         packet_id_bytes = self._pid.to_bytes(2, 'big')
 
         # Packet with variable and fixed headers
         packet = MQTT_SUB + packet_length_byte + packet_id_bytes
+
+        # attaching topic and QOS level to the packet 
         for topic, qos in topics:
             topic_size = len(topic).to_bytes(2, 'big')
             qos_byte = qos.to_bytes(1, 'big')
             packet += topic_size + topic + qos_byte
-
         self._logger.debug('SUBSCRIBING to topic(s)')
         self._sock.write(packet)
         while 1:
