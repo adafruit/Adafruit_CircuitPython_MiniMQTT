@@ -122,6 +122,7 @@ class MQTT:
         self._keep_alive = 0
         self._pid = 0
         self._user_data = None
+        self._subscribed_topics = []
         # Server callbacks
         self.on_message = None
         self.on_connect = None
@@ -182,10 +183,9 @@ class MQTT:
             self._logger.debug('Reconnected to broker')
             if resub_topics:
                 self._logger.debug('Attempting to resubscribe to prv. subscribed topics.')
-                # TODO - add topic-based resubscription
-                #while len(self._method_handlers) > 0:
-                #    feed = self._method_handlers.popitem()
-                #    self.subscribe(feed)
+                while len(self._subscribed_topics) > 0:
+                    feed = self._subscribed_topics.pop()
+                    self.subscribe(feed)
 
     def is_connected(self):
         """Returns MQTT client session status."""
@@ -382,6 +382,8 @@ class MQTT:
             raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
+        if isinstance(topic, list):
+            topic_qos_list = []
         pkt = MQTT_SUB
         self._pid += 11
         struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self._pid)
@@ -408,7 +410,8 @@ class MQTT:
         """
         if topic is None or len(topic) == 0:
             raise MMQTTException("Invalid MQTT topic - must have a length > 0.")
-        # TODO: Check if topic is already subscribed before attempting to unsubscribe
+        if topic in self._subscribed_topics:
+            raise MMQTTException('Topic must be subscribed to before attempting to unsubscribe.')
         pkt = MQTT_UNSUB
         self._pid+=1
         # variable header length
@@ -423,7 +426,8 @@ class MQTT:
                 # attempt to UNSUBACK
                 self._logger.debug('Sending UNSUBACK')
                 op = self.wait_for_msg(0.1)
-                # TODO: Remove topic from topic list!
+                # remove topic from subscription list
+                self._subscribed_topics.remove(topic)
                 if self.on_unsubscribe is not None:
                     self.on_unsubscribe(self, self._user_data)
                 return
