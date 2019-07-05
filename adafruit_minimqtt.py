@@ -498,6 +498,8 @@ class MQTT:
             pid = pid[0] << const(0x08) | pid[1]
             sz -= const(0x02)
         msg = self._sock.read(sz)
+        if self.on_message is not None:
+            self.on_message(self, topic, str(msg, 'utf-8'))
         if res[0] & const(0x06) == const(0x02):
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
