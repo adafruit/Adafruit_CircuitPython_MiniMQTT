@@ -59,7 +59,7 @@ MQTT_TCP_PORT = const(1883)
 # MQTT Commands
 MQTT_PING_REQ = b'\xc0'
 MQTT_PINGRESP = b'\xd0'
-MQTT_SUB = bytearray(b'\x82\0\0\0')
+MQTT_SUB = b'\x82'
 MQTT_UNSUB = bytearray(b'\xA2\0\0\0')
 MQTT_PUB = bytearray(b'\x30\0')
 MQTT_CON = bytearray(b'\x10\0\0')
@@ -376,40 +376,43 @@ class MQTT:
         .. code-block:: python
             mqtt_client.subscribe('topics/ledState', 1)
         """
-        if qos < 0 or qos > 2:
-            raise MMQTTException('QoS level must be between 1 and 2.')
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
-        topic_qos_list = None
+        topics = None
         if isinstance(topic, str):
             if topic is None or len(topic) == 0 or len(topic.encode('utf-8')) > 65536:
                 raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
+            if qos < 0 or qos > 2:
+                raise MMQTTException('QoS level must be between 1 and 2.')
+            topics = [(topic, qos)]
         if isinstance(topic, list):
-            topic_qos_list = []
+            topics = []
             for t, q in topic:
                 if q < 0 or q > 2:
                     raise MMQTTException('QoS level must be between 1 and 2.')
-                if t is None or len(t) == 0 or len(topic.encode('utf-8')) > 65536:
+                if t is None or len(t) == 0 or len(t.encode('utf-8')) > 65536:
                     raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
-                topic_qos_list.append((t, q))
-            print('TOPIC QOS LIST:', topic_qos_list) # TODO: remove this!
-        
+                topics.append((t, q))
         #              PID toplen  topic    qos
-        packet_length = 2 + 2 + len(topic) + 1
+        #packet_length = 2 + 2 + len(topic) + 1
+        packet_length = 2 + (2 * len(topics)) + (1 * len(topics)) + sum(len(topic) for topic, qos in topics)
         packet_length_byte = packet_length.to_bytes(1, 'big')
-        
+
         self._pid += 1
         packet_id_bytes = self._pid.to_bytes(2, 'big')
 
-        topic_size = len(topic).to_bytes(2, 'big')
-        topic_bytes = topic
-        qos_byte = qos.to_bytes(1, 'big')
-        # Assembled packet
-        packet = b'\x82' + packet_length_byte + packet_id_bytes + topic_size + topic_bytes +qos_byte
-        print(packet)
+        # Packet with variable and fixed headers
+        packet = MQTT_SUB + packet_length_byte + packet_id_bytes
+        for topic, qos in topics:
+            topic_size = len(topic).to_bytes(2, 'big')
+            qos_byte = qos.to_bytes(1, 'big')
+            packet += topic_size + topic + qos_byte
+
+        self._logger.debug('SUBSCRIBING to topic(s)')
         self._sock.write(packet)
         while 1:
             op = self.wait_for_msg()
+            print(op)
             if op == 0x90:
                 rc = self._sock.read(4)
                 assert rc[1] == packet[2] and rc[2] == packet[3]
@@ -418,8 +421,6 @@ class MQTT:
                 if self.on_subscribe is not None:
                     self.on_subscribe(self, self._user_data, rc[3])
                 return
-
-
 
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
