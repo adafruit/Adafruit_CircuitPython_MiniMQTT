@@ -378,38 +378,39 @@ class MQTT:
         """
         if qos < 0 or qos > 2:
             raise MMQTTException('QoS level must be between 1 and 2.')
-        if topic is None or len(topic) == 0:
-            raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
         topic_qos_list = None
+        if isinstance(topic, str):
+            if topic is None or len(topic) == 0 or len(topic.encode('utf-8')) > 65536:
+                raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
         if isinstance(topic, list):
             topic_qos_list = []
             for t, q in topic:
                 if q < 0 or q > 2:
                     raise MMQTTException('QoS level must be between 1 and 2.')
-                if t is None or len(t) == 0:
+                if t is None or len(t) == 0 or len(topic.encode('utf-8')) > 65536:
                     raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
                 topic_qos_list.append((t, q))
             print('TOPIC QOS LIST:', topic_qos_list) # TODO: remove this!
-        payload = bytearray(b'\x82\0\0\0')
-        # generate message ID
-        self._pid += 11
-        # calculate the length
-        remaining_length = 2
-        for t in topic_qos_list:
-            remaining_length += 2 + len(t) +1
-        struct.pack_into("!BH", payload, 1, remaining_length, self._pid)
-        print('payload: ', payload)
-        self._sock.write(payload)
-        # [MQTT-3.8.3-1]
-        for t, q in topic_qos_list:
-            self._send_str(t)
-            self._sock.write(q.to_bytes(1, "little"))
+        if topic_qos_list is not None:
+            packet_length = 2 + (2 * len(topic)) + (1 * len(topic)) + sum(len(t) for t, qos in topic_qos_list)
+        else:
+            packet_length = 2 + 2 + len(topic) + 1
+        packet_length_byte = packet_length.to_bytes(2, 'big')
+        
+        self._pid += 1
+        packet_id_bytes = self._pid.to_bytes(2, 'big')
+
+        topic_size = len(topic).to_bytes(2, 'big')
+        topic_bytes = topic
+        qos_byte = qos.to_bytes(1, 'little')
+        # Assembled packet
+        packet = b'\x82' + packet_length_byte + packet_id_bytes + topic_size + topic_bytes +qos_byte
+        print(packet)
+        self._sock.write(packet)
         while 1:
-            print('waiting for OP.')
             op = self.wait_for_msg()
-            print('OP:', op)
             if op == 0x90:
                 rc = self._sock.read(4)
                 assert rc[1] == pkt[2] and rc[2] == pkt[3]
