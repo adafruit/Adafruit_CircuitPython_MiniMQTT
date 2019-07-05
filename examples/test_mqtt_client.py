@@ -98,6 +98,8 @@ def test_mqtts_connect_disconnect_esp32spi():
 def test_sub_pub():
     """Creates a MQTTS client, connects, subscribes, publishes, and checks data
     received from broker matches data sent by client"""
+    MSG_TOPIC = 'brubell/feeds/testfeed'
+    MSG_DATA  = 42
     mqtt_client = MQTT(esp, socket, secrets['aio_url'],
                     username=secrets['aio_user'], password=secrets['aio_password'],
                     is_ssl=True)
@@ -106,16 +108,19 @@ def test_sub_pub():
     callback_msgs = []
     def on_message(client, topic, msg):
         callback_msgs.append([topic, msg])
-        print(callback_msgs)
+    mqtt_client.on_message = on_message
     mqtt_client.connect()
     assertEqual(mqtt_client._is_connected, True)
-    mqtt_client.subscribe('brubell/feeds/testfeed', on_message)
-    mqtt_client.publish('brubell/feeds/testfeed', 42)
+    mqtt_client.subscribe(MSG_TOPIC)
+    mqtt_client.publish(MSG_TOPIC, MSG_DATA)
     start_timer = time.monotonic()
+    print('listening...')
     while len(callback_msgs) == 0 and (time.monotonic() - start_timer < 30):
         mqtt_client.wait_for_msg()
-    # check message with payload sent has been RXd properly
-    print(callback_msgs)
+    # check message+topic has been RX'd by the client's callback
+    assertEqual(callback_msgs[0][0], MSG_TOPIC)
+    assertEqual(callback_msgs[0][1], str(MSG_DATA))
+    mqtt_client.disconnect()
 
 
 # Timeout between tests, in seconds. This value depends on the timeout of your MQTT broker.
@@ -129,7 +134,7 @@ conn_tests = [test_mqtt_create_client_esp32spi, test_mqtts_create_client_esp32sp
 pub_sub_tests = [test_sub_pub]
 
 # The test routine runs the following test(s):
-tests = pub_sub_tests
+tests = [test_sub_pub]
 
 # Establish ESP32SPI connection
 print("Connecting to AP...")
