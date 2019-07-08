@@ -451,6 +451,7 @@ class MQTT:
             for t, q in topic:
                 if q < 0 or q > 2:
                     raise MMQTTException('QoS level must be between 1 and 2.')
+                # TODO: Check topic length in here...
                 if t is None or not t or len(t.encode('utf-8')) > 65536:
                     raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
                 topics.append((t, q))
@@ -488,9 +489,12 @@ class MQTT:
         """Checks if topic provided is a valid mqtt topic.
         :param str topic: Topic identifier
         """
-        print('TOPIC: ', topic)
-        if topic is None or not len(topic) or len(topic.encode('utf-8') > MQTT_TOPIC_LENGTH_LIMIT):
-            raise MMQTTException('Invalid MQTT topic')
+        if topic is None:
+            raise MMQTTException('Topic may not be Nonetype')
+        elif not len(topic):
+            raise MMQTTException('Topic may not be empty.')
+        elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
+            raise MMQTTException('Topic length is too large.')
 
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
