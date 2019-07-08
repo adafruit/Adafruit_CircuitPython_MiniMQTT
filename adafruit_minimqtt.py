@@ -175,7 +175,7 @@ class MQTT:
 
     def reconnect(self, retries=30, resub_topics=False):
         """Attempts to reconnect to the MQTT broker.
-        :param int retries: Amount of retries before resetting the ESP32 hardware.
+        :param int retries: Amount of retries before resetting the provided network interface hardware.
         :param bool resub_topics: Client resubscribes to previously subscribed topics upon
             a successful reconnection.
         """
@@ -190,7 +190,7 @@ class MQTT:
                 retries+=1
                 if retries >= 30:
                     retries = 0
-                    self._esp.reset()
+                time.sleep(0.5)
                 continue
             self._is_connected = True
             if self._logger is not None:
@@ -370,8 +370,7 @@ class MQTT:
             sz >>= 7
             i += 1
         pkt[i] = sz
-        if self._logger is not None:
-            self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
+        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
         self._sock.write(pkt)
         self._send_str(topic)
         if qos == 0:
@@ -384,8 +383,7 @@ class MQTT:
             self._sock.write(pkt)
             if self.on_publish is not None:
                 self.on_publish(self, self._user_data, pid)
-        if self._logger is not None:
-            self._logger.debug('Sending PUBACK')
+        self._logger.debug('Sending PUBACK')
         self._sock.write(msg)
         if qos == 1:
             while 1:
@@ -546,35 +544,6 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self.__msg_size_lim = msg_size
 
-    def publish_multiple(self, data, timeout=0.0):
-        """Publishes to multiple MQTT broker topics.
-        :param tuple data: A list of tuple format:
-            :param str topic: Unique topic identifier.
-            :param str msg: Data to send to the broker.
-            :param bool retain: Whether the message is saved by the broker.
-            :param int qos: Quality of Service level for the message.
-        :param float timeout: Timeout between calls to publish(). This value
-            is usually set by your MQTT broker. Defaults to 1.0
-        """
-        # TODO: Untested!
-        for i in range(len(data)):
-            topic = data[i][0]
-            msg = data[i][1]
-            try:
-                if data[i][2]:
-                    retain = data[i][2]
-            except IndexError:
-                retain = False
-                pass
-            try:
-                if data[i][3]:
-                    qos = data[i][3]
-            except IndexError:
-                qos = 0
-                pass
-            self.publish(topic, msg, retain, qos)
-            time.sleep(timeout)
-
     def wait_for_msg(self, timeout=0.1):
         """Waits for and processes network events. Returns if successful.
         :param float timeout: The time in seconds to wait for network before returning.
@@ -630,21 +599,6 @@ class MQTT:
             self._sock.write(str.encode(string, 'utf-8'))
         else:
             self._sock.write(string)
-
-    def loop(self, timeout=1.0):
-        """Call regularly to process network events.
-        This function blocks for up to timeout seconds. 
-        Timeout must not exceed the keepalive value for the client or
-        your client will be regularly disconnected by the broker.
-        :param float timeout: Blocks between calls to wait_for_msg()
-        """
-        return None
-    
-    def loop_forever(self):
-        """Blocking network loop, will not return until disconnect() is called from
-        the client. Automatically handles the re-connection.
-        """
-        return None
 
     # Logging
     def logging(self, log_level):
