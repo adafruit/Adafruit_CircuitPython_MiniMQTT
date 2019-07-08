@@ -108,9 +108,9 @@ class MQTT:
             raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI object.')
         # port/ssl
         if is_ssl:
-            self.port = MQTT_TCP_PORT
-        else:
             self.port = MQTT_TLS_PORT
+        else:
+            self.port = MQTT_TCP_PORT
         if port is not None:
             self.port = port
         # session identifiers
@@ -475,7 +475,6 @@ class MQTT:
             if op == 0x90:
                 rc = self._sock.read(4)
                 assert rc[1] == packet[2] and rc[2] == packet[3]
-                print('a')
                 if rc[3] == 0x80:
                     raise MMQTTException('SUBACK Failure!')
                 for t in topics:
