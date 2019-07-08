@@ -1,5 +1,5 @@
 """
-CircuitPython_MiniMQTT Module Tester
+CircuitPython_MiniMQTT Methods Test Suite
 
 by Brent Rubell for Adafruit Industries, 2019
 """
@@ -11,11 +11,27 @@ import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
-from adafruit_minimqtt import MQTT
+from adafruit_minimqtt import MQTT, MMQTTException
 
 """
-Generic Unittest-like Assertions
+Generic cpython3 unittest-like assertions
 """
+
+class AssertRaisesContext:
+    def __init__(exc):
+        expected = exc
+
+    def __enter__(self):
+        return self
+
+    def __exit__(exc_type, exc_value, tb):
+        if exc_type is None:
+            assert False, "%r not raised" % expected
+        if issubclass(exc_type, expected):
+            return True
+        return False
+
+
 #pylint: disable=keyword-arg-before-vararg
 def assertAlmostEqual(x, y, places=None, msg=''):
     """Raises an AssertionError if two float values are not equal.
@@ -30,17 +46,6 @@ def assertAlmostEqual(x, y, places=None, msg=''):
         msg = '%r != %r within %r places' % (x, y, places)
     assert False, msg
 
-def assertRaises(exc,func=None, *args, **kwargs):
-    """Raises based on exception context.
-    (from https://github.com/micropython/micropython-lib/blob/master/unittest/unittest.py)"""
-    try:
-        func(*args, **kwargs)
-        assert False, "%r not raised" % exc
-    except Exception as e:
-        if isinstance(e, exc):
-            return
-        raise
-
 def assertIsNone(x):
     """Raises an AssertionError if x is None."""
     if x is None:
@@ -51,13 +56,27 @@ def assertEqual(val_1, val_2):
     if val_1 != val_2:
         raise AssertionError('Values are not equal:', val_1, val_2)
 
+def assertRaises(exc, func=None, *args, **kwargs):
+    if func is None:
+        return AssertRaisesContext(exc)
+
+    try:
+        func(*args, **kwargs)
+        assert False, "%r not raised" % exc
+    except Exception as e:
+        if isinstance(e, exc):
+            return
+        raise
+
 # MQTT Client Tests
-def test_mqtt_create_client_esp32spi():
-    """Creates an INSECURE MQTT client using an ESP32SPI socket connection."""
-    # TODO: reflect test_mqtts_connect_disconnect_esp32spi
+def test_mqtt_connect_disconnect_esp32spi():
+    """Creates an INSECURE MQTT client, connects, and attempts a disconnection."""
     mqtt_client = MQTT(socket, secrets['aio_url'], username=secrets['aio_user'], password=secrets['aio_password'],
                   esp = esp, is_ssl=False)
     assertEqual(mqtt_client.port, 1883)
+    assertEqual(mqtt_client._is_connected, True)
+    mqtt_client.disconnect()
+    assertEqual(mqtt_client._is_connected, False)
 
 def test_mqtts_connect_disconnect_esp32spi():
     """Creates a MQTTS client, connects, and attempts a disconnection."""
@@ -135,22 +154,41 @@ def test_publish_errors():
     mqtt_client.connect()
     assertEqual(mqtt_client._is_connected, True)
     mqtt_client.subscribe(MSG_TOPIC)
+    # Publishing message of NoneType
+    # TODO: check over assertRaises callback in Micropython
     try:
         mqtt_client.publish(MSG_TOPIC, None)
-    except MMQTException as exception:
-        print(MMQTException)
+    except MMQTTException as e:
+        print('e: ', e)
+        pass
+    # Publishing to a wildcard topic
+    try:
+        mqtt_client.publish('brubell/feeds/+', 42)
+    except MMQTTException as e:
+        print('e: ', e)
+        pass
+    try:
+        mqtt_client.publish('brubell/feeds/*', 42)
+    except MMQTTException as e:
+        print('e: ', e)
+        pass
+    # Publishing message with length greater than MQTT_MSG_MAX_SZ
+    
+    #try:
+        #mqtt_client.publish(MSG_TOPIC, )
+
 
 # Timeout between tests, in seconds. This value depends on the MQTT broker.
 TEST_TIMEOUT = 1
 
 # Connection/Client Tests
-conn_tests = [test_mqtt_create_client_esp32spi, test_mqtts_connect_disconnect_esp32spi]
+conn_tests = [test_mqtt_connect_disconnect_esp32spi, test_mqtts_connect_disconnect_esp32spi]
 
-# PUB/SUB API Tests
+# Publish/Subscribe tests
 pub_sub_tests = [test_sub_pub, test_sub_pub_multiple, test_publish_errors]
 
-# The test routine runs the following test(s):
-tests = pub_sub_tests
+# The test routine will run the following test(s):
+tests = [test_publish_errors]
 
 # Get wifi details and more from a secrets.py file
 try:
