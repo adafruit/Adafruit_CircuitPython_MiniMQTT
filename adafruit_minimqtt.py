@@ -79,8 +79,8 @@ class MMQTTException(Exception):
 class MQTT:
     """
     MQTT client interface for CircuitPython devices.
-    :param esp: ESP32SPI object.
-    :param socket: ESP32SPI Socket object.
+    :param ESP_SPIcontrol esp: An ESP network interface object.
+    :param socket: Socket object for provided network interface
     :param str server_address: Server URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
@@ -92,9 +92,12 @@ class MQTT:
     TLS_MODE = const(2)
     def __init__(self, esp, socket, server_address, port=8883, username=None,
                     password = None, client_id=None, is_ssl=True):
-        if esp and socket is not None:
-            self._esp = esp
+        if socket is not None:
             self._socket = socket
+        else:
+            raise MMQTTException('MiniMQTT requires a valid socket interface.')
+        if hasattr(esp, '_gpio0'):
+            self._esp = esp
         else:
             raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI connection.')
         self.port = port
@@ -188,12 +191,12 @@ class MQTT:
                     self.subscribe(feed)
 
     def is_connected(self):
-        """Returns MQTT client session status."""
+        """Returns MQTT client session status as True if connected, raises
+        a MMQTTException if False."""
         if self._sock is None or self._is_connected is False:
             raise MMQTTException("MiniMQTT is not connected.")
         return self._is_connected
 
-    # Core MQTT Methods
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session
@@ -295,11 +298,26 @@ class MQTT:
             raise MMQTTException('Server did not return with PINGRESP')
 
     def publish(self, topic, msg, retain=False, qos=0):
-        """Publishes a message to the MQTT broker.
+        """Publishes a message to a topic provided.
         :param str topic: Unique topic identifier.
         :param str msg: Data to send to the broker.
+        :param int msg: Data to send to the broker.
+        :param float msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message.
+
+        Example of sending an integer, 3, to the broker on topic 'piVal'.
+        .. code-block:: python
+            mqtt_client.publish('topics/piVal', 3)
+
+        Example of sending a float, 3.14, to the broker on topic 'piVal'.
+        .. code-block:: python
+            mqtt_client.publish('topics/piVal', 3.14)
+
+        Example of sending a string, 'threepointonefour', to the broker on topic piVal.
+        .. code-block:: python
+            mqtt_client.publish('topics/piVal', 'threepointonefour')
+
         """
         self.is_connected()
         if topic is None or len(topic) == 0:
