@@ -613,7 +613,15 @@ class MQTT:
             self._sock.write(string)
 
     # Logging
-    def logging(self, log_level):
+
+    def attach_logger(self, logger_name='log'):
+        """Initializes and attaches a logger to the MQTTClient.
+        :param str logger_name: Name of the logger instance
+        """
+        self._logger = logging.getLogger(logger_name)
+        self._logger.setLevel(logging.INFO)
+
+    def set_logger_level(self, log_level):
         """Sets the level of the logger, if defined during init.
         :param string log_level: Level of logging to output to the REPL. Accepted
             levels are DEBUG, INFO, WARNING, EROR, and CRITICIAL.
