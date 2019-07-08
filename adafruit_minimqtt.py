@@ -52,7 +52,7 @@ __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 # Client-specific variables
 MQTT_MSG_MAX_SZ = const(268435455)
 MQTT_MSG_SZ_LIM = const(10000000)
-MQTT_TOPIC_SZ_LIMIT = const(65536)
+MQTT_TOPIC_LENGTH_LIMIT = const(65535)
 MQTT_TCP_PORT = const(1883)
 MQTT_TLS_PORT = const(8883)
 TCP_MODE = const(0)
@@ -252,7 +252,7 @@ class MQTT:
             sz += 2 + len(self._user) + 2 + len(self._pass)
             msg[6] |= 0xC0
         if self._keep_alive:
-            assert self._keep_alive < MQTT_TOPIC_SZ_LIMIT
+            assert self._keep_alive < MQTT_TOPIC_LENGTH_LIMIT
             msg[7] |= self._keep_alive >> 8
             msg[8] |= self._keep_alive & 0x00FF
         if self._lw_topic:
@@ -347,8 +347,8 @@ class MQTT:
 
         """
         self.is_connected()
-        if topic is None or not topic:
-            raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
+        if topic is None or not topic or len(topic.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
+            raise MMQTTException("Invalid MQTT Topic length.")
         if '+' in topic or '#' in topic:
             raise MMQTTException('Topic can not contain wildcards.')
         # check msg/qos kwargs
@@ -442,7 +442,7 @@ class MQTT:
         if isinstance(topic, tuple):
             topic, qos = topic
         if isinstance(topic, str):
-            if topic is None or not topic or len(topic.encode('utf-8')) > 65536:
+            if topic is None or not topic or len(topic.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
                 raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
             if qos < 0 or qos > 2:
                 raise MMQTTException('QoS level must be between 1 and 2.')
@@ -496,12 +496,12 @@ class MQTT:
 
         Example of unsubscribing from multiple topics.
         .. code-block:: python
-            mqtt_client.unsubscribe('topics/ledState', 'topics/servoAngle')
+            mqtt_client.unsubscribe(['topics/ledState', 'topics/servoAngle'])
 
         """
         topics = None
         if isinstance(topic, str):
-            if topic is None or not topic or len(topic.encode('utf-8')) > 65536:
+            if topic is None or not topic or len(topic.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
                 raise MMQTTException("Invalid MQTT topic.")
             print('TOPICS:', self._subscribed_topics)
             if topic not in self._subscribed_topics:
@@ -510,7 +510,7 @@ class MQTT:
         if isinstance(topic, list):
             topics = []
             for t in topic:
-                if t is None or not t or len(t.encode('utf-8')) > 65536:
+                if t is None or not t or len(t.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
                     raise MMQTTException('Invalid MQTT Topic: %s'%t)
                 topics.append((t))
         # Assemble packet length first
@@ -546,7 +546,7 @@ class MQTT:
     @property
     def mqtt_msg(self):
         """Returns maximum MQTT payload and topic size."""
-        return self._msg_size_lim, MQTT_TOPIC_SZ_LIMIT
+        return self._msg_size_lim, MQTT_TOPIC_LENGTH_LIMIT
 
     @mqtt_msg.setter
     def mqtt_msg(self, msg_size):

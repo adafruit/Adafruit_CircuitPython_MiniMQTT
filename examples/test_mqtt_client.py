@@ -156,6 +156,7 @@ def test_publish_errors():
     mqtt_client.subscribe(MSG_TOPIC)
     # Publishing message of NoneType
     # TODO: check over assertRaises callback in Micropython
+    # TODO: list of incorrect topics and/or data, iterate thru 'em
     try:
         mqtt_client.publish(MSG_TOPIC, None)
     except MMQTTException as e:
@@ -172,10 +173,29 @@ def test_publish_errors():
     except MMQTTException as e:
         print('e: ', e)
         pass
-    # Publishing message with length greater than MQTT_MSG_MAX_SZ
-    
-    #try:
-        #mqtt_client.publish(MSG_TOPIC, )
+    # TODO: Publishing message with length greater than MQTT_MSG_MAX_SZ
+    # Publishing with an invalid QoS level
+    try:
+        mqtt_client.publish(MSG_TOPIC, 42, qos=3)
+    except MMQTTException as e:
+        print ('e: ', e)
+        pass
+
+    def test_topic_wildcards():
+        """Tests if topic wildcards work as specified in MQTT[4.7.1].
+        """
+        MSG_TOPIC = 'brubell/feeds/testfeed'
+        mqtt_client = MQTT(socket, secrets['aio_url'], username=secrets['aio_user'], password=secrets['aio_password'],
+                    esp = esp)
+        # Callback responses
+        callback_msgs = []
+        def on_message(client, topic, msg):
+            callback_msgs.append([topic, msg])
+        mqtt_client.on_message = on_message
+        mqtt_client.connect()
+        assertEqual(mqtt_client._is_connected, True)
+        mqtt_client.subscribe('brubell/feeds/tests/#')
+        mqtt_client.publish('brubell/feeds/tests.testone')
 
 
 # Timeout between tests, in seconds. This value depends on the MQTT broker.
@@ -187,8 +207,11 @@ conn_tests = [test_mqtt_connect_disconnect_esp32spi, test_mqtts_connect_disconne
 # Publish/Subscribe tests
 pub_sub_tests = [test_sub_pub, test_sub_pub_multiple, test_publish_errors]
 
+# Wildcard and subscription filter errors
+test_topic_wildcards = [test_topic_wildcards]
+
 # The test routine will run the following test(s):
-tests = [test_publish_errors]
+tests = test_topic_wildcards
 
 # Get wifi details and more from a secrets.py file
 try:
