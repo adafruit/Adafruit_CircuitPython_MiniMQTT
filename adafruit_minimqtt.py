@@ -366,15 +366,24 @@ class MQTT:
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topics or multiple topics.
         :param str topic: Unique MQTT topic identifier.
-        :param int qos: Quality of Service level for the topic.
+        :param int qos: Quality of Service level for the topic, defaults to zero.
 
-        Example of subscribing to one topic:
+        Example of subscribing a topic string.
         .. code-block:: python
             mqtt_client.subscribe('topics/ledState')
 
-        Example of subscribing to one topic and setting the Quality of Service level to 1:
+        Example of subscribing to a topic and setting the qos level to 1.
         .. code-block:: python
             mqtt_client.subscribe('topics/ledState', 1)
+        
+        Example of subscribing to topic string and setting qos level to 1, as a tuple.
+        .. code-block:: python
+            mqtt_client.subscribe(('topics/ledState', 1))
+
+        Example of subscribing to multiple topics with different qos levels.
+        .. code-block:: python
+            mqtt_client.subscribe([('topics/ledState', 1), ('topics/servoAngle', 0)])
+
         """
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
@@ -409,7 +418,11 @@ class MQTT:
             topic_size = len(topic).to_bytes(2, 'big')
             qos_byte = qos.to_bytes(1, 'big')
             packet += topic_size + topic + qos_byte
-        self._logger.debug('SUBSCRIBING to topic(s)')
+        if len(topics) == 1:
+            self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(topics[0][0], topics[0][1]))
+        else:
+            for topic, qos in topics:
+                self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(topic, qos))
         self._sock.write(packet)
         while 1:
             op = self.wait_for_msg()
