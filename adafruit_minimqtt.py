@@ -49,12 +49,12 @@ from micropython import const
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
-
 # Client-specific variables
 MQTT_MSG_MAX_SZ = const(268435455)
 MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_SZ_LIMIT = const(65536)
 MQTT_TCP_PORT = const(1883)
+MQTT_TLS_PORT = const(8883)
 
 # MQTT Commands
 MQTT_PING_REQ = b'\xc0'
@@ -79,30 +79,36 @@ class MMQTTException(Exception):
 class MQTT:
     """
     MQTT client interface for CircuitPython devices.
-    :param ESP_SPIcontrol esp: An ESP network interface object.
     :param socket: Socket object for provided network interface
     :param str server_address: Server URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
-    :param str client_id: Optional client identifier, defaults to a randomly generated id.
-    :param bool is_ssl: Enables TCP mode if false (port 1883). Defaults to True (port 8883).
+    :param ESP_SPIcontrol esp: An ESP network interface object.
+    :param str client_id: Optional client identifier, defaults to a unique, generated string.
+    :param bool is_ssl: Sets a secure or insecure connection with the broker. Defaults to True (port 8883).
     """
     TCP_MODE = const(0)
     TLS_MODE = const(2)
-    def __init__(self, esp, socket, server_address, port=8883, username=None,
-                    password = None, client_id=None, is_ssl=True):
-        if socket is not None:
-            self._socket = socket
+    def __init__(self, socket, server_address, port=None, username=None,
+                    password = None, esp=None, client_id=None, is_ssl=True):
+        # network interface
+        self._socket = socket
+        if esp is not None:
+            if hasattr(esp, '_gpio0'):
+                self._esp = esp
+            else:
+                raise MMQTTException('Invalid ESP32SPI object provided.')
         else:
-            raise MMQTTException('MiniMQTT requires a valid socket interface.')
-        if hasattr(esp, '_gpio0'):
-            self._esp = esp
-        else:
-            raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI connection.')
-        self.port = port
-        if not is_ssl:
+            raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI object, please provide one.')
+        # port/ssl
+        if is_ssl:
             self.port = MQTT_TCP_PORT
+        else:
+            self.port = MQTT_TLS_PORT
+        if port is not None:
+            self.port = port
+        # session identifiers
         self._user = username
         self._pass = password
         if client_id is not None:
@@ -112,7 +118,7 @@ class MQTT:
         else:
             # assign a unique client_id
             self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)], randint(0, 9))
-            # generated client_id's enforce length rules
+            # generated client_id's enforce spec's stright length rules
             if len(self._client_id) > 23 or len(self._client_id) < 1:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
         self._logger = logging.getLogger('log')
