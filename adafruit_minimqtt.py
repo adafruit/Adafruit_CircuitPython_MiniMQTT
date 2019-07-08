@@ -87,11 +87,12 @@ class MQTT:
     :param ESP_SPIcontrol esp: An ESP network interface object.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool is_ssl: Sets a secure or insecure connection with the broker. Defaults to True (port 8883).
+    :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
     TCP_MODE = const(0)
     TLS_MODE = const(2)
     def __init__(self, socket, server_address, port=None, username=None,
-                    password = None, esp=None, client_id=None, is_ssl=True):
+                    password = None, esp=None, client_id=None, is_ssl=True, log = False):
         # network interface
         self._socket = socket
         if esp is not None:
@@ -118,11 +119,13 @@ class MQTT:
         else:
             # assign a unique client_id
             self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)], randint(0, 9))
-            # generated client_id's enforce spec's stright length rules
+            # generated client_id's enforce spec.'s length rules
             if len(self._client_id) > 23 or len(self._client_id) < 1:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
-        self._logger = logging.getLogger('log')
-        self._logger.setLevel(logging.INFO)
+        self._logger = None
+        if log is True:
+            self._logger = logging.getLogger('log')
+            self._logger.setLevel(logging.INFO)
         # subscription method handler dictionary
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
@@ -139,7 +142,6 @@ class MQTT:
         self.on_publish = None
         self.on_subscribe = None
         self.on_unsubscribe = None
-        self.on_log = None
         self.last_will()
 
     def __enter__(self):
@@ -164,7 +166,8 @@ class MQTT:
             raise MMQTTException('Last Will should be defined before connect() is called.')
         if qos < 0 or qos > 2:
             raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
-        self._logger.debug('Setting last will properties')
+        if self._logger is not None:
+            self._logger.debug('Setting last will properties')
         self._lw_qos = qos
         self._lw_topic = topic
         self._lw_msg = message
@@ -178,7 +181,8 @@ class MQTT:
         """
         retries = 0
         while not self._is_connected:
-            self._logger.debug('Attempting to reconnect to broker')
+            if self._logger is not None:
+                self._logger.debug('Attempting to reconnect to broker')
             try:
                 self.connect(False)
             except OSError as e:
@@ -189,9 +193,11 @@ class MQTT:
                     self._esp.reset()
                 continue
             self._is_connected = True
-            self._logger.debug('Reconnected to broker')
+            if self._logger is not None:
+                self._logger.debug('Reconnected to broker')
             if resub_topics:
-                self._logger.debug('Attempting to resubscribe to prv. subscribed topics.')
+                if self._logger is not None:
+                    self._logger.debug('Attempting to resubscribe to prv. subscribed topics.')
                 while len(self._subscribed_topics) > 0:
                     feed = self._subscribed_topics.pop()
                     self.subscribe(feed)
@@ -209,7 +215,8 @@ class MQTT:
             with the broker. Defaults to a non-persistent session.
         """
         if self._esp:
-            self._logger.debug('Creating new socket')
+            if self._logger is not None:
+                self._logger.debug('Creating new socket')
             self._socket.set_interface(self._esp)
             self._sock = self._socket.socket()
         else:
@@ -217,14 +224,16 @@ class MQTT:
         self._sock.settimeout(10)
         if self.port == 8883:
             try:
-                self._logger.debug('Attempting to establish secure MQTT connection with %s'%self.server)
+                if self._logger is not None:
+                    self._logger.debug('Attempting to establish secure MQTT connection with %s'%self.server)
                 self._sock.connect((self.server, self.port), TLS_MODE)
             except RuntimeError:
                 raise MMQTTException("Invalid server address defined.")
         else:
             addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
             try:
-                self._logger.debug('Attempting to establish an insecure MQTT connection with %s'%self.server)
+                if self._logger is not None:
+                    self._logger.debug('Attempting to establish insecure MQTT connection with %s'%self.server)
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
                 raise MMQTTException("Invalid server address defined.")
@@ -249,7 +258,8 @@ class MQTT:
             sz >>= 7
             i += 1
         premsg[i] = sz
-        self._logger.debug('Sending CONNECT packet to server')
+        if self._logger is not None:
+            self._logger.debug('Sending CONNECT packet to server')
         self._sock.write(premsg)
         self._sock.write(msg)
         # [MQTT-3.1.3-4]
@@ -263,7 +273,8 @@ class MQTT:
         else:
             self._send_str(self._user)
             self._send_str(self._pass)
-        self._logger.debug('Receiving CONNACK packet from server')
+        if self._logger is not None:
+            self._logger.debug('Receiving CONNACK packet from server')
         rc = self._sock.read(4)
         assert rc[0] == const(0x20) and rc[1] == const(0x02)
         if rc[3] !=0:
@@ -278,9 +289,11 @@ class MQTT:
         """Disconnects from the broker.
         """
         self.is_connected()
-        self._logger.debug('Sending DISCONNECT packet to server')
+        if self._logger is not None:
+            self._logger.debug('Sending DISCONNECT packet to server')
         self._sock.write(MQTT_DISCONNECT)
-        self._logger.debug('Closing socket')
+        if self._logger is not None:
+            self._logger.debug('Closing socket')
         self._sock.close()
         self._is_connected = False
         if self.on_disconnect is not None:
@@ -292,10 +305,12 @@ class MQTT:
         Raises a MMQTTException if the server does not respond with a PINGRESP packet.
         """
         self.is_connected()
-        self._logger.debug('Sending PINGREQ')
+        if self._logger is not None:
+            self._logger.debug('Sending PINGREQ')
         self._sock.write(MQTT_PING_REQ)
         res = self._sock.read(1)
-        self._logger.debug('Checking PINGRESP')
+        if self._logger is not None:
+            self._logger.debug('Checking PINGRESP')
         if res == MQTT_PINGRESP:
             sz = self._sock.read(1)[0]
             assert sz == 0
@@ -355,7 +370,8 @@ class MQTT:
             sz >>= 7
             i += 1
         pkt[i] = sz
-        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
+        if self._logger is not None:
+            self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
         self._sock.write(pkt)
         self._send_str(topic)
         if qos == 0:
@@ -368,7 +384,8 @@ class MQTT:
             self._sock.write(pkt)
             if self.on_publish is not None:
                 self.on_publish(self, self._user_data, pid)
-        self._logger.debug('Sending PUBACK')
+        if self._logger is not None:
+            self._logger.debug('Sending PUBACK')
         self._sock.write(msg)
         if qos == 1:
             while 1:
@@ -442,8 +459,9 @@ class MQTT:
             topic_size = len(topic).to_bytes(2, 'big')
             qos_byte = qos.to_bytes(1, 'big')
             packet += topic_size + topic + qos_byte
-        for topic, qos in topics:
-            self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(topic, qos))
+        if self._logger is not None:
+            for topic, qos in topics:
+                self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(topic, qos))
         self._sock.write(packet)
         while 1:
             op = self.wait_for_msg()
@@ -500,8 +518,9 @@ class MQTT:
             packet += topic_size + topic
         # write the packet
         self._sock.write(packet)
-        for t in topics:
-            self._logger.debug('SUBSCRIBING to topic {0}'.format(t))
+        if self._logger is not None:
+            for t in topics:
+                self._logger.debug('SUBSCRIBING to topic {0}'.format(t))
         while 1:
             try:
                 op = self.wait_for_msg()
@@ -593,7 +612,6 @@ class MQTT:
         return res[0]
 
     def _recv_len(self):
-        """Receives the size of the topic length."""
         n = 0
         sh = 0
         while 1:
@@ -603,16 +621,8 @@ class MQTT:
                 return n
             sh += 7
 
-    def default_sub_handler(self, topic, msg):
-        """Default feed subscription handler method.
-        :param str topic: Subscription topic.
-        :param str msg: Message content.
-        """
-        self._logger.debug('default_sub_handler called')
-        print('New message on {0}: {1}'.format(topic, msg))
-
     def _send_str(self, string):
-        """Packs a string into a struct, and writes it to a socket as an utf-8 encoded string.
+        """Writes a provided string to a socket.
         :param str string: String to write to the socket.
         """
         self._sock.write(struct.pack("!H", len(string)))
@@ -620,8 +630,6 @@ class MQTT:
             self._sock.write(str.encode(string, 'utf-8'))
         else:
             self._sock.write(string)
-
-    # Network Loop Methods
 
     def loop(self, timeout=1.0):
         """Call regularly to process network events.
@@ -644,6 +652,8 @@ class MQTT:
         :param string log_level: Level of logging to output to the REPL. Accepted
             levels are DEBUG, INFO, WARNING, EROR, and CRITICIAL.
         """
+        if self._logger is None:
+            raise MMQTTException('No logger attached - did you create it during initialization?')
         if log_level == 'DEBUG':
             self._logger.setLevel(logging.DEBUG)
         elif log_level == 'INFO':
