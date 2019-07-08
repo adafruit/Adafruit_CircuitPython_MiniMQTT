@@ -376,8 +376,9 @@ class MQTT:
             sz >>= 7
             i += 1
         pkt[i] = sz
-        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\
-                            \nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
+        if self._logger is not None:
+            self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\
+                                \nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
         self._sock.write(pkt)
         self._send_str(topic)
         if qos == 0:
@@ -390,7 +391,8 @@ class MQTT:
             self._sock.write(pkt)
             if self.on_publish is not None:
                 self.on_publish(self, self._user_data, pid)
-        self._logger.debug('Sending PUBACK')
+        if self._logger is not None:
+            self._logger.debug('Sending PUBACK')
         self._sock.write(msg)
         if qos == 1:
             while 1:
