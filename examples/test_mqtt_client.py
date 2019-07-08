@@ -10,24 +10,8 @@ from digitalio import DigitalInOut
 import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
-# MiniMQTT
+
 from adafruit_minimqtt import MQTT
-
-# Get wifi details and more from a secrets.py file
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
-
-esp32_cs = DigitalInOut(board.ESP_CS)
-esp32_ready = DigitalInOut(board.ESP_BUSY)
-esp32_reset = DigitalInOut(board.ESP_RESET)
-
-spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
-status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment for Most Boards
-
 
 """
 Generic Unittest-like Assertions
@@ -69,27 +53,17 @@ def assertEqual(val_1, val_2):
 
 # MQTT Client Tests
 def test_mqtt_create_client_esp32spi():
-    """Creates an insecure MQTT client using an ESP32SPI socket connection."""
-    mqtt_client = MQTT(esp, socket, secrets['aio_url'],
-                        username=secrets['aio_user'], password=secrets['aio_password'],
-                        is_ssl=False)
-    mqtt_client.logging('DEBUG')
+    """Creates an INSECURE MQTT client using an ESP32SPI socket connection."""
+    # TODO: reflect test_mqtts_connect_disconnect_esp32spi
+    mqtt_client = MQTT(socket, secrets['aio_url'], username=secrets['aio_user'], password=secrets['aio_password'],
+                  esp = esp, is_ssl=False)
     assertEqual(mqtt_client.port, 1883)
-
-def test_mqtts_create_client_esp32spi():
-    """Creates a secure MQTT client using an ESP32SPI socket connection."""
-    mqtt_client = MQTT(esp, socket, secrets['aio_url'],
-                        username=secrets['aio_user'], password=secrets['aio_password'],
-                        is_ssl=True)
-    mqtt_client.logging('DEBUG')
-    assertEqual(mqtt_client.port, 8883)
 
 def test_mqtts_connect_disconnect_esp32spi():
     """Creates a MQTTS client, connects, and attempts a disconnection."""
-    mqtt_client = MQTT(esp, socket, secrets['aio_url'],
-                    username=secrets['aio_user'], password=secrets['aio_password'],
-                    is_ssl=True)
-    mqtt_client.logging('DEBUG')
+    mqtt_client = MQTT(socket, secrets['aio_url'], username=secrets['aio_user'], password=secrets['aio_password'],
+                  esp = esp)
+    assertEqual(mqtt_client.port, 8883)
     mqtt_client.connect()
     assertEqual(mqtt_client._is_connected, True)
     mqtt_client.disconnect()
@@ -100,10 +74,8 @@ def test_sub_pub():
     received from broker matches data sent by client"""
     MSG_TOPIC = 'brubell/feeds/testfeed'
     MSG_DATA  = 42
-    mqtt_client = MQTT(esp, socket, secrets['aio_url'],
-                    username=secrets['aio_user'], password=secrets['aio_password'],
-                    is_ssl=True)
-    mqtt_client.logging('DEBUG')
+    mqtt_client = MQTT(socket, secrets['aio_url'], username=secrets['aio_user'], password=secrets['aio_password'],
+                  esp = esp)
     # Callback responses
     callback_msgs = []
     def on_message(client, topic, msg):
@@ -117,24 +89,84 @@ def test_sub_pub():
     print('listening...')
     while len(callback_msgs) == 0 and (time.monotonic() - start_timer < 30):
         mqtt_client.wait_for_msg()
-    # check message+topic has been RX'd by the client's callback
+    # check message and topic has been RX'd by the client's callback
     assertEqual(callback_msgs[0][0], MSG_TOPIC)
     assertEqual(callback_msgs[0][1], str(MSG_DATA))
     mqtt_client.disconnect()
 
+def test_sub_pub_multiple():
+    """Subscribe to multiple topics, publish to one, unsubscribe from both.
+    """
+    MSG_TOPIC_1 = 'brubell/feeds/testfeed1'
+    MSG_TOPIC_2 = 'brubell/feeds/testfeed2'
+    mqtt_client = MQTT(socket, secrets['aio_url'], username=secrets['aio_user'], password=secrets['aio_password'],
+                  esp = esp)
+    # Callback responses
+    callback_msgs = []
+    def on_message(client, topic, msg):
+        callback_msgs.append([topic, msg])
+    mqtt_client.on_message = on_message
+    mqtt_client.connect()
+    assertEqual(mqtt_client._is_connected, True)
+    # subscribe to two topics with different QoS levels
+    mqtt_client.subscribe([(MSG_TOPIC_1, 1), (MSG_TOPIC_2, 0)])
+    mqtt_client.publish(MSG_TOPIC_2, 42)
+    start_timer = time.monotonic()
+    print('listening...')
+    while len(callback_msgs) == 0 and (time.monotonic() - start_timer < 30):
+        mqtt_client.wait_for_msg()
+    # check message and topic has been RX'd by the client's callback
+    assertEqual(callback_msgs[0][0], MSG_TOPIC_2)
+    assertEqual(callback_msgs[0][1], str(42))
+    mqtt_client.unsubscribe([MSG_TOPIC_1, MSG_TOPIC_2])
+    mqtt_client.disconnect()
 
-# Timeout between tests, in seconds. This value depends on the timeout of your MQTT broker.
+def test_publish_errors():
+    """Testing invalid publish() calls, expecting specific MMQTExceptions.
+    """
+    MSG_TOPIC = 'brubell/feeds/testfeed'
+    mqtt_client = MQTT(socket, secrets['aio_url'], username=secrets['aio_user'], password=secrets['aio_password'],
+                  esp = esp)
+    # Callback responses
+    callback_msgs = []
+    def on_message(client, topic, msg):
+        callback_msgs.append([topic, msg])
+    mqtt_client.on_message = on_message
+    mqtt_client.connect()
+    assertEqual(mqtt_client._is_connected, True)
+    mqtt_client.subscribe(MSG_TOPIC)
+    try:
+        mqtt_client.publish(MSG_TOPIC, None)
+    except MMQTException as exception:
+        print(MMQTException)
+
+# Timeout between tests, in seconds. This value depends on the MQTT broker.
 TEST_TIMEOUT = 1
 
 # Connection/Client Tests
-conn_tests = [test_mqtt_create_client_esp32spi, test_mqtts_create_client_esp32spi,
-                test_mqtts_connect_disconnect_esp32spi]
+conn_tests = [test_mqtt_create_client_esp32spi, test_mqtts_connect_disconnect_esp32spi]
 
 # PUB/SUB API Tests
-pub_sub_tests = [test_sub_pub]
+pub_sub_tests = [test_sub_pub, test_sub_pub_multiple, test_publish_errors]
 
 # The test routine runs the following test(s):
-tests = [test_sub_pub]
+tests = pub_sub_tests
+
+# Get wifi details and more from a secrets.py file
+try:
+    from secrets import secrets
+except ImportError:
+    print("WiFi secrets are kept in secrets.py, please add them there!")
+    raise
+
+# Define an ESP32SPI network interface
+esp32_cs = DigitalInOut(board.ESP_CS)
+esp32_ready = DigitalInOut(board.ESP_BUSY)
+esp32_reset = DigitalInOut(board.ESP_RESET)
+spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
+esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
+status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment for Most Boards
+
 
 # Establish ESP32SPI connection
 print("Connecting to AP...")
