@@ -220,7 +220,7 @@ class MQTT:
             self._socket.set_interface(self._esp)
             self._sock = self._socket.socket()
         else:
-            raise TypeError('ESP32SPI interface required!')
+            raise TypeError('No network interface hardware found.')
         self._sock.settimeout(10)
         if self.port == 8883:
             try:
@@ -286,7 +286,7 @@ class MQTT:
         return result
 
     def disconnect(self):
-        """Disconnects from the broker.
+        """Disconnects from the broker and closes the socket.
         """
         self.is_connected()
         if self._logger is not None:
@@ -383,7 +383,8 @@ class MQTT:
             self._sock.write(pkt)
             if self.on_publish is not None:
                 self.on_publish(self, self._user_data, pid)
-        self._logger.debug('Sending PUBACK')
+        if self._logger is not None:
+            self._logger.debug('Sending PUBACK')
         self._sock.write(msg)
         if qos == 1:
             while 1:
@@ -466,7 +467,6 @@ class MQTT:
             if op == 0x90:
                 rc = self._sock.read(4)
                 assert rc[1] == packet[2] and rc[2] == packet[3]
-                print('a')
                 if rc[3] == 0x80:
                     raise MMQTTException('SUBACK Failure!')
                 for t in topics:
@@ -601,13 +601,18 @@ class MQTT:
             self._sock.write(string)
 
     # Logging
-    def logging(self, log_level):
-        """Sets the level of the logger, if defined during init.
+    def create_logger(self):
+        """Initalizes a new logger instance.
+        """
+        self._logger = logging.getLogger('log')
+
+    def set_logger_level(self, log_level):
+        """Sets the level of the logger.
         :param string log_level: Level of logging to output to the REPL. Accepted
             levels are DEBUG, INFO, WARNING, EROR, and CRITICIAL.
         """
         if self._logger is None:
-            raise MMQTTException('No logger attached - did you create it during initialization?')
+            raise MMQTTException('No logger attached to MQTT Client.')
         if log_level == 'DEBUG':
             self._logger.setLevel(logging.DEBUG)
         elif log_level == 'INFO':
