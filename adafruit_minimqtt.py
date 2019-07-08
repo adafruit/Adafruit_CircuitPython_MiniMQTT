@@ -359,9 +359,9 @@ class MQTT:
                     if pid == rcv_pid:
                         return
         elif qos == 2:
-            if self.on_publish is not None:
-                raise NotImplementedError('on_publish callback not implemented for QoS > 1.')
             assert 0
+            if self.on_publish is not None:
+                self.on_publish(self, self._user_data, rcv_pid)
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
@@ -386,6 +386,7 @@ class MQTT:
         Example of subscribing to multiple topics with different qos levels.
         .. code-block:: python
             mqtt_client.subscribe([('topics/ledState', 1), ('topics/servoAngle', 0)])
+
         """
         self.is_connected()
         topics = None
@@ -438,6 +439,15 @@ class MQTT:
         """Unsubscribes the client from subscribed mqtt topic(s).
         :param str topic: Topic identifier.
         :param list topic: List of topic identifier strings.
+
+        Example of unsubscribing from a topic.
+        .. code-block:: python
+            mqtt_client.unsubscribe('topics/ledState')
+
+        Example of unsubscribing from multiple topics.
+        .. code-block:: python
+            mqtt_client.unsubscribe('topics/ledState', 'topics/servoAngle')
+
         """
         topics = None
         if isinstance(topic, str):
