@@ -59,8 +59,8 @@ TCP_MODE = const(0)
 TLS_MODE = const(2)
 
 # MQTT Commands
-MQTT_PING_REQ = b'\xc0'
-MQTT_PINGRESP = b'\xd0'
+MQTT_PINGREQ = b'\xc0\0'
+MQTT_PINGRESP = const(0xd0)
 MQTT_SUB = b'\x82'
 MQTT_UNSUB = b'\xA2'
 MQTT_PUB = bytearray(b'\x30\0')
@@ -94,7 +94,7 @@ class MQTT:
         Defaults to True (port 8883).
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, no-member, invalid-name
+    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable
     def __init__(self, socket, server_address, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         # network interface
@@ -106,7 +106,6 @@ class MQTT:
                 raise MMQTTException('Invalid ESP32SPI object provided.')
         else:
             raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI object.')
-        self._sock = self._socket.socket()
         # port/ssl
         if is_ssl:
             self.port = MQTT_TCP_PORT
@@ -123,6 +122,7 @@ class MQTT:
             self._client_id = client_id
         else:
             # assign a unique client_id
+            # pylint: disable=no-member
             self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)],
                                                  randint(0, 9))
             # generated client_id's enforce spec.'s length rules
@@ -225,6 +225,7 @@ class MQTT:
             if self._logger is not None:
                 self._logger.debug('Creating new socket')
             self._socket.set_interface(self._esp)
+            self._sock = self._socket.socket()
         else:
             raise TypeError('ESP32SPI interface required!')
         self._sock.settimeout(10)
@@ -313,14 +314,14 @@ class MQTT:
         self.is_connected()
         if self._logger is not None:
             self._logger.debug('Sending PINGREQ')
-        self._sock.write(MQTT_PING_REQ)
-        res = self._sock.read(1)
+        self._sock.write(MQTT_PINGREQ)
         if self._logger is not None:
             self._logger.debug('Checking PINGRESP')
-        #sz = self._sock.read(1)[0]
-        print('resp: ', res)
-        #print('SZ: ', sz)
-        #assert sz == 0
+        ping_resp = self._sock.read(2)
+        if ping_resp[0] == MQTT_PINGRESP:
+            return
+        else:
+            raise MMQTTException('PINGRESP not returned from server.')
 
     # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
@@ -552,7 +553,7 @@ class MQTT:
         :param int msg_size: Maximum MQTT payload size.
         """
         if msg_size < MQTT_MSG_MAX_SZ:
-            self._msg_size_lim = msg_size
+            self.__msg_size_lim = msg_size
 
     def wait_for_msg(self, timeout=0.1):
         """Waits for and processes network events. Returns if successful.
