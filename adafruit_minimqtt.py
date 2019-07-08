@@ -367,6 +367,8 @@ class MQTT:
         This method can subscribe to one topics or multiple topics.
         :param str topic: Unique MQTT topic identifier.
         :param int qos: Quality of Service level for the topic, defaults to zero.
+        :param tuple topic: Tuple containing topic identifier strings and qos level integers.
+        :param list topic: List of tuples containing topic identifier strings and qos level integers.
 
         Example of subscribing a topic string.
         .. code-block:: python
@@ -383,7 +385,6 @@ class MQTT:
         Example of subscribing to multiple topics with different qos levels.
         .. code-block:: python
             mqtt_client.subscribe([('topics/ledState', 1), ('topics/servoAngle', 0)])
-
         """
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
@@ -436,8 +437,9 @@ class MQTT:
                 return
 
     def unsubscribe(self, topic):
-        """Unsubscribes from a MQTT topic.
-        :param str topic: Unique MQTT topic identifier.
+        """Unsubscribes the client from subscribed mqtt topic(s).
+        :param str topic: Topic identifier.
+        :param list topic: List of topic identifier strings.
         """
         if topic is None or len(topic) == 0:
             raise MMQTTException("Invalid MQTT topic - must have a length > 0.")
