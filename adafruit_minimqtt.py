@@ -347,8 +347,7 @@ class MQTT:
 
         """
         self.is_connected()
-        if topic is None or not topic or len(topic.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
-            raise MMQTTException("Invalid MQTT Topic length.")
+        self._check_topic(topic)
         if '+' in topic or '#' in topic:
             raise MMQTTException('Topic can not contain wildcards.')
         # check msg/qos kwargs
@@ -441,9 +440,9 @@ class MQTT:
         topics = None
         if isinstance(topic, tuple):
             topic, qos = topic
+            self._check_topic(topic)
         if isinstance(topic, str):
-            if topic is None or not topic or len(topic.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
-                raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
+            self._check_topic(topic)
             if qos < 0 or qos > 2:
                 raise MMQTTException('QoS level must be between 1 and 2.')
             topics = [(topic, qos)]
@@ -485,15 +484,30 @@ class MQTT:
                     self._subscribed_topics.append(t[0])
                 return
 
+    def _check_topic(self, topic):
+        """Checks if topic provided is a valid mqtt topic.
+        :param str topic: Topic identifier
+        """
+        print('TOPIC: ', topic)
+        if topic is None or not len(topic) or len(topic.encode('utf-8') > MQTT_TOPIC_LENGTH_LIMIT):
+            raise MMQTTException('Invalid MQTT topic')
+
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
         :param str topic: Unique MQTT topic identifier.
         TODO: REFACTOR THIS BACK INTO MULTIPLE UNSUBSCRIBE COMMANDS!
         """
-        if topic is None or len(topic) == 0:
-            raise MMQTTException("Invalid MQTT topic - must have a length > 0.")
+        topics = None
+        self._check_topic(topic)
         if topic not in self._subscribed_topics:
             raise MMQTTException('Topic must be subscribed to before attempting to unsubscribe.')
+        if isinstance(topic, str):
+            topics = [(topic)]
+        if isinstance(topic, list):
+            topics = []
+            for t in topics:
+                self._check_topic(t)
+
         pkt = MQTT_UNSUB
         self._pid+=1
         # variable header length
