@@ -379,6 +379,8 @@ class MQTT:
         if self._sock is None:
             raise MMQTTException("MiniMQTT not connected.")
         topics = None
+        if isinstance(topic, tuple):
+            topic, qos = topic
         if isinstance(topic, str):
             if topic is None or len(topic) == 0 or len(topic.encode('utf-8')) > 65536:
                 raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
@@ -411,7 +413,6 @@ class MQTT:
         self._sock.write(packet)
         while 1:
             op = self.wait_for_msg()
-            print(op)
             if op == 0x90:
                 rc = self._sock.read(4)
                 assert rc[1] == packet[2] and rc[2] == packet[3]
