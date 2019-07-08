@@ -61,7 +61,6 @@ MQTT_PING_REQ = b'\xc0'
 MQTT_PINGRESP = b'\xd0'
 MQTT_SUB = b'\x82'
 MQTT_UNSUB = b'\xA2'
-#MQTT_UNSUB = bytearray(b'\xA2\0\0\0')
 MQTT_PUB = bytearray(b'\x30\0')
 MQTT_CON = bytearray(b'\x10\0\0')
 # Variable CONNECT header [MQTT 3.1.2]
@@ -190,6 +189,8 @@ class MQTT:
 
     def is_connected(self):
         """Returns MQTT client session status."""
+        if self._sock is None or self._is_connected is False:
+            raise MMQTTException("MiniMQTT is not connected.")
         return self._is_connected
 
     # Core MQTT Methods
@@ -267,8 +268,7 @@ class MQTT:
     def disconnect(self):
         """Disconnects from the broker.
         """
-        if self._sock is None:
-            raise MMQTTException("MiniMQTT is not connected.")
+        self.is_connected()
         self._logger.debug('Sending DISCONNECT packet to server')
         self._sock.write(MQTT_DISCONNECT)
         self._logger.debug('Closing socket')
@@ -282,6 +282,7 @@ class MQTT:
         there is an active network connection.
         Raises a MMQTTException if the server does not respond with a PINGRESP packet.
         """
+        self.is_connected()
         self._logger.debug('Sending PINGREQ')
         self._sock.write(MQTT_PING_REQ)
         res = self._sock.read(1)
@@ -300,6 +301,7 @@ class MQTT:
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message.
         """
+        self.is_connected()
         if topic is None or len(topic) == 0:
             raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
         if '+' in topic or '#' in topic:
@@ -317,8 +319,6 @@ class MQTT:
             raise MMQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
         if qos < 0 or qos > 2:
             raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
-        if self._sock is None:
-            raise MMQTTException("MiniMQTT not connected.")
         pkt = MQTT_PUB
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
@@ -331,7 +331,7 @@ class MQTT:
             sz >>= 7
             i += 1
         pkt[i] = sz
-        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {2}\n Retain: {3}'.format(topic, msg, qos, retain))
+        self._logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
         self._sock.write(pkt)
         self._send_str(topic)
         if qos == 0:
@@ -387,8 +387,7 @@ class MQTT:
         .. code-block:: python
             mqtt_client.subscribe([('topics/ledState', 1), ('topics/servoAngle', 0)])
         """
-        if self._sock is None:
-            raise MMQTTException("MiniMQTT not connected.")
+        self.is_connected()
         topics = None
         if isinstance(topic, tuple):
             topic, qos = topic
