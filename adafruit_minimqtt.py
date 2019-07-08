@@ -62,7 +62,9 @@ TLS_MODE = const(2)
 MQTT_PINGREQ = b'\xc0\0'
 MQTT_PINGRESP = const(0xd0)
 MQTT_SUB = b'\x82'
-MQTT_UNSUB = b'\xA2'
+#MQTT_UNSUB = b'\xA2'
+MQTT_UNSUB = bytearray(b'\xA2\0\0\0')
+MQTT_UNSUBACK = const(0xb0)
 MQTT_PUB = bytearray(b'\x30\0')
 MQTT_CON = bytearray(b'\x10\0\0')
 # Variable CONNECT header [MQTT 3.1.2]
@@ -318,9 +320,7 @@ class MQTT:
         if self._logger is not None:
             self._logger.debug('Checking PINGRESP')
         ping_resp = self._sock.read(2)
-        if ping_resp[0] == MQTT_PINGRESP:
-            return
-        else:
+        if ping_resp[0] != MQTT_PINGRESP or ping_resp[1] != const(0x00):
             raise MMQTTException('PINGRESP not returned from server.')
 
     # pylint: disable=too-many-branches, too-many-statements
@@ -486,62 +486,31 @@ class MQTT:
                 return
 
     def unsubscribe(self, topic):
-        """Unsubscribes the client from subscribed mqtt topic(s).
-        :param str topic: Topic identifier.
-        :param list topic: List of topic identifier strings.
-
-        Example of unsubscribing from a topic.
-        .. code-block:: python
-            mqtt_client.unsubscribe('topics/ledState')
-
-        Example of unsubscribing from multiple topics.
-        .. code-block:: python
-            mqtt_client.unsubscribe(['topics/ledState', 'topics/servoAngle'])
-
+        """Unsubscribes from a MQTT topic.
+        :param str topic: Unique MQTT topic identifier.
+        TODO: REFACTOR THIS BACK INTO MULTIPLE UNSUBSCRIBE COMMANDS!
         """
-        topics = None
-        if isinstance(topic, str):
-            if topic is None or not topic or len(topic.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
-                raise MMQTTException("Invalid MQTT topic.")
-            print('TOPICS:', self._subscribed_topics)
-            if topic not in self._subscribed_topics:
-                raise MMQTTException('Topic must be subscribed to before unsubscribing.')
-            topics = [(topic)]
-        if isinstance(topic, list):
-            topics = []
-            for t in topic:
-                if t is None or not t or len(t.encode('utf-8')) > const(MQTT_TOPIC_LENGTH_LIMIT):
-                    raise MMQTTException('Invalid MQTT Topic: %s'%t)
-                topics.append((t))
-        # Assemble packet length first
-        packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
-        packet_length += sum(len(topic) for topic in topics)
-        packet_length_byte = packet_length.to_bytes(1, 'big')
-        # packet identifier
-        self._pid += 11
-        packet_id_bytes = self._pid.to_bytes(2, 'big')
-        # packet with variable and fixed headers
-        packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
-        # attach topics to the packet
-        for t in topics:
-            topic_size = len(t).to_bytes(2, 'big')
-            packet += topic_size + t
-        # write the packet
-        self._sock.write(packet)
+        if topic is None or len(topic) == 0:
+            raise MMQTTException("Invalid MQTT topic - must have a length > 0.")
+        if topic not in self._subscribed_topics:
+            raise MMQTTException('Topic must be subscribed to before attempting to unsubscribe.')
+        pkt = MQTT_UNSUB
+        self._pid+=1
+        # variable header length
+        remaining_length = 2
+        remaining_length += 2 + len(topic)
+        struct.pack_into("!BH", pkt, 1, remaining_length, self._pid)
+        self._logger.debug('Unsubscribing from %s'%topic)
+        self._sock.write(pkt)
+        self._send_str(topic)
         if self._logger is not None:
-            for t in topics:
-                self._logger.debug('SUBSCRIBING to topic {0}'.format(t))
-        while 1:
-            try:
-                self.wait_for_msg()
-                # remove topic from subscription list
-                for t in topics:
-                    self._subscribed_topics.remove(t)
-                    if self.on_unsubscribe is not None:
-                        self.on_unsubscribe(self, self._user_data)
-                return
-            except RuntimeError:
-                raise MMQTTException('Could not unsubscribe from feed.')
+            self._logger.debug('Checking UNSUBACK')
+            unsuback = self._sock.read(2)
+            if unsuback[0] != const(MQTT_UNSUBACK) or unsuback[1] != const(0x02):
+                raise MMQTTException('Did not receive SUBACK')
+            self._subscribed_topics.remove(topic)
+            if self.on_unsubscribe is not None:
+                self.on_unsubscribe(self, self._user_data)
 
     @property
     def mqtt_msg(self):
