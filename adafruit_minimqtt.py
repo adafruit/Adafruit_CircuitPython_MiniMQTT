@@ -77,7 +77,7 @@ CONNACK_ERRORS = {const(0x01) : 'Connection Refused - Incorrect Protocol Version
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
-    # pylint : disable=unnecessary-pass
+    # pylint: disable=unnecessary-pass
     #pass
 
 class MQTT:
@@ -94,7 +94,7 @@ class MQTT:
         Defaults to True (port 8883).
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes
+    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, no-member, invalid-name
     def __init__(self, socket, server_address, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         # network interface
@@ -106,6 +106,7 @@ class MQTT:
                 raise MMQTTException('Invalid ESP32SPI object provided.')
         else:
             raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI object.')
+        self._sock = self._socket.socket()
         # port/ssl
         if is_ssl:
             self.port = MQTT_TCP_PORT
@@ -214,6 +215,7 @@ class MQTT:
             raise MMQTTException("MiniMQTT is not connected.")
         return self._is_connected
 
+    # pylint: disable=too-many-branches, too-many-statements
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session
@@ -223,7 +225,6 @@ class MQTT:
             if self._logger is not None:
                 self._logger.debug('Creating new socket')
             self._socket.set_interface(self._esp)
-            self._sock = self._socket.socket()
         else:
             raise TypeError('ESP32SPI interface required!')
         self._sock.settimeout(10)
@@ -321,6 +322,7 @@ class MQTT:
         #print('SZ: ', sz)
         #assert sz == 0
 
+    # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to a topic provided.
         :param str topic: Unique topic identifier.
@@ -451,7 +453,7 @@ class MQTT:
                     raise MMQTTException("Invalid MQTT Topic, must have length > 0.")
                 topics.append((t, q))
         # Assemble packet
-        packet_length = 2 + (2 * len(topics)) + (1 * len(topics)) 
+        packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic) for topic, qos in topics)
         packet_length_byte = packet_length.to_bytes(1, 'big')
         self._pid += 11
@@ -464,8 +466,8 @@ class MQTT:
             qos_byte = q.to_bytes(1, 'big')
             packet += topic_size + t + qos_byte
         if self._logger is not None:
-            for topic, qos in topics:
-                self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(topic, qos))
+            for t, q in topics:
+                self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(t, q))
         self._sock.write(packet)
         while 1:
             op = self.wait_for_msg()
@@ -510,7 +512,8 @@ class MQTT:
                     raise MMQTTException('Invalid MQTT Topic: %s'%t)
                 topics.append((t))
         # Assemble packet length first
-        packet_length = 2 + (2 * len(topics)) + (1 * len(topics)) + sum(len(topic) for topic in topics)
+        packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
+        packet_length += sum(len(topic) for topic in topics)
         packet_length_byte = packet_length.to_bytes(1, 'big')
         # packet identifier
         self._pid += 11
@@ -518,9 +521,9 @@ class MQTT:
         # packet with variable and fixed headers
         packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
         # attach topics to the packet
-        for topic in topics:
-            topic_size = len(topic).to_bytes(2, 'big')
-            packet += topic_size + topic
+        for t in topics:
+            topic_size = len(t).to_bytes(2, 'big')
+            packet += topic_size + t
         # write the packet
         self._sock.write(packet)
         if self._logger is not None:
@@ -549,7 +552,7 @@ class MQTT:
         :param int msg_size: Maximum MQTT payload size.
         """
         if msg_size < MQTT_MSG_MAX_SZ:
-            self.__msg_size_lim = msg_size
+            self._msg_size_lim = msg_size
 
     def wait_for_msg(self, timeout=0.1):
         """Waits for and processes network events. Returns if successful.
