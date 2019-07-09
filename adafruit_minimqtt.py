@@ -117,6 +117,9 @@ class MQTT:
             self.port = port
         # session identifiers
         self._user = username
+          # [MQTT-3.1.3.5]
+        if len(password.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
+            raise MMQTTException('Password length is too large.')
         self._pass = password
         if client_id is not None:
             # user-defined client_id MAY allow client_id's > 23 bytes or
@@ -491,8 +494,10 @@ class MQTT:
         """
         if topic is None:
             raise MMQTTException('Topic may not be Nonetype')
+        # [MQTT-4.7.3-1]
         elif not len(topic):
             raise MMQTTException('Topic may not be empty.')
+        # [MQTT-4.7.3-3]
         elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
             raise MMQTTException('Topic length is too large.')
 
