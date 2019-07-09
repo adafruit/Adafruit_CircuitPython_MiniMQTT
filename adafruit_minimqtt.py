@@ -84,7 +84,7 @@ class MQTT:
     """
     MQTT client interface for CircuitPython devices.
     :param socket: Socket object for provided network interface
-    :param str server: Server URL or IP Address.
+    :param str broker: Server URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
@@ -95,7 +95,7 @@ class MQTT:
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable
-    def __init__(self, socket, server, port=None, username=None,
+    def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         # network interface
         self._socket = socket
@@ -138,7 +138,7 @@ class MQTT:
         # subscription method handler dictionary
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
-        self.server = server
+        self.broker = broker
         self.packet_id = 0
         self._keep_alive = 0
         self._pid = 0
@@ -236,17 +236,17 @@ class MQTT:
             try:
                 if self._logger is not None:
                     self._logger.debug('Attempting to establish secure MQTT connection...')
-                self._sock.connect((self.server, self.port), TLS_MODE)
+                self._sock.connect((self.broker, self.port), TLS_MODE)
             except RuntimeError:
-                raise MMQTTException("Invalid server address defined.")
+                raise MMQTTException("Invalid broker address defined.")
         else:
-            addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
+            addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
             try:
                 if self._logger is not None:
                     self._logger.debug('Attempting to establish insecure MQTT connection...')
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
-                raise MMQTTException("Invalid server address defined.")
+                raise MMQTTException("Invalid broker address defined.")
         premsg = MQTT_CON
         msg = MQTT_CON_HEADER
         msg[6] = clean_session << 1
@@ -269,7 +269,7 @@ class MQTT:
             i += 1
         premsg[i] = sz
         if self._logger is not None:
-            self._logger.debug('Sending CONNECT packet to server')
+            self._logger.debug('Sending CONNECT packet to broker')
         self._sock.write(premsg)
         self._sock.write(msg)
         # [MQTT-3.1.3-4]
@@ -284,7 +284,7 @@ class MQTT:
             self._send_str(self._user)
             self._send_str(self._pass)
         if self._logger is not None:
-            self._logger.debug('Receiving CONNACK packet from server')
+            self._logger.debug('Receiving CONNACK packet from broker')
         rc = self._sock.read(4)
         assert rc[0] == const(0x20) and rc[1] == const(0x02)
         if rc[3] != 0:
@@ -300,7 +300,7 @@ class MQTT:
         """
         self.is_connected()
         if self._logger is not None:
-            self._logger.debug('Sending DISCONNECT packet to server')
+            self._logger.debug('Sending DISCONNECT packet to broker')
         self._sock.write(MQTT_DISCONNECT)
         if self._logger is not None:
             self._logger.debug('Closing socket')
@@ -310,9 +310,9 @@ class MQTT:
             self.on_disconnect(self, self._user_data, 0)
 
     def ping(self):
-        """Pings the MQTT Broker to confirm if the server is alive or if
+        """Pings the MQTT Broker to confirm if the broker is alive or if
         there is an active network connection.
-        Raises a MMQTTException if the server does not respond with a PINGRESP packet.
+        Raises a MMQTTException if the broker does not respond with a PINGRESP packet.
         """
         self.is_connected()
         if self._logger is not None:
@@ -322,7 +322,7 @@ class MQTT:
             self._logger.debug('Checking PINGRESP')
         ping_resp = self._sock.read(2)
         if ping_resp[0] != MQTT_PINGRESP or ping_resp[1] != const(0x00):
-            raise MMQTTException('PINGRESP not returned from server.')
+            raise MMQTTException('PINGRESP not returned from broker.')
 
     # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
@@ -368,7 +368,7 @@ class MQTT:
         sz = 2 + len(topic) + len(msg)
         if qos > 0:
             sz += 2
-        assert sz < 2097152
+        assert sz < const(2097152)
         i = 1
         while sz > 0x7f:
             pkt[i] = (sz & 0x7f) | const(0x80)
@@ -382,14 +382,14 @@ class MQTT:
         self._send_str(topic)
         if qos == 0:
             if self.on_publish is not None:
-                self.on_publish(self, self._user_data, self._pid)
+                self.on_publish(self, self._user_data, topic, self._pid)
         if qos > 0:
             self._pid += 1
             pid = self._pid
             struct.pack_into("!H", pkt, 0, pid)
             self._sock.write(pkt)
             if self.on_publish is not None:
-                self.on_publish(self, self._user_data, pid)
+                self.on_publish(self, self._user_data, topic, pid)
         if self._logger is not None:
             self._logger.debug('Sending PUBACK')
         self._sock.write(msg)
@@ -403,12 +403,12 @@ class MQTT:
                     rcv_pid = rcv_pid[0] << const(0x08) | rcv_pid[1]
                     if pid == rcv_pid:
                         if self.on_publish is not None:
-                            self.on_publish(self, self._user_data, rcv_pid)
+                            self.on_publish(self, self._user_data, topic, rcv_pid)
                         return
         elif qos == 2:
             assert 0
             if self.on_publish is not None:
-                self.on_publish(self, self._user_data, rcv_pid)
+                self.on_publish(self, self._user_data, topic, rcv_pid)
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
@@ -479,7 +479,7 @@ class MQTT:
                 for t, q in topics:
                     if self.on_subscribe is not None:
                         self.on_subscribe(self, self._user_data, t, q)
-                    self._subscribed_topics.append(t[0])
+                    self._subscribed_topics.append(t)
                 return
 
     def unsubscribe(self, topic):
@@ -506,6 +506,7 @@ class MQTT:
                 self._check_topic(t)
                 topics.append((t))
         for t in topics:
+            print(self._subscribed_topics)
             if t not in self._subscribed_topics:
                 raise MMQTTException('Topic must be subscribed to before attempting to unsubscribe.')
         # Assemble packet
