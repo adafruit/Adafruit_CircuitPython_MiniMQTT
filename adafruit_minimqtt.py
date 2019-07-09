@@ -522,20 +522,16 @@ class MQTT:
             for t in topics:
                 self._logger.debug('UNSUBSCRIBING from topic {0}.'.format(t))
         self._sock.write(packet)
-        # Check UNSUBACK
-        while 1:
-            op = self.wait_for_msg()
-            if op == const(0x01):
-                return_code = self._sock.read(4)
-                # [MQTT-3.11.1]
-                assert return_code[1] == const(0x02)
-                # [MQTT-3.32]
-                assert return_code[2] == packet_id_bytes[0] and return_code[3] == packet_id_bytes[1]
-                for t in topics:
-                    if self.on_unsubscribe is not None:
-                        self.on_unsubscribe(self, t, self._pid)
-                    self._subscribed_topics.remove(t)
-                return
+        return_code = self._sock.read(4)
+        print(return_code)
+        # [MQTT-3.11.1]
+        assert return_code[1] == const(0x02)
+        # [MQTT-3.32]
+        assert return_code[2] == packet_id_bytes[0] and return_code[3] == packet_id_bytes[1]
+        for t in topics:
+            if self.on_unsubscribe is not None:
+                self.on_unsubscribe(self, t, self._pid)
+            self._subscribed_topics.remove(t)
 
     def wait_for_msg(self, timeout=0.1):
         """Reads and processes network events. Returns network response if successful.
