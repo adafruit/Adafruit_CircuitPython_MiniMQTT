@@ -110,7 +110,7 @@ def test_sub_pub():
     mqtt_client.on_message = on_message
     mqtt_client.connect()
     assertEqual(mqtt_client._is_connected, True)
-    mqtt_client.subscribe(['default_topic'])
+    mqtt_client.subscribe(settings['default_topic'])
     mqtt_client.publish(settings['default_topic'], settings['default_data_int'], 1)
     start_timer = time.monotonic()
     while len(callback_msgs) == 0 and (time.monotonic() - start_timer < 30):
@@ -162,14 +162,6 @@ pub_sub_tests = [test_sub_pub, test_sub_pub_multiple]
 # The test routine will run the following test(s):
 tests = pub_sub_tests
 
-try:
-    from secrets import secrets
-    # Test Setup
-    from settings import settings
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
-
 # Define an ESP32SPI network interface
 esp32_cs = DigitalInOut(board.ESP_CS)
 esp32_ready = DigitalInOut(board.ESP_BUSY)
@@ -178,8 +170,15 @@ spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment for Most Boards
 
+# Import Test Settings
+try:
+    from secrets import secrets
+    from settings import settings
+except ImportError:
+    print("WiFi secrets are kept in secrets.py, please add them there!")
+    raise
 
-# Establish ESP32SPI connection
+# Establish WiFi Connection
 print("Connecting to AP...")
 while not esp.is_connected:
     try:
@@ -189,7 +188,7 @@ while not esp.is_connected:
         continue
 print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
 
-## Test Routine ##
+# Test Harness
 start_time = time.monotonic()
 for i in enumerate(tests):
     print('Running test: ', i)
