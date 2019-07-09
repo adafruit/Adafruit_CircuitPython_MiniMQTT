@@ -522,8 +522,8 @@ class MQTT:
             for t in topics:
                 self._logger.debug('UNSUBSCRIBING from topic {0}.'.format(t))
         self._sock.write(packet)
+        # handle unsuback
         return_code = self._sock.read(4)
-        print(return_code)
         # [MQTT-3.11.1]
         assert return_code[1] == const(0x02)
         # [MQTT-3.32]
