@@ -115,10 +115,10 @@ class MQTT:
             self.port = port
         # session identifiers
         self._user = username
-          # [MQTT-3.1.3.5]
-        if len(password.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
-            raise MMQTTException('Password length is too large.')
+        # [MQTT-3.1.3.5]
         self._pass = password
+        if self._pass is not None and len(password.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
+            raise MMQTTException('Password length is too large.')
         if client_id is not None:
             # user-defined client_id MAY allow client_id's > 23 bytes or
             # non-alpha-numeric characters
@@ -241,9 +241,12 @@ class MQTT:
                 raise MMQTTException("Invalid server address defined.")
         else:
             addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
+            print('Addresss', addr)
+            print('Addresss', self.server)
             try:
                 if self._logger is not None:
                     self._logger.debug('Attempting to establish insecure MQTT connection...')
+                print('Addresss', addr)
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
                 raise MMQTTException("Invalid server address defined.")
