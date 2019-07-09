@@ -251,7 +251,6 @@ class MQTT:
         msg = MQTT_CON_HEADER
         msg[6] = clean_session << 1
         sz = 12 + len(self._client_id)
-        print('USER: ', self._user)
         if self._user is not None:
             sz += 2 + len(self._user) + 2 + len(self._pass)
             msg[6] |= 0xC0
@@ -477,9 +476,9 @@ class MQTT:
                 assert rc[1] == packet[2] and rc[2] == packet[3]
                 if rc[3] == 0x80:
                     raise MMQTTException('SUBACK Failure!')
-                for t in topics:
+                for t, q in topics:
                     if self.on_subscribe is not None:
-                        self.on_subscribe(self, self._user_data, rc[3])
+                        self.on_subscribe(self, self._user_data, t, q)
                     self._subscribed_topics.append(t[0])
                 return
 
@@ -531,7 +530,7 @@ class MQTT:
         assert return_code[2] == packet_id_bytes[0] and return_code[3] == packet_id_bytes[1]
         for t in topics:
             if self.on_unsubscribe is not None:
-                self.on_unsubscribe(self, t, self._pid)
+                self.on_unsubscribe(self, self._user_data, t, self._pid)
             self._subscribed_topics.remove(t)
 
     def wait_for_msg(self, timeout=0.1):
