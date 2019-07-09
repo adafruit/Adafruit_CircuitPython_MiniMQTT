@@ -350,7 +350,7 @@ class MQTT:
         self.is_connected()
         self._check_topic(topic)
         if '+' in topic or '#' in topic:
-            raise MMQTTException('Topic can not contain wildcards.')
+            raise MMQTTException('Publish topic can not contain wildcards.')
         # check msg/qos kwargs
         if msg is None:
             raise MMQTTException('Message can not be None.')
@@ -362,8 +362,7 @@ class MQTT:
             raise MMQTTException('Invalid message data type.')
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MMQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
-        if qos < 0 or qos > 2:
-            raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
+        self._check_qos(qos)
         pkt = MQTT_PUB
         pkt[0] |= qos << 1 | retain
         sz = 2 + len(topic) + len(msg)
@@ -401,10 +400,10 @@ class MQTT:
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
                     rcv_pid = self._sock.read(2)
-                    rcv_pid = rcv_pid[0] << 8 | rcv_pid[1]
-                    if self.on_publish is not None:
-                        self.on_publish(self, self._user_data, rcv_pid)
+                    rcv_pid = rcv_pid[0] << const(0x08) | rcv_pid[1]
                     if pid == rcv_pid:
+                        if self.on_publish is not None:
+                            self.on_publish(self, self._user_data, rcv_pid)
                         return
         elif qos == 2:
             assert 0
@@ -442,23 +441,22 @@ class MQTT:
         if isinstance(topic, tuple):
             topic, qos = topic
             self._check_topic(topic)
+            self._check_qos(qos)
         if isinstance(topic, str):
             self._check_topic(topic)
-            if qos < 0 or qos > 2:
-                raise MMQTTException('QoS level must be between 1 and 2.')
+            self._check_qos(qos)
             topics = [(topic, qos)]
         if isinstance(topic, list):
             topics = []
             for t, q in topic:
-                if q < 0 or q > 2:
-                    raise MMQTTException('QoS level must be between 1 and 2.')
+                self._check_qos(q)
                 self._check_topic(t)
                 topics.append((t, q))
         # Assemble packet
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic) for topic, qos in topics)
         packet_length_byte = packet_length.to_bytes(1, 'big')
-        self._pid += 11
+        self._pid += 1
         packet_id_bytes = self._pid.to_bytes(2, 'big')
         # Packet with variable and fixed headers
         packet = MQTT_SUB + packet_length_byte + packet_id_bytes
@@ -514,7 +512,7 @@ class MQTT:
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic) for topic in topics)
         packet_length_byte = packet_length.to_bytes(1, 'big')
-        self._pid+=11
+        self._pid+=1
         packet_id_bytes = self._pid.to_bytes(2, 'big')
         packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
         for t in topics:
@@ -539,34 +537,8 @@ class MQTT:
                     self._subscribed_topics.remove(t)
                 return
 
-    def _check_topic(self, topic):
-        """Checks if topic provided is a valid mqtt topic.
-        :param str topic: Topic identifier
-        """
-        if topic is None:
-            raise MMQTTException('Topic may not be Nonetype')
-        # [MQTT-4.7.3-1]
-        elif not len(topic):
-            raise MMQTTException('Topic may not be empty.')
-        # [MQTT-4.7.3-3]
-        elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
-            raise MMQTTException('Topic length is too large.')
-
-    @property
-    def mqtt_msg(self):
-        """Returns maximum MQTT payload and topic size."""
-        return self._msg_size_lim, MQTT_TOPIC_LENGTH_LIMIT
-
-    @mqtt_msg.setter
-    def mqtt_msg(self, msg_size):
-        """Sets the maximum MQTT message payload size.
-        :param int msg_size: Maximum MQTT payload size.
-        """
-        if msg_size < MQTT_MSG_MAX_SZ:
-            self.__msg_size_lim = msg_size
-
     def wait_for_msg(self, timeout=0.1):
-        """Waits for and processes network events. Returns if successful.
+        """Reads and processes network events. Returns network response if successful.
         :param float timeout: The time in seconds to wait for network before returning.
             Setting this to 0.0 will cause the socket to block until it reads.
         """
@@ -621,8 +593,44 @@ class MQTT:
         else:
             self._sock.write(string)
 
-    # Logging
+    def _check_topic(self, topic):
+        """Checks if topic provided is a valid mqtt topic.
+        :param str topic: Topic identifier
+        """
+        if topic is None:
+            raise MMQTTException('Topic may not be Nonetype')
+        # [MQTT-4.7.3-1]
+        elif not len(topic):
+            raise MMQTTException('Topic may not be empty.')
+        # [MQTT-4.7.3-3]
+        elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
+            raise MMQTTException('Topic length is too large.')
 
+    def _check_qos(self, qos_level):
+        """Validates the quality of service level.
+        :param int qos_level: Desired QoS level.
+        """
+        if isinstance(qos_level, int):
+            if qos_level < 0 or qos_level > 2:
+                raise MMQTTException('QoS must be between 1 and 2.')
+        else:
+            raise MMQTTException('QoS must be an integer.')
+        return
+
+    @property
+    def mqtt_msg(self):
+        """Returns maximum MQTT payload and topic size."""
+        return self._msg_size_lim, MQTT_TOPIC_LENGTH_LIMIT
+
+    @mqtt_msg.setter
+    def mqtt_msg(self, msg_size):
+        """Sets the maximum MQTT message payload size.
+        :param int msg_size: Maximum MQTT payload size.
+        """
+        if msg_size < MQTT_MSG_MAX_SZ:
+            self.__msg_size_lim = msg_size
+
+    # Logging
     def attach_logger(self, logger_name='log'):
         """Initializes and attaches a logger to the MQTTClient.
         :param str logger_name: Name of the logger instance
