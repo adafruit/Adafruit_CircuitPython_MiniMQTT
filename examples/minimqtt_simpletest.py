@@ -41,11 +41,6 @@ status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment 
 # BLUE_LED = PWMOut.PWMOut(esp, 25)
 # status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
 
-# Instanciate a MQTT Client
-mqtt_client = MQTT(esp, socket, secrets['aio_url'],
-                    username=secrets['aio_user'], password=secrets['aio_password'],
-                    is_ssl = True)
-
 print("Connecting to AP...")
 while not esp.is_connected:
     try:
@@ -56,49 +51,72 @@ while not esp.is_connected:
 print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
 print("My IP address is", esp.pretty_ip(esp.ip_address))
 
-print('Connecting to {0}:{1}...'.format(mqtt_client.server, mqtt_client.port))
 
+# Default MiniMQTT Topic
+default_feed = 'brubell/feeds/temperature'
 
-# ACK Callbacks for testing
+# MiniMQTT Callback Handlers
 def connect(client, userdata, flags, rc):
-    """.connect() called"""
+    # This method is called when client.connect() is called.
     print('Connected to MQTT Broker!')
     print('Flags: {0}\n RC: {1}'.format(flags, rc))
 
 def disconnect(client, userdata, rc):
-    """.disconnect() called"""
+    # This method is called when client.disconnect() is called.
     print('Disconnected from MQTT Broker!')
-    print('RC: {0}\n'.format(rc))
 
-def subscribe(client, userdata, qos):
-    """.subscribe() called"""
-    print('Client successfully subscribed to feed with a QOS of %d'%qos)
+def subscribe(client, userdata, topic, granted_qos):
+    # This method is called when client.subscribe() is called.
+    print('Subscribed to {0} with QOS level {1}'.format(topic, granted_qos))
 
-def publish(client, userdata, pid):
-    """.publish() called"""
-    print('Client successfully published to feed with a PID of %d'%pid)
+def unsubscribe(client, userdata, topic, pid):
+    # This method is called when client.unsubscribe() is called.
+    print('Unsubscribed from {0} with PID {1}'.format(topic, pid))
+
+def publish(client, userdata, topic, pid):
+    # This method is called when client.publish() is called.
+    print('Published to {0} with PID {1}'.format(topic, pid))
+
+# Instanciate a new MiniMQTT Client
+client = MQTT(socket, secrets['aio_url'],
+                    username=secrets['aio_user'],
+                    password=secrets['aio_password'],
+                    esp= esp,
+                    log=True)
 
 # Set the user_data to a generated client_id
-mqtt_client.user_data = mqtt_client._client_id
+client.user_data = client._client_id
 
-# define callbacks
-mqtt_client.on_connect = connect
-mqtt_client.on_subscribe = subscribe
-mqtt_client.on_publish = publish
-mqtt_client.on_disconnect = disconnect
+# Connect callback handlers
+client.on_connect = connect
+client.on_disconnect = disconnect
+client.on_subscribe = subscribe
+client.on_unsubscribe = unsubscribe
+client.on_publish = publish
 
-# Connect MQTT Client
-print('connecting...')
-mqtt_client.connect()
+# Optionally set a logging level
+#client.set_logger_level('DEBUG')
 
-# Subscribe to feed
-print('subscribing...')
-mqtt_client.subscribe('brubell/feeds/temperature')
+print('Attempting to connect to %s'%client.broker)
+client.connect()
 
-print('publishing...')
-mqtt_client.publish('brubell/feeds/temperature', 50)
+print('Subscribing to %s'%default_feed)
+client.subscribe(default_feed)
 
-# Disconnect from MQTT Client
-print('disconnecting...')
-mqtt_client.disconnect()
+print('Publishing to %s'%default_feed)
+client.publish(default_feed, 'Hello Broker!')
 
+print('Unsubscribing from %s'%default_feed)
+client.unsubscribe(default_feed)
+
+print('Subscribing to %s'%default_feed)
+client.subscribe(default_feed)
+
+print('Publishing to %s'%default_feed)
+client.publish(default_feed, 'Hello Broker!')
+
+print('Unsubscribing from %s'%default_feed)
+client.unsubscribe(default_feed)
+
+print('Disconnecting from %s'%client.broker)
+client.disconnect()
