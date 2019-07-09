@@ -487,7 +487,16 @@ class MQTT:
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
         :param str topic: Unique MQTT topic identifier.
-        TODO: REFACTOR THIS BACK INTO MULTIPLE UNSUBSCRIBE COMMANDS!
+        :param list topic: List of tuples containing topic identifier strings.
+
+        Example of unsubscribing from a topic string.
+        .. code-block:: python
+            mqtt_client.unsubscribe('topics/ledState')
+
+        Example of unsubscribing from multiple topics.
+        .. code-block:: python
+            mqtt_client.unsubscribe([('topics/ledState'), ('topics/servoAngle')])
+
         """
         topics = None
         if isinstance(topic, str):
@@ -515,6 +524,7 @@ class MQTT:
             for t in topics:
                 self._logger.debug('UNSUBSCRIBING from topic {0}.'.format(t))
         self._sock.write(packet)
+        # Check UNSUBACK
         while 1:
             op = self.wait_for_msg()
             if op == const(0x01):
