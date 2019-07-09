@@ -84,7 +84,7 @@ class MQTT:
     """
     MQTT client interface for CircuitPython devices.
     :param socket: Socket object for provided network interface
-    :param str server_address: Server URL or IP Address.
+    :param str server: Server URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
@@ -95,7 +95,7 @@ class MQTT:
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable
-    def __init__(self, socket, server_address, port=None, username=None,
+    def __init__(self, socket, server, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         # network interface
         self._socket = socket
@@ -138,7 +138,7 @@ class MQTT:
         # subscription method handler dictionary
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
-        self.server = server_address
+        self.server = server
         self.packet_id = 0
         self._keep_alive = 0
         self._pid = 0
@@ -241,12 +241,9 @@ class MQTT:
                 raise MMQTTException("Invalid server address defined.")
         else:
             addr = self._socket.getaddrinfo(self.server, self.port)[0][-1]
-            print('Addresss', addr)
-            print('Addresss', self.server)
             try:
                 if self._logger is not None:
                     self._logger.debug('Attempting to establish insecure MQTT connection...')
-                print('Addresss', addr)
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError:
                 raise MMQTTException("Invalid server address defined.")
@@ -254,6 +251,7 @@ class MQTT:
         msg = MQTT_CON_HEADER
         msg[6] = clean_session << 1
         sz = 12 + len(self._client_id)
+        print('USER: ', self._user)
         if self._user is not None:
             sz += 2 + len(self._user) + 2 + len(self._pass)
             msg[6] |= 0xC0
