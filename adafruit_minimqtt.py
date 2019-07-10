@@ -94,7 +94,7 @@ class MQTT:
         Defaults to True (port 8883).
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable
+    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         # network interface
@@ -112,10 +112,9 @@ class MQTT:
         except ValueError: # set broker URL
             self.broker = broker
         # port/ssl
+        self.port = MQTT_TCP_PORT
         if is_ssl:
             self.port = MQTT_TLS_PORT
-        else:
-            self.port = MQTT_TCP_PORT
         if port is not None:
             self.port = port
         # session identifiers
@@ -140,7 +139,7 @@ class MQTT:
         if log is True:
             self._logger = logging.getLogger('log')
             self._logger.setLevel(logging.INFO)
-        # subscription method handler dictionary
+        self._sock = None
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self.packet_id = 0
@@ -504,12 +503,12 @@ class MQTT:
                 topics.append((t))
         for t in topics:
             if t not in self._subscribed_topics:
-                raise MMQTTException('Topic must be subscribed to before attempting to unsubscribe.')
+                raise MMQTTException('Topic must be subscribed to before attempting unsubscribe.')
         # Assemble packet
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic) for topic in topics)
         packet_length_byte = packet_length.to_bytes(1, 'big')
-        self._pid+=1
+        self._pid += 1
         packet_id_bytes = self._pid.to_bytes(2, 'big')
         packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
         for t in topics:
@@ -591,20 +590,22 @@ class MQTT:
         else:
             self._sock.write(string)
 
-    def _check_topic(self, topic):
+    @staticmethod
+    def _check_topic(topic):
         """Checks if topic provided is a valid mqtt topic.
         :param str topic: Topic identifier
         """
         if topic is None:
             raise MMQTTException('Topic may not be Nonetype')
         # [MQTT-4.7.3-1]
-        elif not len(topic):
+        elif not topic:
             raise MMQTTException('Topic may not be empty.')
         # [MQTT-4.7.3-3]
         elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
             raise MMQTTException('Topic length is too large.')
 
-    def _check_qos(self, qos_level):
+    @staticmethod
+    def _check_qos(qos_level):
         """Validates the quality of service level.
         :param int qos_level: Desired QoS level.
         """
@@ -613,7 +614,6 @@ class MQTT:
                 raise MMQTTException('QoS must be between 1 and 2.')
         else:
             raise MMQTTException('QoS must be an integer.')
-        return
 
     def _set_interface(self):
         """Sets a desired network hardware interface.
@@ -644,7 +644,7 @@ class MQTT:
         :param int msg_size: Maximum MQTT payload size.
         """
         if msg_size < MQTT_MSG_MAX_SZ:
-            self.__msg_size_lim = msg_size
+            self._msg_size_lim = msg_size
 
     # Logging
     def attach_logger(self, logger_name='log'):
