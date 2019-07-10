@@ -38,6 +38,9 @@ Implementation Notes
 * Adafruit CircuitPython firmware for the supported boards:
   https://github.com/adafruit/circuitpython/releases
 
+* Adafruit CircuitPython Logger
+  https://github.com/adafruit/Adafruit_CircuitPython_Logger
+
 """
 import struct
 import time
@@ -83,7 +86,7 @@ class MMQTTException(Exception):
 class MQTT:
     """
     MQTT client interface for CircuitPython devices.
-    :param socket: Socket object for provided network interface
+    :param socket: Socket object for network interface.
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
