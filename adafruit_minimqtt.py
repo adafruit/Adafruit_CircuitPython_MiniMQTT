@@ -518,13 +518,11 @@ class MQTT:
             for t in topics:
                 self._logger.debug('UNSUBSCRIBING from topic {0}.'.format(t))
         self._sock.write(packet)
-        self._logger.debug('Waiting for UNSUBACK...')
-        # handle unsuback
+        if self._logger is not None:
+            self._logger.debug('Waiting for UNSUBACK...')
         while 1:
             op = self.wait_for_msg()
-            print(op)
             return_code = self._sock.read(4)
-            print(return_code)
             assert return_code[1] == const(0x02)
             # [MQTT-3.32]
             assert return_code[2] == packet_id_bytes[0] and return_code[3] == packet_id_bytes[1]
