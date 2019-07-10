@@ -533,12 +533,19 @@ class MQTT:
                     self._subscribed_topics.remove(t)
                 return
 
+    def check_for_msg(self):
+        """Checks if a pending message from the server is avaliable.
+        If not, returns None.
+        """
+        self._sock.settimeout(0.1)
+        self.wait_for_msg()
+
     def wait_for_msg(self):
         """Reads and processes network events.
         Returns response code if successful.
         """
-        self._sock.settimeout(30.0)
         res = self._sock.read(1)
+        self._sock.settimeout(0.0)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
