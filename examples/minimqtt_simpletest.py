@@ -51,9 +51,11 @@ while not esp.is_connected:
 print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
 print("My IP address is", esp.pretty_ip(esp.ip_address))
 
+# MQTT Topic
+mqtt_topic = 'test/topic'
 
-# Default MiniMQTT Topic
-default_feed = 'brubell/feeds/temperature'
+# Adafruit IO-style Topic
+# mqtt_topic = 'aio_user/feeds/temperature'
 
 # MiniMQTT Callback Handlers
 def connect(client, userdata, flags, rc):
@@ -78,14 +80,10 @@ def publish(client, userdata, topic, pid):
     print('Published to {0} with PID {1}'.format(topic, pid))
 
 # Instanciate a new MiniMQTT Client
-client = MQTT(socket, secrets['aio_url'],
-                    username=secrets['aio_user'],
-                    password=secrets['aio_password'],
-                    esp= esp,
-                    log=True)
-
-# Set the user_data to a generated client_id
-client.user_data = client._client_id
+client = MQTT(socket, secrets['broker'],
+                    username=secrets['user'],
+                    password=secrets['pass'],
+                    esp= esp)
 
 # Connect callback handlers
 client.on_connect = connect
@@ -94,29 +92,17 @@ client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_publish = publish
 
-# Optionally set a logging level
-#client.set_logger_level('DEBUG')
-
 print('Attempting to connect to %s'%client.broker)
 client.connect()
 
-print('Subscribing to %s'%default_feed)
-client.subscribe(default_feed)
+print('Subscribing to %s'%mqtt_topic)
+client.subscribe(mqtt_topic)
 
-print('Publishing to %s'%default_feed)
-client.publish(default_feed, 'Hello Broker!')
+print('Publishing to %s'%mqtt_topic)
+client.publish(mqtt_topic, 'Hello Broker!')
 
-print('Unsubscribing from %s'%default_feed)
-client.unsubscribe(default_feed)
-
-print('Subscribing to %s'%default_feed)
-client.subscribe(default_feed)
-
-print('Publishing to %s'%default_feed)
-client.publish(default_feed, 'Hello Broker!')
-
-print('Unsubscribing from %s'%default_feed)
-client.unsubscribe(default_feed)
+print('Unsubscribing from %s'%mqtt_topic)
+client.unsubscribe(mqtt_topic)
 
 print('Disconnecting from %s'%client.broker)
 client.disconnect()
