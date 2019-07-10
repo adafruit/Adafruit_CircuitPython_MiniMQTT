@@ -1,5 +1,3 @@
-# CircuitPython MiniMQTT Library
-# Adafruit IO SSL/TLS Example for WiFi (ESP32SPI)
 import time
 import board
 import busio
