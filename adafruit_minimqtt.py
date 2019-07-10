@@ -537,7 +537,7 @@ class MQTT:
         """Reads and processes network events.
         Returns response code if successful.
         """
-        self._sock.settimeout(0.0)
+        self._sock.settimeout(30.0)
         res = self._sock.read(1)
         if res in [None, b""]:
             return None
