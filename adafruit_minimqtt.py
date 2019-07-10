@@ -84,7 +84,7 @@ class MQTT:
     """
     MQTT client interface for CircuitPython devices.
     :param socket: Socket object for provided network interface
-    :param str broker: Server URL or IP Address.
+    :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
@@ -107,8 +107,10 @@ class MQTT:
         else:
             raise NotImplementedError('MiniMQTT currently supports an ESP32SPI network interface.')
         # broker
-        # TODO: add check for IP string instead of URL
-        self.broker = broker
+        try: # set broker IP
+            self.broker = self._esp.unpretty_ip(broker)
+        except ValueError: # set broker URL
+            self.broker = broker
         # port/ssl
         if is_ssl:
             self.port = MQTT_TLS_PORT
@@ -212,23 +214,6 @@ class MQTT:
                 time.sleep(1)
                 continue
 
-    def is_connected(self):
-        """Returns MQTT client session status as True if connected, raises
-        a MMQTTException if False."""
-        if self._sock is None or self._is_connected is False:
-            raise MMQTTException("MiniMQTT is not connected.")
-        return self._is_connected
-
-    def _set_interface(self):
-        """Sets a desired network hardware interface.
-        Note: The network hardware must be set in init
-        prior to calling this method.
-        """
-        if self._esp:
-            self._socket.set_interface(self._esp)
-        else:
-            raise TypeError('network interface required.')
-
     # pylint: disable=too-many-branches, too-many-statements
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
@@ -248,13 +233,17 @@ class MQTT:
             except RuntimeError:
                 raise MMQTTException("Invalid broker address defined.")
         else:
-            addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
+            if isinstance(self.broker, str):
+                addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
+            else:
+                addr = (self.broker, self.port)
             try:
                 if self._logger is not None:
                     self._logger.debug('Attempting to establish insecure MQTT connection...')
+                #self._sock.connect((self.broker, self.port), TCP_MODE)
                 self._sock.connect(addr, TCP_MODE)
-            except RuntimeError:
-                raise MMQTTException("Invalid broker address defined.")
+            except RuntimeError as e:
+                raise MMQTTException("Invalid broker address defined.", e)
         premsg = MQTT_CON
         msg = MQTT_CON_HEADER
         msg[6] = clean_session << 1
@@ -625,6 +614,24 @@ class MQTT:
         else:
             raise MMQTTException('QoS must be an integer.')
         return
+
+    def _set_interface(self):
+        """Sets a desired network hardware interface.
+        Note: The network hardware must be set in init
+        prior to calling this method.
+        """
+        if self._esp:
+            self._socket.set_interface(self._esp)
+        else:
+            raise TypeError('network interface required.')
+
+    def is_connected(self):
+        """Returns MQTT client session status as True if connected, raises
+        a MMQTTException if False.
+        """
+        if self._sock is None or self._is_connected is False:
+            raise MMQTTException("MiniMQTT is not connected.")
+        return self._is_connected
 
     @property
     def mqtt_msg(self):
