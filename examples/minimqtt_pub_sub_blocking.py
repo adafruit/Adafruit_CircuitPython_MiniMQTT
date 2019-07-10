@@ -1,6 +1,5 @@
 # CircuitPython MiniMQTT Library
 # Adafruit IO SSL/TLS Example for WiFi (ESP32SPI)
-import time
 import board
 import busio
 from digitalio import DigitalInOut
@@ -49,7 +48,7 @@ def connect_wifi():
     print("IP: ", esp.pretty_ip(esp.ip_address))
 
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument
+# pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
