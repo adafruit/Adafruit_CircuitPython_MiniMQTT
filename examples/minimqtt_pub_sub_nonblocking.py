@@ -32,11 +32,8 @@ esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 
 ### Adafruit IO Setup ###
 
-# Setup a feed named `photocell` for publishing.
-aio_publish_feed = secrets['user']+'/feeds/photocell'
-
-# Setup a feed named `onoffbutton` for subscribing to changes.
-aio_subscribe_feed = secrets['user']+'/feeds/onoffbutton'
+# Setup a feed named `testfeed` for publishing.
+default_topic = secrets['user']+'/feeds/testfeed'
 
 ### Code ###
 
@@ -51,37 +48,52 @@ def connect_wifi():
     print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
     print("IP: ", esp.pretty_ip(esp.ip_address))
 
+# Define callback methods which are called when events occur
 # pylint: disable=unused-argument
-def on_message(client, topic, message):
-    # This method is called whenever a new message is received
-    # from the server.
+def connected(client, userdata, flags, rc):
+    # This function will be called when the client is connected
+    # successfully to the broker.
+    print('Connected to MQTT broker! Listening for topic changes on %s'%default_topic)
+    # Subscribe to all changes on the default_topic feed.
+    client.subscribe(default_topic)
+
+def disconnected(client, userdata, rc):
+    # This method is called when the client is disconnected
+    print('Disconnected from MQTT Broker!')
+
+def message(client, topic, message):
+    """Method callled when a client's subscribed feed has a new
+    value.
+    :param str topic: The topic of the feed with a new value.
+    :param str message: The new value
+    """
     print('New message on topic {0}: {1}'.format(topic, message))
 
 # Connect to WiFi
 connect_wifi()
 
-# Set up a MiniMQTT Client
+# Initialize a MiniMQTT Client
 mqtt_client = MQTT(socket,
                    broker = secrets['broker'],
                    username = secrets['user'],
                    password = secrets['pass'],
                    esp = esp)
 
-# Attach on_message method to the MQTT Client
-mqtt_client.on_message = on_message
+# Setup the callback methods above
+mqtt_client.on_connect = connected
+mqtt_client.on_disconnect = disconnected
+mqtt_client.on_message = message
 
-# Initialize the MQTT Client
+# Connect the client to the MQTT broker.
 mqtt_client.connect()
-
-# Subscribe the client to topic aio_subscribe_feed
-mqtt_client.subscribe(aio_subscribe_feed)
 
 photocell_val = 0
 while True:
     # Poll the message queue
     mqtt_client.loop()
 
+    # Send a new message
     print('Sending photocell value: %d'%photocell_val)
-    mqtt_client.publish(aio_publish_feed, photocell_val)
+    mqtt_client.publish(default_topic, photocell_val)
     photocell_val += 1
     time.sleep(0.5)
