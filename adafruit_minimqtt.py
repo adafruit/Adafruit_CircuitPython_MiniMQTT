@@ -96,6 +96,7 @@ class MQTT:
         :param str client_id: Optional client identifier, defaults to a unique, generated string.
         :param bool is_ssl: Sets a secure or insecure connection with the broker.
         :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
+
         """
         # network interface
         self._socket = socket
@@ -334,14 +335,17 @@ class MQTT:
 
         Example of sending an integer, 3, to the broker on topic 'piVal'.
         .. code-block:: python
+
             mqtt_client.publish('topics/piVal', 3)
 
         Example of sending a float, 3.14, to the broker on topic 'piVal'.
         .. code-block:: python
+
             mqtt_client.publish('topics/piVal', 3.14)
 
         Example of sending a string, 'threepointonefour', to the broker on topic piVal.
         .. code-block:: python
+
             mqtt_client.publish('topics/piVal', 'threepointonefour')
 
         """
@@ -419,18 +423,22 @@ class MQTT:
 
         Example of subscribing a topic string.
         .. code-block:: python
+
             mqtt_client.subscribe('topics/ledState')
 
         Example of subscribing to a topic and setting the qos level to 1.
         .. code-block:: python
+
             mqtt_client.subscribe('topics/ledState', 1)
 
         Example of subscribing to topic string and setting qos level to 1, as a tuple.
         .. code-block:: python
+
             mqtt_client.subscribe(('topics/ledState', 1))
 
         Example of subscribing to multiple topics with different qos levels.
         .. code-block:: python
+
             mqtt_client.subscribe([('topics/ledState', 1), ('topics/servoAngle', 0)])
 
         """
@@ -487,10 +495,12 @@ class MQTT:
 
         Example of unsubscribing from a topic string.
         .. code-block:: python
+
             mqtt_client.unsubscribe('topics/ledState')
 
         Example of unsubscribing from multiple topics.
         .. code-block:: python
+
             mqtt_client.unsubscribe([('topics/ledState'), ('topics/servoAngle')])
 
         """
