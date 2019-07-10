@@ -86,6 +86,7 @@ class MQTT:
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         """Initializes a MQTT client object.
+
         :param socket: Socket object for provided network interface
         :param str broker: MQTT Broker URL or IP Address.
         :param int port: Optional port definition, defaults to 8883.
@@ -161,7 +162,8 @@ class MQTT:
         self.deinit()
 
     def deinit(self):
-        """Disconnects the MQTT client from the broker.
+        """De-initializes the MQTT client and disconnects from
+        the mqtt broker.
         """
         self.disconnect()
 
@@ -290,7 +292,8 @@ class MQTT:
         return result
 
     def disconnect(self):
-        """Disconnects from the broker.
+        """Disconnects the MiniMQTT client from
+        the MQTT broker.
         """
         self.is_connected()
         if self._logger is not None:
@@ -300,13 +303,14 @@ class MQTT:
             self._logger.debug('Closing socket')
         self._sock.close()
         self._is_connected = False
+        self._subscribed_topics = None
         if self.on_disconnect is not None:
             self.on_disconnect(self, self._user_data, 0)
 
     def ping(self):
         """Pings the MQTT Broker to confirm if the broker is alive or if
         there is an active network connection.
-        Raises a MMQTTException if the broker does not respond with a PINGRESP packet.
+
         """
         self.is_connected()
         if self._logger is not None:
@@ -533,10 +537,9 @@ class MQTT:
 
     def loop_forever(self):
         """Starts a blocking message loop. Use this
-        method if you want to run a program
-        forever. Network reconnection is handled within
-        this call. Your code will not execute anything
-        below this call.
+        method if you want to run a program forever.
+        Network reconnection is handled within this call.
+        Your code will not execute anything below this call.
         """
         run = True
         while run:
@@ -604,7 +607,7 @@ class MQTT:
             sh += 7
 
     def _send_str(self, string):
-        """Writes a provided string to a socket.
+        """Packs and encodes a string to a socket.
         :param str string: String to write to the socket.
         """
         self._sock.write(struct.pack("!H", len(string)))
@@ -619,7 +622,7 @@ class MQTT:
         :param str topic: Topic identifier
         """
         if topic is None:
-            raise MMQTTException('Topic may not be Nonetype')
+            raise MMQTTException('Topic may not be NoneType')
         # [MQTT-4.7.3-1]
         elif not topic:
             raise MMQTTException('Topic may not be empty.')
