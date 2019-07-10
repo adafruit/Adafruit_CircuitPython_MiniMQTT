@@ -81,22 +81,20 @@ class MMQTTException(Exception):
     #pass
 
 class MQTT:
-    """
-    MQTT client interface for CircuitPython devices.
-    :param socket: Socket object for provided network interface
-    :param str broker: MQTT Broker URL or IP Address.
-    :param int port: Optional port definition, defaults to 8883.
-    :param str username: Username for broker authentication.
-    :param str password: Password for broker authentication.
-    :param ESP_SPIcontrol esp: An ESP network interface object.
-    :param str client_id: Optional client identifier, defaults to a unique, generated string.
-    :param bool is_ssl: Sets a secure or insecure connection with the broker.
-        Defaults to True (port 8883).
-    :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
-    """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name
+    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
+        """Initializes a MQTT client object.
+        :param socket: Socket object for provided network interface
+        :param str broker: MQTT Broker URL or IP Address.
+        :param int port: Optional port definition, defaults to 8883.
+        :param str username: Username for broker authentication.
+        :param str password: Password for broker authentication.
+        :param ESP_SPIcontrol esp: An ESP network interface object.
+        :param str client_id: Optional client identifier, defaults to a unique, generated string.
+        :param bool is_ssl: Sets a secure or insecure connection with the broker.
+        :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
+        """
         # network interface
         self._socket = socket
         if esp is not None:
@@ -129,7 +127,6 @@ class MQTT:
             self._client_id = client_id
         else:
             # assign a unique client_id
-            # pylint: disable=no-member
             self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)],
                                                  randint(0, 9))
             # generated client_id's enforce spec.'s length rules
