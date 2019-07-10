@@ -81,6 +81,7 @@ class MMQTTException(Exception):
     #pass
 
 class MQTT:
+    """MiniMQTT - a MQTT Client for CircuitPython"""
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
