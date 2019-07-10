@@ -4,7 +4,6 @@ import time
 import board
 import busio
 from digitalio import DigitalInOut
-import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_minimqtt import MQTT
@@ -52,6 +51,7 @@ def connect_wifi():
     print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
     print("IP: ", esp.pretty_ip(esp.ip_address))
 
+# pylint: disable=unused-argument
 def on_message(client, topic, message):
     # This method is called whenever a new message is received
     # from the server.
@@ -62,10 +62,10 @@ connect_wifi()
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT(socket,
-                    secrets['broker'],
-                    username=secrets['user'],
-                    password=secrets['pass'],
-                    esp = esp)
+                   broker = secrets['broker'],
+                   username = secrets['user'],
+                   password = secrets['pass'],
+                   esp = esp)
 
 # Attach on_message method to the MQTT Client
 mqtt_client.on_message = on_message

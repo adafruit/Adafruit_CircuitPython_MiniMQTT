@@ -53,6 +53,7 @@ def connect_wifi():
     print("IP: ", esp.pretty_ip(esp.ip_address))
 
 # MiniMQTT Callback Handlers
+# pylint: disable=unused-argument, redefined-outer-name
 def connect(client, userdata, flags, rc):
     # This method is called when client.connect() is called.
     print('Connected to MQTT Broker!')
@@ -79,10 +80,10 @@ connect_wifi()
 
 # Set up a MiniMQTT Client
 client = MQTT(socket,
-                    secrets['broker'],
-                    username=secrets['user'],
-                    password=secrets['pass'],
-                    esp = esp)
+              broker = secrets['broker'],
+              username = secrets['user'],
+              password = secrets['pass'],
+              esp = esp)
 
 # Connect callback handlers to client
 client.on_connect = connect
