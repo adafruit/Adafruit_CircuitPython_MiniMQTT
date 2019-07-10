@@ -391,7 +391,7 @@ class MQTT:
         self._sock.write(msg)
         if qos == 1:
             while 1:
-                op = self.wait_for_msg()
+                op = self._wait_for_msg()
                 if op == const(0x40):
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
@@ -466,7 +466,7 @@ class MQTT:
                 self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(t, q))
         self._sock.write(packet)
         while 1:
-            op = self.wait_for_msg()
+            op = self._wait_for_msg()
             if op == 0x90:
                 rc = self._sock.read(4)
                 assert rc[1] == packet[2] and rc[2] == packet[3]
@@ -521,7 +521,7 @@ class MQTT:
         if self._logger is not None:
             self._logger.debug('Waiting for UNSUBACK...')
         while 1:
-            op = self.wait_for_msg()
+            op = self._wait_for_msg()
             if op == const(176):
                 return_code = self._sock.read(3)
                 assert return_code[0] == const(0x02)
@@ -533,19 +533,39 @@ class MQTT:
                     self._subscribed_topics.remove(t)
                 return
 
-    def check_for_msg(self):
-        """Checks if a pending message from the server is avaliable.
-        If not, returns None.
+    def loop_forever(self):
+        """Starts a blocking message loop. Use this
+        method if you want to run a program
+        forever. Network reconnection is handled within
+        this call. Your code will not execute anything
+        below this call.
+        """
+        run = True
+        while run:
+            if self._is_connected:
+                self._wait_for_msg(0.0)
+            else:
+                if self._logger is not None:
+                    self._logger.debug('Lost connection, reconnecting and resubscribing...')
+                self.reconnect(resub_topics=True)
+                if self._logger is not None:
+                    self._logger.debug('Connection restored, continuing to loop forever...')
+
+    def loop(self):
+        """Non-blocking message loop. Use this method to
+        check incoming subscription messages. Does not handle
+        network reconnection like loop_forever - reconnection must
+        be handled within your code.
         """
         self._sock.settimeout(0.1)
-        self.wait_for_msg()
+        return self._wait_for_msg()
 
-    def wait_for_msg(self):
+    def _wait_for_msg(self, timeout=30):
         """Reads and processes network events.
         Returns response code if successful.
         """
         res = self._sock.read(1)
-        self._sock.settimeout(0.0)
+        self._sock.settimeout(timeout)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
