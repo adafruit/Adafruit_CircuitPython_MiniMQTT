@@ -38,9 +38,6 @@ Implementation Notes
 * Adafruit CircuitPython firmware for the supported boards:
   https://github.com/adafruit/circuitpython/releases
 
-* Adafruit CircuitPython Logger
-  https://github.com/adafruit/Adafruit_CircuitPython_Logger
-
 """
 import struct
 import time
@@ -78,15 +75,15 @@ CONNACK_ERRORS = {const(0x01) : 'Connection Refused - Incorrect Protocol Version
                   const(0x04) : 'Connection Refused - Incorrect username/password',
                   const(0x05) : 'Connection Refused - Unauthorized'}
 
-# pylint: disable=unnecessary-pass
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
+    # pylint: disable=unnecessary-pass
     #pass
 
 class MQTT:
     """
     MQTT client interface for CircuitPython devices.
-    :param socket: Socket object for network interface.
+    :param socket: Socket object for provided network interface
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
@@ -97,7 +94,7 @@ class MQTT:
         Defaults to True (port 8883).
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
+    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         # network interface
@@ -132,6 +129,7 @@ class MQTT:
             self._client_id = client_id
         else:
             # assign a unique client_id
+            # pylint: disable=no-member
             self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)],
                                                  randint(0, 9))
             # generated client_id's enforce spec.'s length rules
@@ -368,7 +366,7 @@ class MQTT:
             sz += 2
         assert sz < const(2097152)
         i = 1
-        while sz > 0x7f:
+        while sz > const(0x7f):
             pkt[i] = (sz & 0x7f) | const(0x80)
             sz >>= 7
             i += 1
@@ -523,23 +521,23 @@ class MQTT:
         if self._logger is not None:
             self._logger.debug('Waiting for UNSUBACK...')
         while 1:
-            self.wait_for_msg()
-            return_code = self._sock.read(4)
-            assert return_code[1] == const(0x02)
-            # [MQTT-3.32]
-            assert return_code[2] == packet_id_bytes[0] and return_code[3] == packet_id_bytes[1]
-            for t in topics:
-                if self.on_unsubscribe is not None:
-                    self.on_unsubscribe(self, self._user_data, t, self._pid)
-                self._subscribed_topics.remove(t)
-            return
+            op = self.wait_for_msg()
+            if op == const(176):
+                return_code = self._sock.read(3)
+                assert return_code[0] == const(0x02)
+                # [MQTT-3.32]
+                assert return_code[1] == packet_id_bytes[0] and return_code[2] == packet_id_bytes[1]
+                for t in topics:
+                    if self.on_unsubscribe is not None:
+                        self.on_unsubscribe(self, self._user_data, t, self._pid)
+                    self._subscribed_topics.remove(t)
+                return
 
-    def wait_for_msg(self, timeout=0.1):
-        """Reads and processes network events. Returns network response if successful.
-        :param float timeout: The time in seconds to wait for network before returning.
-            Setting this to 0.0 will cause the socket to block until it reads.
+    def wait_for_msg(self):
+        """Reads and processes network events.
+        Returns response code if successful.
         """
-        self._sock.settimeout(timeout)
+        self._sock.settimeout(0.0)
         res = self._sock.read(1)
         if res in [None, b""]:
             return None
