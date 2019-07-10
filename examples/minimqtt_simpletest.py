@@ -1,8 +1,6 @@
-import time
 import board
 import busio
 from digitalio import DigitalInOut
-import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
@@ -80,7 +78,7 @@ def publish(client, userdata, topic, pid):
 connect_wifi()
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT(socket,
+client = MQTT(socket,
                     secrets['broker'],
                     username=secrets['user'],
                     password=secrets['pass'],
