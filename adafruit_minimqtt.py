@@ -105,7 +105,10 @@ class MQTT:
             else:
                 raise MMQTTException('Invalid ESP32SPI object provided.')
         else:
-            raise NotImplementedError('MiniMQTT currently only supports an ESP32SPI object.')
+            raise NotImplementedError('MiniMQTT currently supports an ESP32SPI network interface.')
+        # broker
+        # TODO: add check for IP string instead of URL
+        self.broker = broker
         # port/ssl
         if is_ssl:
             self.port = MQTT_TLS_PORT
@@ -138,7 +141,6 @@ class MQTT:
         # subscription method handler dictionary
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
-        self.broker = broker
         self.packet_id = 0
         self._keep_alive = 0
         self._pid = 0
@@ -218,19 +220,26 @@ class MQTT:
             raise MMQTTException("MiniMQTT is not connected.")
         return self._is_connected
 
+    def _set_interface(self):
+        """Sets a desired network hardware interface.
+        Note: The network hardware must be set in init
+        prior to calling this method.
+        """
+        if self._esp:
+            self._socket.set_interface(self._esp)
+        else:
+            raise TypeError('network interface required.')
+
     # pylint: disable=too-many-branches, too-many-statements
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session
             with the broker. Defaults to a non-persistent session.
         """
-        if self._esp:
-            if self._logger is not None:
-                self._logger.debug('Creating new socket')
-            self._socket.set_interface(self._esp)
-            self._sock = self._socket.socket()
-        else:
-            raise TypeError('ESP32SPI interface required!')
+        self._set_interface()
+        if self._logger is not None:
+            self._logger.debug('Creating new socket')
+        self._sock = self._socket.socket()
         self._sock.settimeout(10)
         if self.port == 8883:
             try:
