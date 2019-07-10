@@ -8,7 +8,7 @@ import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
 from adafruit_minimqtt import MQTT
 
-print("CircuitPython MiniMQTT WiFi Test")
+### WiFi ###
 
 # Get wifi details and more from a secrets.py file
 try:
@@ -17,33 +17,42 @@ except ImportError:
     print("WiFi secrets are kept in secrets.py, please add them there!")
     raise
 
-try:
-    esp32_cs = DigitalInOut(board.ESP_CS)
-    esp32_ready = DigitalInOut(board.ESP_BUSY)
-    esp32_reset = DigitalInOut(board.ESP_RESET)
-except:
-    esp32_cs = DigitalInOut(board.D9)
-    esp32_ready = DigitalInOut(board.D10)
-    esp32_reset = DigitalInOut(board.D5)
+# If you are using a board with pre-defined ESP32 Pins:
+esp32_cs = DigitalInOut(board.ESP_CS)
+esp32_ready = DigitalInOut(board.ESP_BUSY)
+esp32_reset = DigitalInOut(board.ESP_RESET)
+
+# If you have an externally connected ESP32:
+# esp32_cs = DigitalInOut(board.D9)
+# esp32_ready = DigitalInOut(board.D10)
+# esp32_reset = DigitalInOut(board.D5)
 
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 
-print("Connecting to AP...")
-while not esp.is_connected:
-    try:
-        esp.connect_AP(secrets['ssid'], secrets['password'])
-    except RuntimeError as e:
-        print("could not connect to AP, retrying: ",e)
-        continue
-print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
-print("My IP address is", esp.pretty_ip(esp.ip_address))
+### Topic Setup ###
 
 # MQTT Topic
+# Use this topic if you'd like to connect to a standard MQTT broker
 mqtt_topic = 'test/topic'
 
 # Adafruit IO-style Topic
+# Use this topic if you'd like to connect to io.adafruit.com
 # mqtt_topic = 'aio_user/feeds/temperature'
+
+### Code ###
+
+def connect_wifi():
+    # Connects the ESP32 to WiFi
+    print("Connecting to %s..."%secrets['ssid'])
+    while not esp.is_connected:
+        try:
+            esp.connect_AP(secrets['ssid'], secrets['password'])
+        except RuntimeError as e:
+            print("could not connect to AP, retrying: ",e)
+            continue
+    print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
+    print("IP: ", esp.pretty_ip(esp.ip_address))
 
 # MiniMQTT Callback Handlers
 def connect(client, userdata, flags, rc):
@@ -67,13 +76,17 @@ def publish(client, userdata, topic, pid):
     # This method is called when client.publish() is called.
     print('Published to {0} with PID {1}'.format(topic, pid))
 
-# Instanciate a new MiniMQTT Client
-client = MQTT(socket, secrets['broker'],
+# Connect to WiFi
+connect_wifi()
+
+# Set up a MiniMQTT Client
+mqtt_client = MQTT(socket,
+                    secrets['broker'],
                     username=secrets['user'],
                     password=secrets['pass'],
-                    esp= esp)
+                    esp = esp)
 
-# Connect callback handlers
+# Connect callback handlers to client
 client.on_connect = connect
 client.on_disconnect = disconnect
 client.on_subscribe = subscribe
