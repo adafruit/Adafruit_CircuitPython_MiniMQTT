@@ -184,7 +184,7 @@ class MQTT:
         self._lw_msg = message
         self._lw_retain = retain
 
-    def reconnect(self, retries=30, resub_topics=False):
+    def reconnect(self, retries=30, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
         :param int retries: Amount of retries before resetting the network interface.
         :param bool resub_topics: Client resubscribes to previously subscribed topics upon
@@ -195,23 +195,22 @@ class MQTT:
             if self._logger is not None:
                 self._logger.debug('Attempting to reconnect to broker')
             try:
-                self.connect(False)
+                self.connect()
+                if self._logger is not None:
+                    self._logger.debug('Reconnected to broker')
+                if resub_topics:
+                    if self._logger is not None:
+                        self._logger.debug('Attempting to resubscribe to prv. subscribed topics.')
+                    while self._subscribed_topics:
+                        feed = self._subscribed_topics.pop()
+                        self.subscribe(feed)
             except OSError as e:
                 print('Failed to connect to the broker, retrying\n', e)
                 retries += 1
                 if retries >= 30:
                     retries = 0
-                time.sleep(0.5)
+                time.sleep(1)
                 continue
-            self._is_connected = True
-            if self._logger is not None:
-                self._logger.debug('Reconnected to broker')
-            if resub_topics:
-                if self._logger is not None:
-                    self._logger.debug('Attempting to resubscribe to prv. subscribed topics.')
-                while self._subscribed_topics:
-                    feed = self._subscribed_topics.pop()
-                    self.subscribe(feed)
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, raises
