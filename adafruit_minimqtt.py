@@ -75,9 +75,9 @@ CONNACK_ERRORS = {const(0x01) : 'Connection Refused - Incorrect Protocol Version
                   const(0x04) : 'Connection Refused - Incorrect username/password',
                   const(0x05) : 'Connection Refused - Unauthorized'}
 
+# pylint: disable=unnecessary-pass
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
-    # pylint: disable=unnecessary-pass
     #pass
 
 class MQTT:
@@ -94,7 +94,7 @@ class MQTT:
         Defaults to True (port 8883).
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name
+    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
         # network interface
@@ -129,7 +129,6 @@ class MQTT:
             self._client_id = client_id
         else:
             # assign a unique client_id
-            # pylint: disable=no-member
             self._client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)],
                                                  randint(0, 9))
             # generated client_id's enforce spec.'s length rules
@@ -521,7 +520,7 @@ class MQTT:
         if self._logger is not None:
             self._logger.debug('Waiting for UNSUBACK...')
         while 1:
-            op = self.wait_for_msg()
+            self.wait_for_msg()
             return_code = self._sock.read(4)
             assert return_code[1] == const(0x02)
             # [MQTT-3.32]
