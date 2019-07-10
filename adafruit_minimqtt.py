@@ -81,23 +81,20 @@ class MMQTTException(Exception):
     #pass
 
 class MQTT:
-    """MiniMQTT - a MQTT Client for CircuitPython"""
+    """MQTT Client for CircuitPython
+    :param socket: Socket object for provided network interface
+    :param str broker: MQTT Broker URL or IP Address.
+    :param int port: Optional port definition, defaults to 8883.
+    :param str username: Username for broker authentication.
+    :param str password: Password for broker authentication.
+    :param ESP_SPIcontrol esp: An ESP network interface object.
+    :param str client_id: Optional client identifier, defaults to a unique, generated string.
+    :param bool is_ssl: Sets a secure or insecure connection with the broker.
+    :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
+    """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, esp=None, client_id=None, is_ssl=True, log=False):
-        """Initializes a MQTT client object.
-
-        :param socket: Socket object for provided network interface
-        :param str broker: MQTT Broker URL or IP Address.
-        :param int port: Optional port definition, defaults to 8883.
-        :param str username: Username for broker authentication.
-        :param str password: Password for broker authentication.
-        :param ESP_SPIcontrol esp: An ESP network interface object.
-        :param str client_id: Optional client identifier, defaults to a unique, generated string.
-        :param bool is_ssl: Sets a secure or insecure connection with the broker.
-        :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
-
-        """
         # network interface
         self._socket = socket
         if esp is not None:
@@ -189,8 +186,7 @@ class MQTT:
     def reconnect(self, retries=30, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
         :param int retries: Amount of retries before resetting the network interface.
-        :param bool resub_topics: Client resubscribes to previously subscribed topics upon
-            a successful reconnection.
+        :param bool resub_topics: Resubscribe to previously subscribed topics.
         """
         retries = 0
         while not self._is_connected:
@@ -217,8 +213,7 @@ class MQTT:
     # pylint: disable=too-many-branches, too-many-statements
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
-        :param bool clean_session: Establishes a persistent session
-            with the broker. Defaults to a non-persistent session.
+        :param bool clean_session: Establishes a persistent session.
         """
         self._set_interface()
         if self._logger is not None:
@@ -293,8 +288,7 @@ class MQTT:
         return result
 
     def disconnect(self):
-        """Disconnects the MiniMQTT client from
-        the MQTT broker.
+        """Disconnects the MiniMQTT client from the MQTT broker.
         """
         self.is_connected()
         if self._logger is not None:
@@ -311,7 +305,6 @@ class MQTT:
     def ping(self):
         """Pings the MQTT Broker to confirm if the broker is alive or if
         there is an active network connection.
-
         """
         self.is_connected()
         if self._logger is not None:
@@ -418,8 +411,7 @@ class MQTT:
         :param str topic: Unique MQTT topic identifier.
         :param int qos: Quality of Service level for the topic, defaults to zero.
         :param tuple topic: Tuple containing topic identifier strings and qos level integers.
-        :param list topic: List of tuples containing topic identifier strings and
-            qos level integers.
+        :param list topic: List of tuples containing topic identifier strings and qos.
 
         Example of subscribing a topic string.
         .. code-block:: python
@@ -653,7 +645,7 @@ class MQTT:
 
     def _set_interface(self):
         """Sets a desired network hardware interface.
-        Note: The network hardware must be set in init
+        The network hardware must be set in init
         prior to calling this method.
         """
         if self._esp:
@@ -692,8 +684,7 @@ class MQTT:
 
     def set_logger_level(self, log_level):
         """Sets the level of the logger, if defined during init.
-        :param string log_level: Level of logging to output to the REPL. Accepted
-            levels are DEBUG, INFO, WARNING, EROR, and CRITICIAL.
+        :param string log_level: Level of logging to output to the REPL.
         """
         if self._logger is None:
             raise MMQTTException('No logger attached - did you create it during initialization?')
