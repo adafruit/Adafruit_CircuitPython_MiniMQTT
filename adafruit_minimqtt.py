@@ -98,7 +98,7 @@ class MQTT:
         # network management
         self._socket = socket
         network_manager_type = str(type(network_manager))
-        if ('ESPSPI_WiFiManager' in network_manager_type):
+        if 'ESPSPI_WiFiManager' in network_manager_type:
             self._wifi = network_manager
         else:
             raise TypeError("This library requires a NetworkManager object.")

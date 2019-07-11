@@ -1,8 +1,10 @@
 import time
 import board
 import busio
+import neopixel
 from digitalio import DigitalInOut
 from adafruit_esp32spi import adafruit_esp32spi
+from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_minimqtt import MQTT
 
@@ -27,6 +29,18 @@ esp32_reset = DigitalInOut(board.ESP_RESET)
 
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
+"""Use below for Most Boards"""
+status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment for Most Boards
+"""Uncomment below for ItsyBitsy M4"""
+# status_light = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
+# Uncomment below for an externally defined RGB LED
+# import adafruit_rgbled
+# from adafruit_esp32spi import PWMOut
+# RED_LED = PWMOut.PWMOut(esp, 26)
+# GREEN_LED = PWMOut.PWMOut(esp, 27)
+# BLUE_LED = PWMOut.PWMOut(esp, 25)
+# status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
+wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
 
 ### Adafruit IO Setup ###
 
@@ -34,18 +48,6 @@ esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 default_topic = secrets['user']+'/feeds/testfeed'
 
 ### Code ###
-
-def connect_wifi():
-    print("Connecting to %s..."%secrets['ssid'])
-    while not esp.is_connected:
-        try:
-            esp.connect_AP(secrets['ssid'], secrets['password'])
-        except RuntimeError as e:
-            print("could not connect to AP, retrying: ",e)
-            continue
-    print("Connected to", str(esp.ssid, 'utf-8'), "\tRSSI:", esp.rssi)
-    print("IP: ", esp.pretty_ip(esp.ip_address))
-
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
@@ -68,14 +70,14 @@ def message(client, topic, message):
     print('New message on topic {0}: {1}'.format(topic, message))
 
 # Connect to WiFi
-connect_wifi()
+wifi.connect()
 
-# Initialize a MiniMQTT Client
+# Set up a MiniMQTT Client
 mqtt_client = MQTT(socket,
                    broker = secrets['broker'],
                    username = secrets['user'],
                    password = secrets['pass'],
-                   esp = esp)
+                   network_manager = wifi)
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected
