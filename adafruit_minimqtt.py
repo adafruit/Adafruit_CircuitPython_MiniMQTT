@@ -87,26 +87,24 @@ class MQTT:
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
-    :param ESP_SPIcontrol esp: An ESP network interface object.
+    :param network_manager: NetworkManager object, such as WiFiManager from ESPSPI_WiFiManager.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(self, socket, broker, port=None, username=None,
-                 password=None, esp=None, client_id=None, is_ssl=True, log=False):
-        # network interface
+                 password=None, network_manager=None, client_id=None, is_ssl=True, log=False):
+        # network management
         self._socket = socket
-        if esp is not None:
-            if hasattr(esp, '_gpio0'):
-                self._esp = esp
-            else:
-                raise MMQTTException('Invalid ESP32SPI object provided.')
+        network_manager_type = str(type(network_manager))
+        if ('ESPSPI_WiFiManager' in network_manager_type):
+            self._wifi = network_manager
         else:
-            raise NotImplementedError('MiniMQTT currently supports an ESP32SPI network interface.')
+            raise TypeError("This library requires a NetworkManager object.")
         # broker
         try: # set broker IP
-            self.broker = self._esp.unpretty_ip(broker)
+            self.broker = self._wifi.esp.unpretty_ip(broker)
         except ValueError: # set broker URL
             self.broker = broker
         # port/ssl
@@ -648,10 +646,10 @@ class MQTT:
         The network hardware must be set in init
         prior to calling this method.
         """
-        if self._esp:
-            self._socket.set_interface(self._esp)
+        if self._wifi:
+            self._socket.set_interface(self._wifi.esp)
         else:
-            raise TypeError('network interface required.')
+            raise TypeError('Network Manager Required.')
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, raises
