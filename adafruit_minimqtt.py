@@ -285,7 +285,7 @@ class MQTT:
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
-                    self.on_connect(self, self._user_data, result, rc[3])
+                    self.on_connect(self, self._user_data, result, rc[2])
                 return result
 
     def disconnect(self):
