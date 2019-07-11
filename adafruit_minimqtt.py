@@ -275,15 +275,18 @@ class MQTT:
             self._send_str(self._pass)
         if self._logger is not None:
             self._logger.debug('Receiving CONNACK packet from broker')
-        rc = self._sock.read(4)
-        assert rc[0] == const(0x20) and rc[1] == const(0x02)
-        if rc[3] != 0:
-            raise MMQTTException(CONNACK_ERRORS[rc[3]])
-        self._is_connected = True
-        result = rc[2] & 1
-        if self.on_connect is not None:
-            self.on_connect(self, self._user_data, result, rc[3])
-        return result
+        while True:
+            op = self._wait_for_msg()
+            if op == 32:
+                rc = self._sock.read(3)
+                assert rc[0] == const(0x02)
+                if rc[2] != const(0x00):
+                    raise MMQTTException(CONNACK_ERRORS[rc[3]])
+                self._is_connected = True
+                result = rc[0] & 1
+                if self.on_connect is not None:
+                    self.on_connect(self, self._user_data, result, rc[3])
+                return result
 
     def disconnect(self):
         """Disconnects the MiniMQTT client from the MQTT broker.
