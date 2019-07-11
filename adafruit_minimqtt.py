@@ -310,9 +310,13 @@ class MQTT:
         self._sock.write(MQTT_PINGREQ)
         if self._logger is not None:
             self._logger.debug('Checking PINGRESP')
-        ping_resp = self._sock.read(2)
-        if ping_resp[0] != MQTT_PINGRESP or ping_resp[1] != const(0x00):
-            raise MMQTTException('PINGRESP not returned from broker.')
+        while 1:
+            op = self._wait_for_msg(0.5)
+            if op == const(208):
+                ping_resp = self._sock.read(2)
+                if ping_resp[0] != const(0x00):
+                    raise MMQTTException('PINGRESP not returned from broker.')
+            return
 
     # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
