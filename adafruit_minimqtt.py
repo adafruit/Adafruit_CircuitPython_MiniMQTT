@@ -201,7 +201,8 @@ class MQTT:
                         feed = self._subscribed_topics.pop()
                         self.subscribe(feed)
             except OSError as e:
-                print('Failed to connect to the broker, retrying\n', e)
+                if self._logger is not None:
+                    self._logger.debug('Lost connection, reconnecting and resubscribing...', e)
                 retries += 1
                 if retries >= 30:
                     retries = 0
@@ -279,8 +280,8 @@ class MQTT:
             op = self._wait_for_msg()
             if op == 32:
                 rc = self._sock.read(3)
-                assert rc[0] == const(0x02)
-                if rc[2] != const(0x00):
+                assert rc[0] == 0x02
+                if rc[2] != 0x00:
                     raise MMQTTException(CONNACK_ERRORS[rc[3]])
                 self._is_connected = True
                 result = rc[0] & 1
@@ -313,11 +314,11 @@ class MQTT:
         self._sock.write(MQTT_PINGREQ)
         if self._logger is not None:
             self._logger.debug('Checking PINGRESP')
-        while 1:
+        while True:
             op = self._wait_for_msg(0.5)
-            if op == const(208):
+            if op == 208:
                 ping_resp = self._sock.read(2)
-                if ping_resp[0] != const(0x00):
+                if ping_resp[0] != 0x00:
                     raise MMQTTException('PINGRESP not returned from broker.')
             return
 
@@ -368,10 +369,10 @@ class MQTT:
         sz = 2 + len(topic) + len(msg)
         if qos > 0:
             sz += 2
-        assert sz < const(2097152)
+        assert sz < 2097152
         i = 1
-        while sz > const(0x7f):
-            pkt[i] = (sz & 0x7f) | const(0x80)
+        while sz > 0x7f:
+            pkt[i] = (sz & 0x7f) | 0x80
             sz >>= 7
             i += 1
         pkt[i] = sz
@@ -394,13 +395,13 @@ class MQTT:
             self._logger.debug('Sending PUBACK')
         self._sock.write(msg)
         if qos == 1:
-            while 1:
+            while True:
                 op = self._wait_for_msg()
-                if op == const(0x40):
+                if op == 0x40:
                     sz = self._sock.read(1)
                     assert sz == b"\x02"
                     rcv_pid = self._sock.read(2)
-                    rcv_pid = rcv_pid[0] << const(0x08) | rcv_pid[1]
+                    rcv_pid = rcv_pid[0] << 0x08 | rcv_pid[1]
                     if pid == rcv_pid:
                         if self.on_publish is not None:
                             self.on_publish(self, self._user_data, topic, rcv_pid)
@@ -472,7 +473,7 @@ class MQTT:
             for t, q in topics:
                 self._logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(t, q))
         self._sock.write(packet)
-        while 1:
+        while True:
             op = self._wait_for_msg()
             if op == 0x90:
                 rc = self._sock.read(4)
@@ -529,11 +530,11 @@ class MQTT:
         self._sock.write(packet)
         if self._logger is not None:
             self._logger.debug('Waiting for UNSUBACK...')
-        while 1:
+        while True:
             op = self._wait_for_msg()
-            if op == const(176):
+            if op == 176:
                 return_code = self._sock.read(3)
-                assert return_code[0] == const(0x02)
+                assert return_code[0] == 0x02
                 # [MQTT-3.32]
                 assert return_code[1] == packet_id_bytes[0] and return_code[2] == packet_id_bytes[1]
                 for t in topics:
@@ -580,7 +581,7 @@ class MQTT:
             sz = self._sock.read(1)[0]
             assert sz == 0
             return None
-        if res[0] & const(0xf0) != const(0x30):
+        if res[0] & 0xf0 != 0x30:
             return res[0]
         sz = self._recv_len()
         topic_len = self._sock.read(2)
@@ -588,14 +589,14 @@ class MQTT:
         topic = self._sock.read(topic_len)
         topic = str(topic, 'utf-8')
         sz -= topic_len + 2
-        if res[0] & const(0x06):
+        if res[0] & 0x06:
             pid = self._sock.read(2)
-            pid = pid[0] << const(0x08) | pid[1]
-            sz -= const(0x02)
+            pid = pid[0] << 0x08 | pid[1]
+            sz -= 0x02
         msg = self._sock.read(sz)
         if self.on_message is not None:
             self.on_message(self, topic, str(msg, 'utf-8'))
-        if res[0] & const(0x06) == const(0x02):
+        if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
             self._sock.write(pkt)
@@ -606,7 +607,7 @@ class MQTT:
     def _recv_len(self):
         n = 0
         sh = 0
-        while 1:
+        while True:
             b = self._sock.read(1)[0]
             n |= (b & 0x7f) << sh
             if not b & 0x80:
