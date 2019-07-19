@@ -1,3 +1,6 @@
+# Adafruit MiniMQTT Pub/Sub Example
+# Written by Tony DiCola for Adafruit Industries
+# Modified by Brent Rubell for Adafruit Industries
 import time
 import board
 import busio
@@ -30,7 +33,8 @@ esp32_reset = DigitalInOut(board.ESP_RESET)
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 """Use below for Most Boards"""
-status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment for Most Boards
+status_light = neopixel.NeoPixel(
+    board.NEOPIXEL, 1, brightness=0.2)  # Uncomment for Most Boards
 """Uncomment below for ItsyBitsy M4"""
 # status_light = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
 # Uncomment below for an externally defined RGB LED
@@ -40,49 +44,67 @@ status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment 
 # GREEN_LED = PWMOut.PWMOut(esp, 27)
 # BLUE_LED = PWMOut.PWMOut(esp, 25)
 # status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
-wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
+wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(
+    esp, secrets, status_light)
 
-### Adafruit IO Setup ###
+### Feeds ###
 
-# Setup a feed named `photocell` for publishing.
-aio_publish_feed = secrets['user']+'/feeds/photocell'
+# Setup a feed named 'photocell' for publishing to a feed
+photocell_feed = secrets['aio_username'] + '/feeds/photocell'
 
-# Setup a feed named `onoffbutton` for subscribing to changes.
-aio_subscribe_feed = secrets['user']+'/feeds/onoffbutton'
+# Setup a feed named 'onoff' for subscribing to changes
+onoff_feed = secrets['aio_username'] + '/feeds/onoff'
 
 ### Code ###
 
-# pylint: disable=unused-argument
-def on_message(client, topic, message):
-    # This method is called whenever a new message is received
-    # from the server.
+# Define callback methods which are called when events occur
+# pylint: disable=unused-argument, redefined-outer-name
+def connected(client, userdata, flags, rc):
+    # This function will be called when the client is connected
+    # successfully to the broker.
+    print('Connected to Adafruit IO! Listening for topic changes on %s' % onoff_feed)
+    # Subscribe to all changes on the onoff_feed.
+    client.subscribe(onoff_feed)
+
+
+def disconnected(client, userdata, rc):
+    # This method is called when the client is disconnected
+    print('Disconnected from Adafruit IO!')
+
+
+def message(client, topic, message):
+    # This method is called when a topic the client is subscribed to
+    # has a new message.
     print('New message on topic {0}: {1}'.format(topic, message))
+
 
 # Connect to WiFi
 wifi.connect()
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT(socket,
-                   broker = secrets['broker'],
-                   username = secrets['user'],
-                   password = secrets['pass'],
-                   network_manager = wifi)
+                   broker='io.adafruit.com',
+                   username=secrets['aio_username'],
+                   password=secrets['aio_key'],
+                   network_manager=wifi)
 
-# Attach on_message method to the MQTT Client
-mqtt_client.on_message = on_message
+# Setup the callback methods above
+mqtt_client.on_connect = connected
+mqtt_client.on_disconnect = disconnected
+mqtt_client.on_message = message
 
-# Initialize the MQTT Client
+# Connect the client to the MQTT broker.
+print('Connecting to Adafruit IO...')
 mqtt_client.connect()
-
-# Subscribe the client to topic aio_subscribe_feed
-mqtt_client.subscribe(aio_subscribe_feed)
 
 photocell_val = 0
 while True:
     # Poll the message queue
     mqtt_client.loop()
 
-    print('Sending photocell value: %d'%photocell_val)
-    mqtt_client.publish(aio_publish_feed, photocell_val)
+    # Send a new message
+    print('Sending photocell value: %d...' % photocell_val)
+    mqtt_client.publish(photocell_feed, photocell_val)
+    print('Sent!')
     photocell_val += 1
-    time.sleep(0.5)
+    time.sleep(1)
