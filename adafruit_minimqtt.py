@@ -238,31 +238,83 @@ class MQTT:
                 self._sock.connect(addr, TCP_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
-        premsg = MQTT_CON
-        msg = MQTT_CON_HEADER
-        msg[6] = clean_session << 1
-        sz = 12 + len(self._client_id)
+        
+        # Google core IOT Premsg
+        #fixed_header = bytearray(b"\x10\x00\x00\x00")
+        # Adafruit IO
+        #fixed_header = bytearray(b'\x10\x00\x00')
+
+        # Fixed Header
+        fixed_header = bytearray()
+        fixed_header.append(0x10)
+
+        # Variable Header
+        var_header = MQTT_CON_HEADER
+        var_header[6] = clean_session << 1
+            
+        
+        # 12 + (protocol information, we're not supporting MQTTv311..)
+        remaining_length = 12 + len(self._client_id)
         if self._user is not None:
-            sz += 2 + len(self._user) + 2 + len(self._pass)
-            msg[6] |= 0xC0
+            remaining_length += 2 + len(self._user) + 2 + len(self._pass)
+            var_header[6] |= 0xC0
         if self._keep_alive:
             assert self._keep_alive < MQTT_TOPIC_LENGTH_LIMIT
-            msg[7] |= self._keep_alive >> 8
-            msg[8] |= self._keep_alive & 0x00FF
+            var_header[7] |= self._keep_alive >> 8
+            var_header[8] |= self._keep_alive & 0x00FF
         if self._lw_topic:
-            sz += 2 + len(self._lw_topic) + 2 + len(self._lw_msg)
-            msg[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
-            msg[6] |= self._lw_retain << 5
+            remaining_length += 2 + len(self._lw_topic) + 2 + len(self._lw_msg)
+            var_header[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
+            var_header[6] |= self._lw_retain << 5
+
+        # Remaining length
         i = 1
-        while sz > 0x7f:
-            premsg[i] = (sz & 0x7f) | 0x80
-            sz >>= 7
+        if remaining_length > 0x7f:
+            # Calculate Remaining Length [2.2.3]
+            remaining_bytes = bytearray()
+            while remaining_length > 0:
+                encoded_byte = remaining_length % 0x80
+                remaining_length = remaining_length // 0x80
+                # if there is more data to encode, set the top bit of the byte
+                if remaining_length > 0:
+                    encoded_byte |= 0x80
+                print('enc byte: ', encoded_byte)
+                remaining_bytes.append(encoded_byte)
+                fixed_header.append(encoded_byte)
+                print('_prl: packet', fixed_header)
+                print('prl, rel.length: ', remaining_length)
+                print('prl, byte: ', encoded_byte)
+                i+=1
+        #fixed_header[i] = 0x00
+        fixed_header.append(0x00)
+        
+        """
+        # Old, non-working MMQT/UMQTT IMPL
+        i = 1
+        while remaining_length > 0x7f:
+            fixed_header[i] = (remaining_length & 0x7f) | 0x80
+            remaining_length >>= 7
             i += 1
-        premsg[i] = sz
+        fixed_header[i] = remaining_length
+        print("i: ", i)
+        print(fixed_header)
+        print(remaining_length)
+        """
+        
+
         if self._logger is not None:
             self._logger.debug('Sending CONNECT packet to broker')
-        self._sock.write(premsg)
-        self._sock.write(msg)
+        print("---fixed_header----")
+        print("rel len: ", remaining_length)
+        print(fixed_header)
+        self._sock.write(fixed_header)
+        #print("remaining len: ", fixed_header[i])
+        print("---var_header----")
+        print(var_header)
+        self._sock.write(var_header)
+        print("Keepalive Bytes:")
+        print(hex(var_header[7]))
+        print(hex(var_header[8]))
         # [MQTT-3.1.3-4]
         self._send_str(self._client_id)
         if self._lw_topic:
