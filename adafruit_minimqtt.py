@@ -275,7 +275,8 @@ class MQTT:
         if large_rel_length:
             fixed_header.append(0x00)
         else:
-            fixed_header.append(remaining_length + 0x00)
+            fixed_header.append(remaining_length)
+            fixed_header.append(0x00)
 
         if self._logger is not None:
             self._logger.debug('Sending CONNECT to broker')
