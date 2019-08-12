@@ -64,7 +64,7 @@ MQTT_PINGRESP = const(0xd0)
 MQTT_SUB = b'\x82'
 MQTT_UNSUB = b'\xA2'
 MQTT_PUB = bytearray(b'\x30\0')
-MQTT_CON = bytearray(b'\x10\0\0')
+MQTT_CON = bytearray(b"\x10\x00\x00\x00")
 # Variable CONNECT header [MQTT 3.1.2]
 MQTT_CON_HEADER = bytearray(b"\x04MQTT\x04\x02\0\0")
 MQTT_DISCONNECT = b'\xe0\0'
@@ -138,7 +138,7 @@ class MQTT:
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self.packet_id = 0
-        self._keep_alive = 0
+        self._keep_alive = 60
         self._pid = 0
         self._user_data = None
         self._subscribed_topics = []
