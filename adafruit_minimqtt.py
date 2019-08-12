@@ -266,13 +266,16 @@ class MQTT:
             remaining_length += 2 + len(self._lw_topic) + 2 + len(self._lw_msg)
             var_header[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
             var_header[6] |= self._lw_retain << 5
+        
 
         # Remaining length
         i = 1
+        test_byte = 0
         if remaining_length > 0x7f:
             # Calculate Remaining Length [2.2.3]
             remaining_bytes = bytearray()
             while remaining_length > 0:
+                test_byte = 1
                 encoded_byte = remaining_length % 0x80
                 remaining_length = remaining_length // 0x80
                 # if there is more data to encode, set the top bit of the byte
@@ -285,22 +288,29 @@ class MQTT:
                 print('prl, rel.length: ', remaining_length)
                 print('prl, byte: ', encoded_byte)
                 i+=1
-        #fixed_header[i] = 0x00
-        fixed_header.append(0x00)
+        if test_byte:
+            fixed_header.append(0x00)
+        else:
+            print(fixed_header)
+            print(remaining_length)
+            fixed_header.append(remaining_length)
+            fixed_header.append(0x00)
+        
         
         """
         # Old, non-working MMQT/UMQTT IMPL
         i = 1
+        print(remaining_length)
         while remaining_length > 0x7f:
+            print("with variable header...")
             fixed_header[i] = (remaining_length & 0x7f) | 0x80
             remaining_length >>= 7
             i += 1
-        fixed_header[i] = remaining_length
         print("i: ", i)
+        fixed_header[i] = remaining_length
         print(fixed_header)
         print(remaining_length)
         """
-        
 
         if self._logger is not None:
             self._logger.debug('Sending CONNECT packet to broker')
