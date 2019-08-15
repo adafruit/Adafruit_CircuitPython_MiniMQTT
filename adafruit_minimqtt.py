@@ -90,8 +90,7 @@ class MQTT:
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
-    :param int keep_alive: KeepAlive interval between the broker and the
-                            MiniMQTT client, in seconds.
+    :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(self, socket, broker, port=None, username=None,
