@@ -279,7 +279,7 @@ class MQTT:
                 rc = self._sock.read(3)
                 assert rc[0] == 0x02
                 if rc[2] != 0x00:
-                    raise MMQTTException(CONNACK_ERRORS[rc[3]])
+                    raise MMQTTException(CONNACK_ERRORS[rc[2]])
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
