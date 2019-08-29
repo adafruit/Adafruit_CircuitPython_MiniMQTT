@@ -257,8 +257,8 @@ class MQTT:
             self.logger.debug('Sending CONNECT to broker')
             self.logger.debug('Fixed Header: {}\nVariable Header: {}'.format(fixed_header,
                                                                              var_header))
-        self._sock.write(fixed_header)
-        self._sock.write(var_header)
+        self._sock.send(fixed_header)
+        self._sock.send(var_header)
         # [MQTT-3.1.3-4]
         self._send_str(self.client_id)
         if self._lw_topic:
@@ -291,7 +291,7 @@ class MQTT:
         self.is_connected()
         if self.logger is not None:
             self.logger.debug('Sending DISCONNECT packet to broker')
-        self._sock.write(MQTT_DISCONNECT)
+        self._sock.send(MQTT_DISCONNECT)
         if self.logger is not None:
             self.logger.debug('Closing socket')
         self._sock.close()
@@ -307,7 +307,7 @@ class MQTT:
         self.is_connected()
         if self.logger is not None:
             self.logger.debug('Sending PINGREQ')
-        self._sock.write(MQTT_PINGREQ)
+        self._sock.send(MQTT_PINGREQ)
         if self.logger is not None:
             self.logger.debug('Checking PINGRESP')
         while True:
@@ -375,7 +375,7 @@ class MQTT:
         if self.logger is not None:
             self.logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\
                                 \nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
-        self._sock.write(pkt)
+        self._sock.send(pkt)
         self._send_str(topic)
         if qos == 0:
             if self.on_publish is not None:
@@ -384,12 +384,12 @@ class MQTT:
             self._pid += 1
             pid = self._pid
             struct.pack_into("!H", pkt, 0, pid)
-            self._sock.write(pkt)
+            self._sock.send(pkt)
             if self.on_publish is not None:
                 self.on_publish(self, self.user_data, topic, pid)
         if self.logger is not None:
             self.logger.debug('Sending PUBACK')
-        self._sock.write(msg)
+        self._sock.send(msg)
         if qos == 1:
             while True:
                 op = self._wait_for_msg()
@@ -468,7 +468,7 @@ class MQTT:
         if self.logger is not None:
             for t, q in topics:
                 self.logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(t, q))
-        self._sock.write(packet)
+        self._sock.send(packet)
         while True:
             op = self._wait_for_msg()
             if op == 0x90:
@@ -523,7 +523,7 @@ class MQTT:
         if self.logger is not None:
             for t in topics:
                 self.logger.debug('UNSUBSCRIBING from topic {0}.'.format(t))
-        self._sock.write(packet)
+        self._sock.send(packet)
         if self.logger is not None:
             self.logger.debug('Waiting for UNSUBACK...')
         while True:
@@ -666,7 +666,7 @@ class MQTT:
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
-            self._sock.write(pkt)
+            self._sock.send(pkt)
         elif res[0] & 6 == 4:
             assert 0
         return res[0]
@@ -685,11 +685,11 @@ class MQTT:
         """Packs and encodes a string to a socket.
         :param str string: String to write to the socket.
         """
-        self._sock.write(struct.pack("!H", len(string)))
+        self._sock.send(struct.pack("!H", len(string)))
         if isinstance(string, str):
-            self._sock.write(str.encode(string, 'utf-8'))
+            self._sock.send(str.encode(string, 'utf-8'))
         else:
-            self._sock.write(string)
+            self._sock.send(string)
 
     @staticmethod
     def _check_topic(topic):
