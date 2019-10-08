@@ -87,10 +87,10 @@ except ImportError:
     raise
 
 # Set Device Certificate
-esp.set_certificate(CERT)
+esp.set_certificate(DEVICE_CERT)
 
 # Set Private Key
-esp.set_private_key(KEY)
+esp.set_private_key(DEVICE_KEY)
 
 # Connect to WiFi
 wifi.connect()
