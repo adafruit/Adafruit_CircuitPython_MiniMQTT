@@ -100,12 +100,12 @@ class MQTT:
         self._socket = socket
         network_manager_type = str(type(network_manager))
         if 'ESPSPI_WiFiManager' in network_manager_type:
-            self._wifi = network_manager
+            self.wifi = network_manager
         else:
             raise TypeError("This library requires a NetworkManager object.")
         # broker
         try: # set broker IP
-            self.broker = self._wifi.esp.unpretty_ip(broker)
+            self.broker = self.wifi.esp.unpretty_ip(broker)
         except ValueError: # set broker URL
             self.broker = broker
         # port/ssl
@@ -543,15 +543,15 @@ class MQTT:
     def is_wifi_connected(self):
         """Returns if the ESP module is connected to
         an access point, resets module if False"""
-        if self._wifi:
-            return self._wifi.esp.is_connected
+        if self.wifi:
+            return self.wifi.esp.is_connected
         raise MMQTTException("MiniMQTT Client does not use a WiFi NetworkManager.")
 
     # pylint: disable=line-too-long, protected-access
     @property
     def is_sock_connected(self):
         """Returns if the socket is connected."""
-        return self.is_wifi_connected and self._sock and self._wifi.esp.socket_connected(self._sock._socknum)
+        return self.is_wifi_connected and self._sock and self.wifi.esp.socket_connected(self._sock._socknum)
 
     def reconnect_socket(self):
         """Re-establishes the socket's connection with the MQTT broker.
@@ -573,7 +573,7 @@ class MQTT:
             try:
                 if self.logger is not None:
                     self.logger.debug('Connecting to WiFi AP...')
-                self._wifi.connect()
+                self.wifi.connect()
             except (RuntimeError, ValueError):
                 if self.logger is not None:
                     self.logger.debug('Failed to reset WiFi module, retrying...')
@@ -611,7 +611,7 @@ class MQTT:
                 try:
                     self.loop()
                 except (RuntimeError, ValueError):
-                    if self._wifi:
+                    if self.wifi:
                         # Reconnect the WiFi module and the socket
                         self.reconnect_wifi()
                     continue
@@ -721,8 +721,8 @@ class MQTT:
         The network hardware must be set in init
         prior to calling this method.
         """
-        if self._wifi:
-            self._socket.set_interface(self._wifi.esp)
+        if self.wifi:
+            self._socket.set_interface(self.wifi.esp)
         else:
             raise TypeError('Network Manager Required.')
 
