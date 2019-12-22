@@ -744,7 +744,7 @@ class MQTTOverBluetooth(MQTT):
                 try:
                     self.loop()
                 except (RuntimeError, ValueError):
-                    super().reconnect_socket()
+                    self.reconnect_socket()
                     continue
 
 
