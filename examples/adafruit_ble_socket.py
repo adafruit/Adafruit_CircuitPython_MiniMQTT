@@ -94,7 +94,7 @@ class socket:
         _the_interface.write(data)
         gc.collect()
 
-    def readline(self):
+    def readline(self):           # pylint: disable=no-self-use
         """Attempt to return as many bytes as we can up to but not including '\r\n'"""
         return _the_interface.readline()
 
@@ -155,16 +155,16 @@ class socket:
         """Set the read timeout for sockets, if value is 0 it will block"""
         self._timeout = value
 
-    def available(self):
+    def available(self):          # pylint: disable=no-self-use
         #print("def available(self): " + str(_the_interface.in_waiting))
         """Returns how many bytes of data are available to be read (up to the MAX_PACKET length)"""
         return _the_interface.in_waiting
 
-    def connected(self):
+    def connected(self):          # pylint: disable=no-self-use
         """Whether or not we are connected to the socket"""
         return _the_interface.in_waiting
 
-    def close(self):
+    def close(self):              # pylint: disable=no-self-use
         """Close the socket, after reading whatever remains"""
-        pass
+
 # pylint: enable=unused-argument, redefined-builtin, invalid-name

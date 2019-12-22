@@ -46,7 +46,7 @@ import microcontroller
 from micropython import const
 import adafruit_logging as logging
 
-__version__ = "0.1.0-auto.0"
+__version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 # Client-specific variables
@@ -339,7 +339,7 @@ class MQTT:
         # check msg/qos kwargs
         if msg is None:
             raise MMQTTException('Message can not be None.')
-        elif isinstance(msg, (int, float)):
+        if isinstance(msg, (int, float)):
             msg = str(msg).encode('ascii')
         elif isinstance(msg, str):
             msg = str(msg).encode('utf-8')
@@ -641,10 +641,10 @@ class MQTT:
         if topic is None:
             raise MMQTTException('Topic may not be NoneType')
         # [MQTT-4.7.3-1]
-        elif not topic:
+        if not topic:
             raise MMQTTException('Topic may not be empty.')
         # [MQTT-4.7.3-3]
-        elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
+        if len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
             raise MMQTTException('Topic length is too large.')
 
     @staticmethod
@@ -721,7 +721,8 @@ class MQTTOverBluetooth(MQTT):
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, uart_server=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
-        super().__init__(socket, broker,port,username,password,client_id,is_ssl,log,keep_alive)
+        super().__init__(socket, broker, port, username, password,
+                         client_id, is_ssl, log, keep_alive)
 
         uart_server_type = str(type(uart_server))
         if 'UARTService' in uart_server_type:
@@ -730,7 +731,7 @@ class MQTTOverBluetooth(MQTT):
         else:
             raise TypeError("This library requires a UARTService object.")
         self.broker = broker
-   
+
     def loop_forever(self):
         """Starts a blocking message loop. Use this
         method if you want to run a program forever.
@@ -743,7 +744,7 @@ class MQTTOverBluetooth(MQTT):
                 try:
                     self.loop()
                 except (RuntimeError, ValueError):
-                    reconnect_socket()
+                    super().reconnect_socket()
                     continue
 
 
@@ -764,7 +765,8 @@ class MQTTOverWifi(MQTT):
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, network_manager=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
-        super().__init__(socket, broker,port,username,password,client_id,is_ssl,log,keep_alive)
+        super().__init__(socket, broker, port, username, password,
+                         client_id, is_ssl, log, keep_alive)
         # network management
         network_manager_type = str(type(network_manager))
         if 'ESPSPI_WiFiManager' in network_manager_type:

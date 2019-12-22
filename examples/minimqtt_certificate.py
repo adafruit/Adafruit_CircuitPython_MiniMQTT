@@ -6,7 +6,7 @@ from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
-from adafruit_minimqtt import MQTT
+from adafruit_minimqtt import MQTTOverWifi
 
 ### WiFi ###
 
@@ -96,7 +96,7 @@ esp.set_private_key(DEVICE_KEY)
 wifi.connect()
 
 # Set up a MiniMQTT Client
-client =  MQTT(socket,
+client = MQTTOverWifi(socket,
                broker = secrets['broker'],
                username = secrets['user'],
                password = secrets['pass'],
