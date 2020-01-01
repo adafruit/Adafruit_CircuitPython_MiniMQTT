@@ -9,8 +9,8 @@ Introduction
     :target: https://discord.gg/nBQh6qu
     :alt: Discord
 
-.. image:: https://travis-ci.com/adafruit/Adafruit_CircuitPython_MiniMQTT.svg?branch=master
-    :target: https://travis-ci.com/adafruit/Adafruit_CircuitPython_MiniMQTT
+.. image:: https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT/workflows/Build%20CI/badge.svg
+    :target: https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT/actions/
     :alt: Build Status
 
 MQTT Client library for CircuitPython.
