@@ -42,7 +42,6 @@ Implementation Notes
 import struct
 import time
 from random import randint
-import microcontroller
 from micropython import const
 import adafruit_logging as logging
 
@@ -126,8 +125,8 @@ class MQTT:
             self.client_id = client_id
         else:
             # assign a unique client_id
-            self.client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)],
-                                                randint(0, 9))
+            self.client_id = 'cpy{0}{1}'.format(randint(0, int(time.monotonic()*100)%1000),
+                                                randint(0, 99))
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id) > 23 or not self.client_id:
                 raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
