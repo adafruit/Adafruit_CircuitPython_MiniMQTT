@@ -92,7 +92,7 @@ class MQTT:
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, socket, broker, port=None, username=None,
+    def __init__(self, socket, port=None, username=None,
                  password=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
         # network management
@@ -572,7 +572,8 @@ class MQTT:
         if current_time - self._timestamp >= self.keep_alive:
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
             if self.logger is not None:
-                self.logger.debug('KeepAlive period elapsed - requesting a PINGRESP from the server...')
+                self.logger.debug('KeepAlive period elapsed' +
+                                  ' - requesting a PINGRESP from the server...')
             self.ping()
             self._timestamp = 0
         self._sock.settimeout(0.1)
@@ -721,7 +722,7 @@ class MQTTOverBluetooth(MQTT):
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, uart_server=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
-        super().__init__(socket, broker, port, username, password,
+        super().__init__(socket, port, username, password,
                          client_id, is_ssl, log, keep_alive)
 
         uart_server_type = str(type(uart_server))
@@ -765,7 +766,7 @@ class MQTTOverWifi(MQTT):
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, network_manager=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
-        super().__init__(socket, broker, port, username, password,
+        super().__init__(socket, port, username, password,
                          client_id, is_ssl, log, keep_alive)
         # network management
         network_manager_type = str(type(network_manager))

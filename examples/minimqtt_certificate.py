@@ -97,10 +97,10 @@ wifi.connect()
 
 # Set up a MiniMQTT Client
 client = MQTTOverWifi(socket,
-               broker = secrets['broker'],
-               username = secrets['user'],
-               password = secrets['pass'],
-               network_manager = wifi)
+                      broker = secrets['broker'],
+                      username = secrets['user'],
+                      password = secrets['pass'],
+                      network_manager = wifi)
 
 # Connect callback handlers to client
 client.on_connect = connect

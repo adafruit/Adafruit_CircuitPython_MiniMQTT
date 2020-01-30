@@ -1,18 +1,25 @@
 import time
-import board
-import busio
 from adafruit_ble import BLERadio
 from adafruit_ble.advertising.standard import ProvideServicesAdvertisement
 from adafruit_ble.services.nordic import UARTService
 import adafruit_ble_socket as socket
 from adafruit_minimqtt import MQTTOverBluetooth
 
+# Get mqtt details and more from a secrets.py file
+try:
+    from secrets import secrets
+except ImportError:
+    print("MQTT broker, username and password are kept in secrets.py, please add them there!")
+    raise
+
+## BLE ##
+
 ble = BLERadio()
 uart = UARTService()
 advertisement = ProvideServicesAdvertisement(uart)
 
 # Setup a feed named `testfeed` for publishing.
-default_topic = '/nrf/photocell'
+default_topic = secrets['user']+'/feeds/testfeed'
 
 ### Code ###
 # Define callback methods which are called when events occur
@@ -39,10 +46,12 @@ def message(client, topic, message):
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTTOverBluetooth(socket,
-                   broker = 'mqtt.fadenstrahl.de', # wss://mqtt.fadenstrahl.de:8083/
-                   port=8083,
-                   uart_server=uart,
-                   client_id="nrf2")
+                                broker = secrets['broker'],
+                                port=8083,
+                                username = secrets['user'],
+                                password = secrets['pass'],
+                                uart_server=uart,
+                                client_id="nrf2")
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected

@@ -121,7 +121,7 @@ class socket:
         to_read = bufsize - len(self._buffer)
         received = []
         while to_read > 0:
-            #print("Bytes to read:", to_read) # it stucks here, waiting for an answer from mqtt server
+            #print("Bytes to read:", to_read) # it stucks here, waiting for answer from mqtt server
             avail = self.available()
             if avail:
                 stamp = time.monotonic()

@@ -83,10 +83,10 @@ wifi.connect()
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTTOverWifi(socket,
-                   broker='io.adafruit.com',
-                   username=secrets['aio_username'],
-                   password=secrets['aio_key'],
-                   network_manager=wifi)
+                           broker='io.adafruit.com',
+                           username=secrets['aio_username'],
+                           password=secrets['aio_key'],
+                           network_manager=wifi)
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected
