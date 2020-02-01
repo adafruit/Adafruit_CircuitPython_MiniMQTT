@@ -699,8 +699,8 @@ class MQTTOverBluetooth(MQTT):
         self.broker = broker
         # port/ssl
         self.port = MQTT_WSS_PORT
-        #if is_ssl:
-        #    self.port = MQTT_TLS_PORT
+        if is_ssl:
+            self.port = MQTT_WSS_PORT
         if port is not None:
             self.port = port
 
