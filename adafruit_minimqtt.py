@@ -55,6 +55,7 @@ MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_LENGTH_LIMIT = const(65535)
 MQTT_TCP_PORT = const(1883)
 MQTT_TLS_PORT = const(8883)
+MQTT_WSS_PORT = const(8083)
 TCP_MODE = const(0)
 TLS_MODE = const(2)
 
@@ -81,28 +82,14 @@ class MMQTTException(Exception):
 
 class MQTT:
     """MQTT Client for CircuitPython
-    :param socket: Socket object for provided network interface
-    :param str broker: MQTT Broker URL or IP Address.
-    :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
-    :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, socket, port=None, username=None,
-                 password=None, client_id=None,
-                 is_ssl=True, log=False, keep_alive=60):
-        # network management
-        self._socket = socket
-        # port/ssl
-        self.port = MQTT_TCP_PORT
-        if is_ssl:
-            self.port = MQTT_TLS_PORT
-        if port is not None:
-            self.port = port
+    def __init__(self, username=None, password=None, client_id=None, log=False, keep_alive=60):
         # session identifiers
         self.user = username
         # [MQTT-3.1.3.5]
@@ -177,29 +164,6 @@ class MQTT:
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session.
         """
-        if self.logger is not None:
-            self.logger.debug('Creating new socket')
-        self._sock = self._socket.socket()
-        self._sock.settimeout(10)
-        if self.port == MQTT_TLS_PORT:
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Attempting to establish secure MQTT connection...')
-                self._sock.connect((self.broker, self.port), TLS_MODE)
-            except RuntimeError:
-                raise MMQTTException("Invalid broker address defined.")
-        else:
-            if isinstance(self.broker, str):
-                addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
-            else:
-                addr = (self.broker, self.port)
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Attempting to establish insecure MQTT connection...')
-                #self._sock.connect((self.broker, self.port), TCP_MODE)
-                self._sock.connect(addr, TCP_MODE)
-            except RuntimeError as e:
-                raise MMQTTException("Invalid broker address defined.", e)
 
         # Fixed Header
         fixed_header = bytearray()
@@ -706,7 +670,7 @@ class MQTT:
             raise MMQTTException('Incorrect logging level provided!')
 
 class MQTTOverBluetooth(MQTT):
-    """MQTT Client for CircuitPython
+    """Bluetooth wrapper-class for the MQTT Client for CircuitPython
     :param socket: Socket object for provided network interface
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
@@ -722,16 +686,54 @@ class MQTTOverBluetooth(MQTT):
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, uart_server=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
-        super().__init__(socket, port, username, password,
-                         client_id, is_ssl, log, keep_alive)
-
+        super().__init__(username, password, client_id, log, keep_alive)
+        # network management
+        self._socket = socket
         uart_server_type = str(type(uart_server))
         if 'UARTService' in uart_server_type:
             self._uart = uart_server
             self._socket.set_interface(self._uart)
         else:
             raise TypeError("This library requires a UARTService object.")
+        # broker
         self.broker = broker
+        # port/ssl
+        self.port = MQTT_WSS_PORT
+        #if is_ssl:
+        #    self.port = MQTT_TLS_PORT
+        if port is not None:
+            self.port = port
+
+    #@overrides(MQTT)
+    def connect(self, clean_session=True):
+        """Initiates connection with the MQTT Broker.
+        :param bool clean_session: Establishes a persistent session.
+        """
+        if self.logger is not None:
+            self.logger.debug('Creating new socket')
+        self._sock = self._socket.socket()
+        self._sock.settimeout(10)
+        if self.port == MQTT_TLS_PORT:
+            try:
+                if self.logger is not None:
+                    self.logger.debug('Attempting to establish secure MQTT connection...')
+                self._sock.connect((self.broker, self.port), TLS_MODE)
+            except RuntimeError:
+                raise MMQTTException("Invalid broker address defined.")
+        else:
+            if isinstance(self.broker, str):
+                addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
+            else:
+                addr = (self.broker, self.port)
+            try:
+                if self.logger is not None:
+                    self.logger.debug('Attempting to establish insecure MQTT connection...')
+                #self._sock.connect((self.broker, self.port), TCP_MODE)
+                self._sock.connect(addr, TCP_MODE)
+            except RuntimeError as e:
+                raise MMQTTException("Invalid broker address defined.", e)
+
+        return super().connect(clean_session)
 
     def loop_forever(self):
         """Starts a blocking message loop. Use this
@@ -750,7 +752,7 @@ class MQTTOverBluetooth(MQTT):
 
 
 class MQTTOverWifi(MQTT):
-    """MQTT Client for CircuitPython
+    """Wifi wrapper-class for the MQTT Client for CircuitPython
     :param socket: Socket object for provided network interface
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
@@ -766,9 +768,9 @@ class MQTTOverWifi(MQTT):
     def __init__(self, socket, broker, port=None, username=None,
                  password=None, network_manager=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
-        super().__init__(socket, port, username, password,
-                         client_id, is_ssl, log, keep_alive)
+        super().__init__(username, password, client_id, log, keep_alive)
         # network management
+        self._socket = socket
         network_manager_type = str(type(network_manager))
         if 'ESPSPI_WiFiManager' in network_manager_type:
             self._wifi = network_manager
@@ -780,6 +782,43 @@ class MQTTOverWifi(MQTT):
             self.broker = self._wifi.esp.unpretty_ip(broker)
         except ValueError: # set broker URL
             self.broker = broker
+        # port/ssl
+        self.port = MQTT_TCP_PORT
+        if is_ssl:
+            self.port = MQTT_TLS_PORT
+        if port is not None:
+            self.port = port
+
+    #@overrides(MQTT)
+    def connect(self, clean_session=True):
+        """Initiates connection with the MQTT Broker.
+        :param bool clean_session: Establishes a persistent session.
+        """
+        if self.logger is not None:
+            self.logger.debug('Creating new socket')
+        self._sock = self._socket.socket()
+        self._sock.settimeout(10)
+        if self.port == MQTT_TLS_PORT:
+            try:
+                if self.logger is not None:
+                    self.logger.debug('Attempting to establish secure MQTT connection...')
+                self._sock.connect((self.broker, self.port), TLS_MODE)
+            except RuntimeError:
+                raise MMQTTException("Invalid broker address defined.")
+        else:
+            if isinstance(self.broker, str):
+                addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
+            else:
+                addr = (self.broker, self.port)
+            try:
+                if self.logger is not None:
+                    self.logger.debug('Attempting to establish insecure MQTT connection...')
+                #self._sock.connect((self.broker, self.port), TCP_MODE)
+                self._sock.connect(addr, TCP_MODE)
+            except RuntimeError as e:
+                raise MMQTTException("Invalid broker address defined.", e)
+
+        return super().connect(clean_session)
 
     @property
     def is_wifi_connected(self):
