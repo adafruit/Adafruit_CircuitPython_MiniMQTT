@@ -232,8 +232,6 @@ class MQTT:
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish insecure MQTT connection...')
-                if hasattr(self.broker, "extend"):
-                    self.broker = _the_interface.pretty_ip(self.broker)
                 self._sock.connect(addr[-1], TCP_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
