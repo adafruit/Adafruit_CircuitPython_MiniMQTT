@@ -93,7 +93,6 @@ def set_socket(sock, iface=None):
         global _the_interface # pylint: disable=invalid-name, global-statement
         _the_interface = iface
         _the_sock.set_interface(iface)
-        print(_the_sock)
 
 def unpretty_ip(ip): # pylint: disable=no-self-use, invalid-name
     """Converts a dotted-quad string to a bytearray IP address"""
@@ -200,7 +199,7 @@ class MQTT:
         self._lw_msg = message
         self._lw_retain = retain
 
-    # pylint: disable=too-many-branches, too-many-statements
+    # pylint: disable=too-many-branches, too-many-statements, too-many-locals
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session.
@@ -380,7 +379,7 @@ class MQTT:
         # check msg/qos kwargs
         if msg is None:
             raise MMQTTException('Message can not be None.')
-        elif isinstance(msg, (int, float)):
+        if isinstance(msg, (int, float)):
             msg = str(msg).encode('ascii')
         elif isinstance(msg, str):
             msg = str(msg).encode('utf-8')
@@ -588,7 +587,7 @@ class MQTT:
         """Starts a blocking message loop. Use this
         method if you want to run a program forever.
         Code below a call to this method will NOT execute.
-        
+
         NOTE: Network reconnection is not handled within this call and
         must be handled by your code for each interface.
 
@@ -608,7 +607,8 @@ class MQTT:
         if current_time - self._timestamp >= self.keep_alive:
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
             if self.logger is not None:
-                self.logger.debug('KeepAlive period elapsed - requesting a PINGRESP from the server...')
+                self.logger.debug('KeepAlive period elapsed - \
+                                   requesting a PINGRESP from the server...')
             self.ping()
             self._timestamp = 0
         self._sock.settimeout(0.1)
@@ -677,7 +677,7 @@ class MQTT:
         if topic is None:
             raise MMQTTException('Topic may not be NoneType')
         # [MQTT-4.7.3-1]
-        elif not topic:
+        if not topic:
             raise MMQTTException('Topic may not be empty.')
         # [MQTT-4.7.3-3]
         elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
