@@ -73,10 +73,32 @@ CONNACK_ERRORS = {const(0x01) : 'Connection Refused - Incorrect Protocol Version
                   const(0x04) : 'Connection Refused - Incorrect username/password',
                   const(0x05) : 'Connection Refused - Unauthorized'}
 
+_the_interface = None  # pylint: disable=invalid-name
+_the_sock = None  # pylint: disable=invalid-name
+
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
     # pylint: disable=unnecessary-pass
     #pass
+
+def set_socket(sock, iface=None):
+    """Helper to set the global socket and optionally set the global network interface.
+    :param sock: socket object.
+    :param iface: internet interface object
+
+    """
+    global _the_sock  # pylint: disable=invalid-name, global-statement
+    _the_sock = sock
+    if iface:
+        global _the_interface # pylint: disable=invalid-name, global-statement
+        _the_interface = iface
+        _the_sock.set_interface(iface)
+        print(_the_sock)
+
+def unpretty_ip(ip): # pylint: disable=no-self-use, invalid-name
+    """Converts a dotted-quad string to a bytearray IP address"""
+    octets = [int(x) for x in ip.split('.')]
+    return bytes(octets)
 
 class MQTT:
     """MQTT Client for CircuitPython
@@ -92,19 +114,13 @@ class MQTT:
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, socket, broker, port=None, username=None,
-                 password=None, network_manager=None, client_id=None,
+    def __init__(self, broker, port=None, username=None,
+                 password=None, client_id=None,
                  is_ssl=True, log=False, keep_alive=60):
-        # network management
-        self._socket = socket
-        network_manager_type = str(type(network_manager))
-        if 'ESPSPI_WiFiManager' in network_manager_type:
-            self._wifi = network_manager
-        else:
-            raise TypeError("This library requires a NetworkManager object.")
+        self._sock = None
         # broker
         try: # set broker IP
-            self.broker = self._wifi.esp.unpretty_ip(broker)
+            self.broker = unpretty_ip(broker)
         except ValueError: # set broker URL
             self.broker = broker
         # port/ssl
@@ -187,11 +203,10 @@ class MQTT:
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session.
         """
-        self._set_interface()
-        if self.logger is not None:
-            self.logger.debug('Creating new socket')
-        self._sock = self._socket.socket()
-        self._sock.settimeout(10)
+        global _the_interface  # pylint: disable=global-statement, invalid-name
+        global _the_sock  # pylint: disable=global-statement, invalid-name
+
+
         if self.port == 8883:
             try:
                 if self.logger is not None:
@@ -201,14 +216,15 @@ class MQTT:
                 raise MMQTTException("Invalid broker address defined.")
         else:
             if isinstance(self.broker, str):
-                addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
+                addr = _the_sock.getaddrinfo(self.broker, self.port)[0]
             else:
                 addr = (self.broker, self.port)
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish insecure MQTT connection...')
-                #self._sock.connect((self.broker, self.port), TCP_MODE)
-                self._sock.connect(addr, TCP_MODE)
+                self._sock = _the_sock.socket(addr[0], 0x21, addr[2])
+                self._sock.settimeout(15)
+                self._sock.connect(addr[-1], TCP_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
 
@@ -641,6 +657,7 @@ class MQTT:
         """
         res = self._sock.recv(1)
         self._sock.settimeout(timeout)
+        print("RES: ", res)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
