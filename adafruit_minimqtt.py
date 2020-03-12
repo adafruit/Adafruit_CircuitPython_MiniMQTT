@@ -94,11 +94,6 @@ def set_socket(sock, iface=None):
         _the_interface = iface
         _the_sock.set_interface(iface)
 
-def unpretty_ip(ip): # pylint: disable=no-self-use, invalid-name
-    """Converts a dotted-quad string to a bytearray IP address"""
-    octets = [int(x) for x in ip.split('.')]
-    return bytes(octets)
-
 class MQTT:
     """MQTT Client for CircuitPython
     :param str broker: MQTT Broker URL or IP Address.
@@ -119,7 +114,7 @@ class MQTT:
         self._sock = None
         # broker
         try: # set broker IP
-            self.broker = unpretty_ip(broker)
+            self.broker = _the_interface.unpretty_ip(broker)
         except ValueError: # set broker URL
             self.broker = broker
         # port/ssl
@@ -223,20 +218,22 @@ class MQTT:
             self.broker, port = self.broker.split(":", 1)
             port = int(port)
 
-        addr = _the_sock.getaddrinfo(self.broker, self.port)[0]
-        self._sock = _the_sock.socket(addr[0], _the_sock.SOCK_STREAM, addr[2])
+        addr = _the_sock.getaddrinfo(self.broker, self.port, 0, _the_sock.SOCK_STREAM)[0]
+        self._sock = _the_sock.socket(addr[0], addr[1], addr[2])
         self._sock.settimeout(15)
         if self.port == 8883:
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish secure MQTT connection...')
-                self._sock.connect(addr[-1], TLS_MODE)
+                self._sock.connect((self.broker, self.port), _the_interface.TLS_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
         else:
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish insecure MQTT connection...')
+                if hasattr(self.broker, "extend"):
+                    self.broker = _the_interface.pretty_ip(self.broker)
                 self._sock.connect(addr[-1], TCP_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
@@ -680,7 +677,7 @@ class MQTT:
         if not topic:
             raise MMQTTException('Topic may not be empty.')
         # [MQTT-4.7.3-3]
-        elif len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
+        if len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
             raise MMQTTException('Topic length is too large.')
 
     @staticmethod
