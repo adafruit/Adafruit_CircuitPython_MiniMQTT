@@ -102,7 +102,6 @@ def unpretty_ip(ip): # pylint: disable=no-self-use, invalid-name
 
 class MQTT:
     """MQTT Client for CircuitPython
-    :param socket: Socket object for provided network interface
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
@@ -112,6 +111,7 @@ class MQTT:
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
+
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(self, broker, port=None, username=None,
@@ -177,6 +177,7 @@ class MQTT:
     def deinit(self):
         """De-initializes the MQTT client and disconnects from
         the mqtt broker.
+
         """
         self.disconnect()
 
@@ -186,6 +187,7 @@ class MQTT:
         :param str message: Last will disconnection message.
         :param int qos: Quality of Service level.
         :param bool retain: Specifies if the message is to be retained when it is published.
+
         """
         if self._is_connected:
             raise MMQTTException('Last Will should be defined before connect() is called.')
@@ -202,10 +204,25 @@ class MQTT:
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session.
-        """
-        global _the_interface  # pylint: disable=global-statement, invalid-name
-        global _the_sock  # pylint: disable=global-statement, invalid-name
 
+        """
+        try:
+            proto, dummy, self.broker, path = self.broker.split("/", 3)
+            # replace spaces in path
+            path = path.replace(" ", "%20")
+        except ValueError:
+            proto, dummy, self.broker = self.broker.split("/", 2)
+            path = ""
+        if proto == "http:":
+            self.port = MQTT_TCP_PORT
+        elif proto == "https:":
+            self.port = MQTT_TLS_PORT
+        else:
+            raise ValueError("Unsupported protocol: " + proto)
+
+        if ":" in self.broker:
+            self.broker, port = self.broker.split(":", 1)
+            port = int(port)
 
         if self.port == 8883:
             try:
@@ -218,7 +235,7 @@ class MQTT:
             if isinstance(self.broker, str):
                 addr = _the_sock.getaddrinfo(self.broker, self.port)[0]
             else:
-                addr = (self.broker, self.port)
+                addr = (self.broker, 0x21, self.port)
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish insecure MQTT connection...')
