@@ -60,10 +60,9 @@ MQTT.set_socket(socket, eth)
 
 # Set up a MiniMQTT Client
 # NOTE: We'll need to connect insecurely for ethernet configurations.
-mqtt_client = MQTT.MQTT(broker = 'io.adafruit.com',
+mqtt_client = MQTT.MQTT(broker = 'http://io.adafruit.com',
                         username = secrets['aio_username'],
-                        password = secrets['aio_key'],
-                        is_ssl = False)
+                        password = secrets['aio_key'])
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected
