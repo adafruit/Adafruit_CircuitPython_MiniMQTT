@@ -97,10 +97,7 @@ mqtt_client.connect()
 # Start a blocking message loop...
 # NOTE: NO code below this loop will execute
 # NOTE: Network reconnection is handled within this loop
-
-counter = 0
 while True:
-    print("Iteration #", counter)
     try:
         mqtt_client.loop()
     except (ValueError, RuntimeError) as e:
@@ -108,5 +105,4 @@ while True:
         wifi.reset()
         mqtt_client.reconnect()
         continue
-    counter += 1
     time.sleep(1)
