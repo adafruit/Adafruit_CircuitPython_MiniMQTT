@@ -1,5 +1,6 @@
 # CircuitPython MiniMQTT Library
 # Adafruit IO SSL/TLS Example for WiFi
+import time
 import board
 import busio
 from digitalio import DigitalInOut
@@ -93,8 +94,19 @@ mqtt_client.on_message = message
 print('Connecting to MQTT broker...')
 mqtt_client.connect()
 
-# Start a blocking message loop
-# If you only want to listen to incoming messages,
-# you'll want to loop_forever as it handles network reconnections
-# No code below this line will execute.
-mqtt_client.loop_forever()
+# Start a blocking message loop...
+# NOTE: NO code below this loop will execute
+# NOTE: Network reconnection is handled within this loop
+
+counter = 0
+while True:
+    print("Iteration #", counter)
+    try:
+        mqtt_client.loop()
+    except (ValueError, RuntimeError) as e:
+        print("Failed to get data, retrying\n", e)
+        wifi.reset()
+        mqtt_client.reconnect()
+        continue
+    counter += 1
+    time.sleep(1)
