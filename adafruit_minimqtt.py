@@ -224,23 +224,20 @@ class MQTT:
             self.broker, port = self.broker.split(":", 1)
             port = int(port)
 
+        addr = _the_sock.getaddrinfo(self.broker, self.port)[0]
+        self._sock = _the_sock.socket(addr[0], _the_sock.SOCK_STREAM, addr[2])
+        self._sock.settimeout(15)
         if self.port == 8883:
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish secure MQTT connection...')
-                self._sock.connect((self.broker, self.port), TLS_MODE)
-            except RuntimeError:
-                raise MMQTTException("Invalid broker address defined.")
+                self._sock.connect(addr[-1], TLS_MODE)
+            except RuntimeError as e:
+                raise MMQTTException("Invalid broker address defined.", e)
         else:
-            if isinstance(self.broker, str):
-                addr = _the_sock.getaddrinfo(self.broker, self.port)[0]
-            else:
-                addr = (self.broker, 0x21, self.port)
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish insecure MQTT connection...')
-                self._sock = _the_sock.socket(addr[0], 0x21, addr[2])
-                self._sock.settimeout(15)
                 self._sock.connect(addr[-1], TCP_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
@@ -571,49 +568,6 @@ class MQTT:
                     self._subscribed_topics.remove(t)
                 return
 
-    @property
-    def is_wifi_connected(self):
-        """Returns if the ESP module is connected to
-        an access point, resets module if False"""
-        if self._wifi:
-            return self._wifi.esp.is_connected
-        raise MMQTTException("MiniMQTT Client does not use a WiFi NetworkManager.")
-
-    # pylint: disable=line-too-long, protected-access
-    @property
-    def is_sock_connected(self):
-        """Returns if the socket is connected."""
-        return self.is_wifi_connected and self._sock and self._wifi.esp.socket_connected(self._sock._socknum)
-
-    def reconnect_socket(self):
-        """Re-establishes the socket's connection with the MQTT broker.
-        """
-        try:
-            if self.logger is not None:
-                self.logger.debug("Attempting to reconnect with MQTT Broker...")
-            self.reconnect()
-        except RuntimeError as err:
-            if self.logger is not None:
-                self.logger.debug('Failed to reconnect with MQTT Broker, retrying...', err)
-            time.sleep(1)
-            self.reconnect_socket()
-
-    def reconnect_wifi(self):
-        """Reconnects to WiFi Access Point and socket, if disconnected.
-        """
-        while not self.is_wifi_connected:
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Connecting to WiFi AP...')
-                self._wifi.connect()
-            except (RuntimeError, ValueError):
-                if self.logger is not None:
-                    self.logger.debug('Failed to reset WiFi module, retrying...')
-                time.sleep(1)
-        # we just reconnected, is the socket still connected?
-        if not self.is_sock_connected:
-            self.reconnect_socket()
-
     def reconnect(self, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
         :param bool resub_topics: Resubscribe to previously subscribed topics.
@@ -634,27 +588,19 @@ class MQTT:
         """Starts a blocking message loop. Use this
         method if you want to run a program forever.
         Code below a call to this method will NOT execute.
-        Network reconnection is handled within this call.
+        
+        NOTE: Network reconnection is not handled within this call and
+        must be handled by your code for each interface.
 
         """
         while True:
-            # Check WiFi and socket status
-            if self.is_sock_connected:
-                try:
-                    self.loop()
-                except (RuntimeError, ValueError):
-                    if self._wifi:
-                        # Reconnect the WiFi module and the socket
-                        self.reconnect_wifi()
-                    continue
+            if self._sock.connected:
+                self.loop()
 
     def loop(self):
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
 
-        This method does NOT handle networking or
-        network hardware management, use loop_forever
-        or handle in code instead.
         """
         if self._timestamp == 0:
             self._timestamp = time.monotonic()
@@ -674,7 +620,6 @@ class MQTT:
         """
         res = self._sock.recv(1)
         self._sock.settimeout(timeout)
-        print("RES: ", res)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
