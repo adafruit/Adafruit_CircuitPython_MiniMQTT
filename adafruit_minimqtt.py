@@ -583,8 +583,10 @@ class MQTT:
         method if you want to run a program forever.
         Code below a call to this method will NOT execute.
 
-        NOTE: Network reconnection is not handled within this call and
-        must be handled by your code for each interface.
+        NOTE: This method is depreciated and will be removed in the
+        next major release. Please see examples/minimqtt_pub_sub_blocking.py
+        for an example of creating a blocking loop which can handle wireless
+        network events.
 
         """
         while True:
