@@ -30,7 +30,9 @@ esp32_reset = DigitalInOut(board.ESP_RESET)
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 """Use below for Most Boards"""
-status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2) # Uncomment for Most Boards
+status_light = neopixel.NeoPixel(
+    board.NEOPIXEL, 1, brightness=0.2
+)  # Uncomment for Most Boards
 """Uncomment below for ItsyBitsy M4"""
 # status_light = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
 # Uncomment below for an externally defined RGB LED
@@ -45,7 +47,7 @@ wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_lig
 ### Adafruit IO Setup ###
 
 # Setup a feed named `testfeed` for publishing.
-default_topic = secrets['user']+'/feeds/testfeed'
+default_topic = secrets["user"] + "/feeds/testfeed"
 
 ### Code ###
 # Define callback methods which are called when events occur
@@ -53,13 +55,15 @@ default_topic = secrets['user']+'/feeds/testfeed'
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print('Connected to MQTT broker! Listening for topic changes on %s'%default_topic)
+    print("Connected to MQTT broker! Listening for topic changes on %s" % default_topic)
     # Subscribe to all changes on the default_topic feed.
     client.subscribe(default_topic)
 
+
 def disconnected(client, userdata, rc):
     # This method is called when the client is disconnected
-    print('Disconnected from MQTT Broker!')
+    print("Disconnected from MQTT Broker!")
+
 
 def message(client, topic, message):
     """Method callled when a client's subscribed feed has a new
@@ -67,7 +71,8 @@ def message(client, topic, message):
     :param str topic: The topic of the feed with a new value.
     :param str message: The new value
     """
-    print('New message on topic {0}: {1}'.format(topic, message))
+    print("New message on topic {0}: {1}".format(topic, message))
+
 
 # Connect to WiFi
 print("Connecting to WiFi...")
@@ -96,7 +101,7 @@ while True:
     mqtt_client.loop()
 
     # Send a new message
-    print('Sending photocell value: %d'%photocell_val)
+    print("Sending photocell value: %d" % photocell_val)
     mqtt_client.publish(default_topic, photocell_val)
     photocell_val += 1
     time.sleep(0.5)
