@@ -1,5 +1,6 @@
 # CircuitPython MiniMQTT Library
-# Adafruit IO SSL/TLS Example for WiFi (ESP32SPI)
+# Adafruit IO SSL/TLS Example for WiFi
+import time
 import board
 import busio
 from digitalio import DigitalInOut
@@ -7,7 +8,7 @@ import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
-from adafruit_minimqtt import MQTT
+import adafruit_minimqtt as MQTT
 
 ### WiFi ###
 
@@ -77,16 +78,17 @@ def message(client, topic, message):
 
 
 # Connect to WiFi
+print("Connecting to WiFi...")
 wifi.connect()
+print("Connected!")
+
+# Initialize MQTT interface with the esp interface
+MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT(
-    socket,
-    broker=secrets["broker"],
-    username=secrets["user"],
-    password=secrets["pass"],
-    network_manager=wifi,
-)
+mqtt_client = MQTT.MQTT(broker = secrets['broker'],
+                        username = secrets['user'],
+                        password = secrets['pass'])
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected
@@ -94,10 +96,18 @@ mqtt_client.on_disconnect = disconnected
 mqtt_client.on_message = message
 
 # Connect the client to the MQTT broker.
+print('Connecting to MQTT broker...')
 mqtt_client.connect()
 
-# Start a blocking message loop
-# If you only want to listen to incoming messages,
-# you'll want to loop_forever as it handles network reconnections
-# No code below this line will execute.
-mqtt_client.loop_forever()
+# Start a blocking message loop...
+# NOTE: NO code below this loop will execute
+# NOTE: Network reconnection is handled within this loop
+while True:
+    try:
+        mqtt_client.loop()
+    except (ValueError, RuntimeError) as e:
+        print("Failed to get data, retrying\n", e)
+        wifi.reset()
+        mqtt_client.reconnect()
+        continue
+    time.sleep(1)

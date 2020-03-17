@@ -9,7 +9,8 @@ import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
-from adafruit_minimqtt import MQTT
+
+import adafruit_minimqtt as MQTT
 
 ### WiFi ###
 
@@ -31,7 +32,7 @@ esp32_reset = DigitalInOut(board.ESP_RESET)
 # esp32_reset = DigitalInOut(board.D5)
 
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
+esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=True)
 """Use below for Most Boards"""
 status_light = neopixel.NeoPixel(
     board.NEOPIXEL, 1, brightness=0.2
@@ -79,16 +80,17 @@ def message(client, topic, message):
 
 
 # Connect to WiFi
+print("Connecting to WiFi...")
 wifi.connect()
+print("Connected!")
+
+# Initialize MQTT interface with the esp interface
+MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT(
-    socket,
-    broker="io.adafruit.com",
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
-    network_manager=wifi,
-)
+mqtt_client = MQTT.MQTT(broker='http://io.adafruit.com',
+                        username=secrets['aio_username'],
+                        password=secrets['aio_key'])
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected
@@ -109,4 +111,4 @@ while True:
     mqtt_client.publish(photocell_feed, photocell_val)
     print("Sent!")
     photocell_val += 1
-    time.sleep(1)
+    time.sleep(5)
