@@ -32,7 +32,7 @@ esp32_reset = DigitalInOut(board.ESP_RESET)
 # esp32_reset = DigitalInOut(board.D5)
 
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=True)
+esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 """Use below for Most Boards"""
 status_light = neopixel.NeoPixel(
     board.NEOPIXEL, 1, brightness=0.2
