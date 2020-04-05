@@ -107,6 +107,7 @@ class MQTT:
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
+    :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
 
@@ -211,28 +212,10 @@ class MQTT:
         :param bool clean_session: Establishes a persistent session.
 
         """
-        try:
-            proto, dummy, self.broker, path = self.broker.split("/", 3)
-            # replace spaces in path
-            path = path.replace(" ", "%20")
-        except ValueError:
-            proto, dummy, self.broker = self.broker.split("/", 2)
-            path = ""
-        if proto == "http:":
-            self.port = MQTT_TCP_PORT
-        elif proto == "https:":
-            self.port = MQTT_TLS_PORT
-        else:
-            raise ValueError("Unsupported protocol: " + proto)
-
-        if ":" in self.broker:
-            self.broker, port = self.broker.split(":", 1)
-            port = int(port)
-
         addr = _the_sock.getaddrinfo(self.broker, self.port, 0, _the_sock.SOCK_STREAM)[0]
         self._sock = _the_sock.socket(addr[0], addr[1], addr[2])
         self._sock.settimeout(15)
-        if self.port == 8883:
+        if self.port == MQTT_TLS_PORT or self.port == MQTT_WSS_PORT:
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish secure MQTT connection...')
