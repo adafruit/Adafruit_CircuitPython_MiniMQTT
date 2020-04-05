@@ -107,6 +107,7 @@ class MQTT:
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
+    :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
 
