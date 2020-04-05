@@ -3,7 +3,7 @@ from adafruit_ble import BLERadio
 from adafruit_ble.advertising.standard import ProvideServicesAdvertisement
 from adafruit_ble.services.nordic import UARTService
 import adafruit_ble_socket as socket
-from adafruit_minimqtt import MQTTOverBluetooth
+import adafruit_minimqtt as MQTT
 
 # Get mqtt details and more from a secrets.py file
 try:
@@ -18,8 +18,10 @@ ble = BLERadio()
 uart = UARTService()
 advertisement = ProvideServicesAdvertisement(uart)
 
+### Adafruit IO Setup ###
+
 # Setup a feed named `testfeed` for publishing.
-default_topic = secrets['user']+'/feeds/testfeed'
+default_topic = secrets["user"] + "/feeds/testfeed"
 
 ### Code ###
 # Define callback methods which are called when events occur
@@ -27,13 +29,15 @@ default_topic = secrets['user']+'/feeds/testfeed'
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print('Connected to MQTT broker! Listening for topic changes on %s'%default_topic)
+    print("Connected to MQTT broker! Listening for topic changes on %s" % default_topic)
     # Subscribe to all changes on the default_topic feed.
     client.subscribe(default_topic)
 
+
 def disconnected(client, userdata, rc):
     # This method is called when the client is disconnected
-    print('Disconnected from MQTT Broker!')
+    print("Disconnected from MQTT Broker!")
+
 
 def message(client, topic, message):
     """Method callled when a client's subscribed feed has a new
@@ -41,17 +45,16 @@ def message(client, topic, message):
     :param str topic: The topic of the feed with a new value.
     :param str message: The new value
     """
-    print('New message on topic {0}: {1}'.format(topic, message))
+    print("New message on topic {0}: {1}".format(topic, message))
 
+# Initialize MQTT interface with the esp interface
+MQTT.set_socket(socket, uart)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTTOverBluetooth(socket,
-                                broker = secrets['broker'],
-                                port=8083,
-                                username = secrets['user'],
-                                password = secrets['pass'],
-                                uart_server=uart,
-                                client_id="nrf2")
+mqtt_client = MQTT.MQTT(broker = secrets['broker'],
+                        port = MQTT.MQTT_WSS_PORT,
+                        username = secrets['user'],
+                        password = secrets['pass'])
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected

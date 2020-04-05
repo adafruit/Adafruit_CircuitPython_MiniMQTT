@@ -119,7 +119,7 @@ class MQTT:
         self._sock = None
         # broker
         try: # set broker IP
-            self.broker = _the_interface.unpretty_ip(broker)
+            self.broker = bytes([int(x) for x in broker.split(".")])
         except ValueError: # set broker URL
             self.broker = broker
         # port/ssl
@@ -236,7 +236,7 @@ class MQTT:
             try:
                 if self.logger is not None:
                     self.logger.debug('Attempting to establish secure MQTT connection...')
-                self._sock.connect((self.broker, self.port), _the_interface.TLS_MODE)
+                self._sock.connect((self.broker, self.port), TLS_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
         else:
