@@ -42,7 +42,6 @@ Implementation Notes
 import struct
 import time
 from random import randint
-import microcontroller
 from micropython import const
 import adafruit_logging as logging
 
@@ -55,63 +54,106 @@ MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_LENGTH_LIMIT = const(65535)
 MQTT_TCP_PORT = const(1883)
 MQTT_TLS_PORT = const(8883)
-MQTT_WSS_PORT = const(8083)
+MQTT_WSS_PORT = const(443)
 TCP_MODE = const(0)
 TLS_MODE = const(2)
 
 # MQTT Commands
-MQTT_PINGREQ = b'\xc0\0'
-MQTT_PINGRESP = const(0xd0)
-MQTT_SUB = b'\x82'
-MQTT_UNSUB = b'\xA2'
-MQTT_PUB = bytearray(b'\x30\0')
+MQTT_PINGREQ = b"\xc0\0"
+MQTT_PINGRESP = const(0xD0)
+MQTT_SUB = b"\x82"
+MQTT_UNSUB = b"\xA2"
+MQTT_PUB = bytearray(b"\x30\0")
 # Variable CONNECT header [MQTT 3.1.2]
 MQTT_VAR_HEADER = bytearray(b"\x04MQTT\x04\x02\0\0")
-MQTT_DISCONNECT = b'\xe0\0'
+MQTT_DISCONNECT = b"\xe0\0"
 
-CONNACK_ERRORS = {const(0x01) : 'Connection Refused - Incorrect Protocol Version',
-                  const(0x02) : 'Connection Refused - ID Rejected',
-                  const(0x03) : 'Connection Refused - Server unavailable',
-                  const(0x04) : 'Connection Refused - Incorrect username/password',
-                  const(0x05) : 'Connection Refused - Unauthorized'}
+CONNACK_ERRORS = {
+    const(0x01): "Connection Refused - Incorrect Protocol Version",
+    const(0x02): "Connection Refused - ID Rejected",
+    const(0x03): "Connection Refused - Server unavailable",
+    const(0x04): "Connection Refused - Incorrect username/password",
+    const(0x05): "Connection Refused - Unauthorized",
+}
+
+
+_the_interface = None  # pylint: disable=invalid-name
+_the_sock = None  # pylint: disable=invalid-name
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
+
     # pylint: disable=unnecessary-pass
-    #pass
+    # pass
+
+
+def set_socket(sock, iface=None):
+    """Helper to set the global socket and optionally set the global network interface.
+    :param sock: socket object.
+    :param iface: internet interface object
+
+    """
+    global _the_sock  # pylint: disable=invalid-name, global-statement
+    _the_sock = sock
+    if iface:
+        global _the_interface # pylint: disable=invalid-name, global-statement
+        _the_interface = iface
+        _the_sock.set_interface(iface)
 
 class MQTT:
     """MQTT Client for CircuitPython
+    :param str broker: MQTT Broker URL or IP Address.
+    :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
+
     """
+
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, username=None, password=None, client_id=None, log=False, keep_alive=60):
+    def __init__(self, broker, port=None, username=None,
+                 password=None, client_id=None,
+                 is_ssl=True, log=False, keep_alive=60):
+        self._sock = None
+        # broker
+        try: # set broker IP
+            self.broker = _the_interface.unpretty_ip(broker)
+        except ValueError: # set broker URL
+            self.broker = broker
+        # port/ssl
+        self.port = MQTT_TCP_PORT
+        if is_ssl:
+            self.port = MQTT_TLS_PORT
+        if port is not None:
+            self.port = port
         # session identifiers
         self.user = username
         # [MQTT-3.1.3.5]
         self.password = password
-        if self.password is not None and len(password.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
-            raise MMQTTException('Password length is too large.')
+        if (
+            self.password is not None
+            and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
+        ):
+            raise MMQTTException("Password length is too large.")
         if client_id is not None:
             # user-defined client_id MAY allow client_id's > 23 bytes or
             # non-alpha-numeric characters
             self.client_id = client_id
         else:
             # assign a unique client_id
-            self.client_id = 'cpy{0}{1}'.format(microcontroller.cpu.uid[randint(0, 15)],
-                                                randint(0, 9))
+            self.client_id = "cpy{0}{1}".format(
+                randint(0, int(time.monotonic() * 100) % 1000), randint(0, 99)
+            )
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id) > 23 or not self.client_id:
-                raise ValueError('MQTT Client ID must be between 1 and 23 bytes')
+                raise ValueError("MQTT Client ID must be between 1 and 23 bytes")
         self.keep_alive = keep_alive
         self.user_data = None
         self.logger = None
         if log is True:
-            self.logger = logging.getLogger('log')
+            self.logger = logging.getLogger("log")
             self.logger.setLevel(logging.INFO)
         self._sock = None
         self._is_connected = False
@@ -138,6 +180,7 @@ class MQTT:
     def deinit(self):
         """De-initializes the MQTT client and disconnects from
         the mqtt broker.
+
         """
         self.disconnect()
 
@@ -147,23 +190,62 @@ class MQTT:
         :param str message: Last will disconnection message.
         :param int qos: Quality of Service level.
         :param bool retain: Specifies if the message is to be retained when it is published.
+
         """
         if self._is_connected:
-            raise MMQTTException('Last Will should be defined before connect() is called.')
+            raise MMQTTException(
+                "Last Will should be defined before connect() is called."
+            )
         if qos < 0 or qos > 2:
             raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
         if self.logger is not None:
-            self.logger.debug('Setting last will properties')
+            self.logger.debug("Setting last will properties")
         self._lw_qos = qos
         self._lw_topic = topic
         self._lw_msg = message
         self._lw_retain = retain
 
-    # pylint: disable=too-many-branches, too-many-statements
+    # pylint: disable=too-many-branches, too-many-statements, too-many-locals
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
         :param bool clean_session: Establishes a persistent session.
+
         """
+        try:
+            proto, dummy, self.broker, path = self.broker.split("/", 3)
+            # replace spaces in path
+            path = path.replace(" ", "%20")
+        except ValueError:
+            proto, dummy, self.broker = self.broker.split("/", 2)
+            path = ""
+        if proto == "http:":
+            self.port = MQTT_TCP_PORT
+        elif proto == "https:":
+            self.port = MQTT_TLS_PORT
+        else:
+            raise ValueError("Unsupported protocol: " + proto)
+
+        if ":" in self.broker:
+            self.broker, port = self.broker.split(":", 1)
+            port = int(port)
+
+        addr = _the_sock.getaddrinfo(self.broker, self.port, 0, _the_sock.SOCK_STREAM)[0]
+        self._sock = _the_sock.socket(addr[0], addr[1], addr[2])
+        self._sock.settimeout(15)
+        if self.port == 8883:
+            try:
+                if self.logger is not None:
+                    self.logger.debug('Attempting to establish secure MQTT connection...')
+                self._sock.connect((self.broker, self.port), _the_interface.TLS_MODE)
+            except RuntimeError as e:
+                raise MMQTTException("Invalid broker address defined.", e)
+        else:
+            try:
+                if self.logger is not None:
+                    self.logger.debug('Attempting to establish insecure MQTT connection...')
+                self._sock.connect(addr[-1], TCP_MODE)
+            except RuntimeError as e:
+                raise MMQTTException("Invalid broker address defined.", e)
 
         # Fixed Header
         fixed_header = bytearray()
@@ -189,7 +271,7 @@ class MQTT:
 
         # Remaining length calculation
         large_rel_length = False
-        if remaining_length > 0x7f:
+        if remaining_length > 0x7F:
             large_rel_length = True
             # Calculate Remaining Length [2.2.3]
             while remaining_length > 0:
@@ -206,9 +288,10 @@ class MQTT:
             fixed_header.append(0x00)
 
         if self.logger is not None:
-            self.logger.debug('Sending CONNECT to broker')
-            self.logger.debug('Fixed Header: {}\nVariable Header: {}'.format(fixed_header,
-                                                                             var_header))
+            self.logger.debug("Sending CONNECT to broker")
+            self.logger.debug(
+                "Fixed Header: {}\nVariable Header: {}".format(fixed_header, var_header)
+            )
         self._sock.send(fixed_header)
         self._sock.send(var_header)
         # [MQTT-3.1.3-4]
@@ -223,7 +306,7 @@ class MQTT:
             self._send_str(self.user)
             self._send_str(self.password)
         if self.logger is not None:
-            self.logger.debug('Receiving CONNACK packet from broker')
+            self.logger.debug("Receiving CONNACK packet from broker")
         while True:
             op = self._wait_for_msg()
             if op == 32:
@@ -242,10 +325,10 @@ class MQTT:
         """
         self.is_connected()
         if self.logger is not None:
-            self.logger.debug('Sending DISCONNECT packet to broker')
+            self.logger.debug("Sending DISCONNECT packet to broker")
         self._sock.send(MQTT_DISCONNECT)
         if self.logger is not None:
-            self.logger.debug('Closing socket')
+            self.logger.debug("Closing socket")
         self._sock.close()
         self._is_connected = False
         self._subscribed_topics = None
@@ -258,16 +341,16 @@ class MQTT:
         """
         self.is_connected()
         if self.logger is not None:
-            self.logger.debug('Sending PINGREQ')
+            self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
         if self.logger is not None:
-            self.logger.debug('Checking PINGRESP')
+            self.logger.debug("Checking PINGRESP")
         while True:
             op = self._wait_for_msg(0.5)
             if op == 208:
                 ping_resp = self._sock.recv(2)
                 if ping_resp[0] != 0x00:
-                    raise MMQTTException('PINGRESP not returned from broker.')
+                    raise MMQTTException("PINGRESP not returned from broker.")
             return
 
     # pylint: disable=too-many-branches, too-many-statements
@@ -298,19 +381,19 @@ class MQTT:
         """
         self.is_connected()
         self._check_topic(topic)
-        if '+' in topic or '#' in topic:
-            raise MMQTTException('Publish topic can not contain wildcards.')
+        if "+" in topic or "#" in topic:
+            raise MMQTTException("Publish topic can not contain wildcards.")
         # check msg/qos kwargs
         if msg is None:
             raise MMQTTException('Message can not be None.')
         if isinstance(msg, (int, float)):
             msg = str(msg).encode('ascii')
         elif isinstance(msg, str):
-            msg = str(msg).encode('utf-8')
+            msg = str(msg).encode("utf-8")
         else:
-            raise MMQTTException('Invalid message data type.')
+            raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise MMQTTException('Message size larger than %db.'%MQTT_MSG_MAX_SZ)
+            raise MMQTTException("Message size larger than %db." % MQTT_MSG_MAX_SZ)
         self._check_qos(qos)
         pkt = MQTT_PUB
         pkt[0] |= qos << 1 | retain
@@ -319,14 +402,18 @@ class MQTT:
             sz += 2
         assert sz < 2097152
         i = 1
-        while sz > 0x7f:
-            pkt[i] = (sz & 0x7f) | 0x80
+        while sz > 0x7F:
+            pkt[i] = (sz & 0x7F) | 0x80
             sz >>= 7
             i += 1
         pkt[i] = sz
         if self.logger is not None:
-            self.logger.debug('Sending PUBLISH\nTopic: {0}\nMsg: {1}\
-                                \nQoS: {2}\nRetain? {3}'.format(topic, msg, qos, retain))
+            self.logger.debug(
+                "Sending PUBLISH\nTopic: {0}\nMsg: {1}\
+                                \nQoS: {2}\nRetain? {3}".format(
+                    topic, msg, qos, retain
+                )
+            )
         self._sock.send(pkt)
         self._send_str(topic)
         if qos == 0:
@@ -340,7 +427,7 @@ class MQTT:
             if self.on_publish is not None:
                 self.on_publish(self, self.user_data, topic, pid)
         if self.logger is not None:
-            self.logger.debug('Sending PUBACK')
+            self.logger.debug("Sending PUBACK")
         self._sock.send(msg)
         if qos == 1:
             while True:
@@ -407,19 +494,19 @@ class MQTT:
         # Assemble packet
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic) for topic, qos in topics)
-        packet_length_byte = packet_length.to_bytes(1, 'big')
+        packet_length_byte = packet_length.to_bytes(1, "big")
         self._pid += 1
-        packet_id_bytes = self._pid.to_bytes(2, 'big')
+        packet_id_bytes = self._pid.to_bytes(2, "big")
         # Packet with variable and fixed headers
         packet = MQTT_SUB + packet_length_byte + packet_id_bytes
         # attaching topic and QOS level to the packet
         for t, q in topics:
-            topic_size = len(t).to_bytes(2, 'big')
-            qos_byte = q.to_bytes(1, 'big')
+            topic_size = len(t).to_bytes(2, "big")
+            qos_byte = q.to_bytes(1, "big")
             packet += topic_size + t + qos_byte
         if self.logger is not None:
             for t, q in topics:
-                self.logger.debug('SUBSCRIBING to topic {0} with QoS {1}'.format(t, q))
+                self.logger.debug("SUBSCRIBING to topic {0} with QoS {1}".format(t, q))
         self._sock.send(packet)
         while True:
             op = self._wait_for_msg()
@@ -427,7 +514,7 @@ class MQTT:
                 rc = self._sock.recv(4)
                 assert rc[1] == packet[2] and rc[2] == packet[3]
                 if rc[3] == 0x80:
-                    raise MMQTTException('SUBACK Failure!')
+                    raise MMQTTException("SUBACK Failure!")
                 for t, q in topics:
                     if self.on_subscribe is not None:
                         self.on_subscribe(self, self.user_data, t, q)
@@ -461,62 +548,55 @@ class MQTT:
                 topics.append((t))
         for t in topics:
             if t not in self._subscribed_topics:
-                raise MMQTTException('Topic must be subscribed to before attempting unsubscribe.')
+                raise MMQTTException(
+                    "Topic must be subscribed to before attempting unsubscribe."
+                )
         # Assemble packet
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic) for topic in topics)
-        packet_length_byte = packet_length.to_bytes(1, 'big')
+        packet_length_byte = packet_length.to_bytes(1, "big")
         self._pid += 1
-        packet_id_bytes = self._pid.to_bytes(2, 'big')
+        packet_id_bytes = self._pid.to_bytes(2, "big")
         packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
         for t in topics:
-            topic_size = len(t).to_bytes(2, 'big')
+            topic_size = len(t).to_bytes(2, "big")
             packet += topic_size + t
         if self.logger is not None:
             for t in topics:
-                self.logger.debug('UNSUBSCRIBING from topic {0}.'.format(t))
+                self.logger.debug("UNSUBSCRIBING from topic {0}.".format(t))
         self._sock.send(packet)
         if self.logger is not None:
-            self.logger.debug('Waiting for UNSUBACK...')
+            self.logger.debug("Waiting for UNSUBACK...")
         while True:
             op = self._wait_for_msg()
             if op == 176:
                 return_code = self._sock.recv(3)
                 assert return_code[0] == 0x02
                 # [MQTT-3.32]
-                assert return_code[1] == packet_id_bytes[0] and return_code[2] == packet_id_bytes[1]
+                assert (
+                    return_code[1] == packet_id_bytes[0]
+                    and return_code[2] == packet_id_bytes[1]
+                )
                 for t in topics:
                     if self.on_unsubscribe is not None:
                         self.on_unsubscribe(self, self.user_data, t, self._pid)
                     self._subscribed_topics.remove(t)
                 return
 
-    def reconnect_socket(self):
-        """Re-establishes the socket's connection with the MQTT broker.
-        """
-        try:
-            if self.logger is not None:
-                self.logger.debug("Attempting to reconnect with MQTT Broker...")
-            self.reconnect()
-        except RuntimeError as err:
-            if self.logger is not None:
-                self.logger.debug('Failed to reconnect with MQTT Broker, retrying...', err)
-            time.sleep(1)
-            self.reconnect_socket()
-
-
     def reconnect(self, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
         :param bool resub_topics: Resubscribe to previously subscribed topics.
         """
         if self.logger is not None:
-            self.logger.debug('Attempting to reconnect with MQTT broker')
+            self.logger.debug("Attempting to reconnect with MQTT broker")
         self.connect()
         if self.logger is not None:
-            self.logger.debug('Reconnected with broker')
+            self.logger.debug("Reconnected with broker")
         if resub_topics:
             if self.logger is not None:
-                self.logger.debug('Attempting to resubscribe to previously subscribed topics.')
+                self.logger.debug(
+                    "Attempting to resubscribe to previously subscribed topics."
+                )
             while self._subscribed_topics:
                 feed = self._subscribed_topics.pop()
                 self.subscribe(feed)
@@ -526,9 +606,6 @@ class MQTT:
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
 
-        This method does NOT handle networking or
-        network hardware management, use loop_forever
-        or handle in code instead.
         """
         if self._timestamp == 0:
             self._timestamp = time.monotonic()
@@ -536,8 +613,8 @@ class MQTT:
         if current_time - self._timestamp >= self.keep_alive:
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
             if self.logger is not None:
-                self.logger.debug('KeepAlive period elapsed' +
-                                  ' - requesting a PINGRESP from the server...')
+                self.logger.debug('KeepAlive period elapsed - \
+                                   requesting a PINGRESP from the server...')
             self.ping()
             self._timestamp = 0
         self._sock.settimeout(0.1)
@@ -555,13 +632,13 @@ class MQTT:
             sz = self._sock.recv(1)[0]
             assert sz == 0
             return None
-        if res[0] & 0xf0 != 0x30:
+        if res[0] & 0xF0 != 0x30:
             return res[0]
         sz = self._recv_len()
         topic_len = self._sock.recv(2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
         topic = self._sock.recv(topic_len)
-        topic = str(topic, 'utf-8')
+        topic = str(topic, "utf-8")
         sz -= topic_len + 2
         if res[0] & 0x06:
             pid = self._sock.recv(2)
@@ -569,7 +646,7 @@ class MQTT:
             sz -= 0x02
         msg = self._sock.recv(sz)
         if self.on_message is not None:
-            self.on_message(self, topic, str(msg, 'utf-8'))
+            self.on_message(self, topic, str(msg, "utf-8"))
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
@@ -583,7 +660,7 @@ class MQTT:
         sh = 0
         while True:
             b = self._sock.recv(1)[0]
-            n |= (b & 0x7f) << sh
+            n |= (b & 0x7F) << sh
             if not b & 0x80:
                 return n
             sh += 7
@@ -594,7 +671,7 @@ class MQTT:
         """
         self._sock.send(struct.pack("!H", len(string)))
         if isinstance(string, str):
-            self._sock.send(str.encode(string, 'utf-8'))
+            self._sock.send(str.encode(string, "utf-8"))
         else:
             self._sock.send(string)
 
@@ -604,7 +681,7 @@ class MQTT:
         :param str topic: Topic identifier
         """
         if topic is None:
-            raise MMQTTException('Topic may not be NoneType')
+            raise MMQTTException("Topic may not be NoneType")
         # [MQTT-4.7.3-1]
         if not topic:
             raise MMQTTException('Topic may not be empty.')
@@ -619,9 +696,19 @@ class MQTT:
         """
         if isinstance(qos_level, int):
             if qos_level < 0 or qos_level > 2:
-                raise MMQTTException('QoS must be between 1 and 2.')
+                raise MMQTTException("QoS must be between 1 and 2.")
         else:
-            raise MMQTTException('QoS must be an integer.')
+            raise MMQTTException("QoS must be an integer.")
+
+    def _set_interface(self):
+        """Sets a desired network hardware interface.
+        The network hardware must be set in init
+        prior to calling this method.
+        """
+        if self._wifi:
+            self._socket.set_interface(self._wifi.esp)
+        else:
+            raise TypeError("Network Manager Required.")
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, raises
@@ -645,7 +732,7 @@ class MQTT:
             self._msg_size_lim = msg_size
 
     # Logging
-    def attach_logger(self, logger_name='log'):
+    def attach_logger(self, logger_name="log"):
         """Initializes and attaches a logger to the MQTTClient.
         :param str logger_name: Name of the logger instance
         """
@@ -657,213 +744,16 @@ class MQTT:
         :param string log_level: Level of logging to output to the REPL.
         """
         if self.logger is None:
-            raise MMQTTException('No logger attached - did you create it during initialization?')
-        if log_level == 'DEBUG':
+            raise MMQTTException(
+                "No logger attached - did you create it during initialization?"
+            )
+        if log_level == "DEBUG":
             self.logger.setLevel(logging.DEBUG)
-        elif log_level == 'INFO':
+        elif log_level == "INFO":
             self.logger.setLevel(logging.INFO)
-        elif log_level == 'WARNING':
+        elif log_level == "WARNING":
             self.logger.setLevel(logging.WARNING)
-        elif log_level == 'ERROR':
+        elif log_level == "ERROR":
             self.logger.setLevel(logging.CRITICIAL)
         else:
-            raise MMQTTException('Incorrect logging level provided!')
-
-class MQTTOverBluetooth(MQTT):
-    """Bluetooth wrapper-class for the MQTT Client for CircuitPython
-    :param socket: Socket object for provided network interface
-    :param str broker: MQTT Broker URL or IP Address.
-    :param int port: Optional port definition, defaults to 8883.
-    :param str username: Username for broker authentication.
-    :param str password: Password for broker authentication.
-    :param uart_service: UARTService object, such as UARTService from adafruit_ble.services.nordic.
-    :param str client_id: Optional client identifier, defaults to a unique, generated string.
-    :param bool is_ssl: Sets a secure or insecure connection with the broker.
-    :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
-    :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
-    """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, socket, broker, port=None, username=None,
-                 password=None, uart_server=None, client_id=None,
-                 is_ssl=True, log=False, keep_alive=60):
-        super().__init__(username, password, client_id, log, keep_alive)
-        # network management
-        self._socket = socket
-        uart_server_type = str(type(uart_server))
-        if 'UARTService' in uart_server_type:
-            self._uart = uart_server
-            self._socket.set_interface(self._uart)
-        else:
-            raise TypeError("This library requires a UARTService object.")
-        # broker
-        self.broker = broker
-        # port/ssl
-        self.port = MQTT_WSS_PORT
-        if is_ssl:
-            self.port = MQTT_WSS_PORT
-        if port is not None:
-            self.port = port
-
-    #@overrides(MQTT)
-    def connect(self, clean_session=True):
-        """Initiates connection with the MQTT Broker.
-        :param bool clean_session: Establishes a persistent session.
-        """
-        if self.logger is not None:
-            self.logger.debug('Creating new socket')
-        self._sock = self._socket.socket()
-        self._sock.settimeout(10)
-        if self.port == MQTT_TLS_PORT:
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Attempting to establish secure MQTT connection...')
-                self._sock.connect((self.broker, self.port), TLS_MODE)
-            except RuntimeError:
-                raise MMQTTException("Invalid broker address defined.")
-        else:
-            if isinstance(self.broker, str):
-                addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
-            else:
-                addr = (self.broker, self.port)
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Attempting to establish insecure MQTT connection...')
-                #self._sock.connect((self.broker, self.port), TCP_MODE)
-                self._sock.connect(addr, TCP_MODE)
-            except RuntimeError as e:
-                raise MMQTTException("Invalid broker address defined.", e)
-
-        return super().connect(clean_session)
-
-    def loop_forever(self):
-        """Starts a blocking message loop. Use this
-        method if you want to run a program forever.
-        Code below a call to this method will NOT execute.
-        Network reconnection is handled within this call.
-
-        """
-        while True:
-            if self.is_connected():
-                try:
-                    self.loop()
-                except (RuntimeError, ValueError):
-                    self.reconnect_socket()
-                    continue
-
-
-class MQTTOverWifi(MQTT):
-    """Wifi wrapper-class for the MQTT Client for CircuitPython
-    :param socket: Socket object for provided network interface
-    :param str broker: MQTT Broker URL or IP Address.
-    :param int port: Optional port definition, defaults to 8883.
-    :param str username: Username for broker authentication.
-    :param str password: Password for broker authentication.
-    :param network_manager: NetworkManager object, such as WiFiManager from ESPSPI_WiFiManager.
-    :param str client_id: Optional client identifier, defaults to a unique, generated string.
-    :param bool is_ssl: Sets a secure or insecure connection with the broker.
-    :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
-    :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
-    """
-    # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, socket, broker, port=None, username=None,
-                 password=None, network_manager=None, client_id=None,
-                 is_ssl=True, log=False, keep_alive=60):
-        super().__init__(username, password, client_id, log, keep_alive)
-        # network management
-        self._socket = socket
-        network_manager_type = str(type(network_manager))
-        if 'ESPSPI_WiFiManager' in network_manager_type:
-            self._wifi = network_manager
-            self._socket.set_interface(self._wifi.esp)
-        else:
-            raise TypeError("This library requires a NetworkManager object.")
-        # broker
-        try: # set broker IP
-            self.broker = self._wifi.esp.unpretty_ip(broker)
-        except ValueError: # set broker URL
-            self.broker = broker
-        # port/ssl
-        self.port = MQTT_TCP_PORT
-        if is_ssl:
-            self.port = MQTT_TLS_PORT
-        if port is not None:
-            self.port = port
-
-    #@overrides(MQTT)
-    def connect(self, clean_session=True):
-        """Initiates connection with the MQTT Broker.
-        :param bool clean_session: Establishes a persistent session.
-        """
-        if self.logger is not None:
-            self.logger.debug('Creating new socket')
-        self._sock = self._socket.socket()
-        self._sock.settimeout(10)
-        if self.port == MQTT_TLS_PORT:
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Attempting to establish secure MQTT connection...')
-                self._sock.connect((self.broker, self.port), TLS_MODE)
-            except RuntimeError:
-                raise MMQTTException("Invalid broker address defined.")
-        else:
-            if isinstance(self.broker, str):
-                addr = self._socket.getaddrinfo(self.broker, self.port)[0][-1]
-            else:
-                addr = (self.broker, self.port)
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Attempting to establish insecure MQTT connection...')
-                #self._sock.connect((self.broker, self.port), TCP_MODE)
-                self._sock.connect(addr, TCP_MODE)
-            except RuntimeError as e:
-                raise MMQTTException("Invalid broker address defined.", e)
-
-        return super().connect(clean_session)
-
-    @property
-    def is_wifi_connected(self):
-        """Returns if the ESP module is connected to
-        an access point, resets module if False"""
-        if self._wifi:
-            return self._wifi.esp.is_connected
-        raise MMQTTException("MiniMQTT Client does not use a WiFi NetworkManager.")
-
-    # pylint: disable=line-too-long, protected-access
-    @property
-    def is_sock_connected(self):
-        """Returns if the socket is connected."""
-        return self.is_wifi_connected and self._sock and self._wifi.esp.socket_connected(self._sock._socknum)
-
-    def reconnect_wifi(self):
-        """Reconnects to WiFi Access Point and socket, if disconnected.
-        """
-        while not self.is_wifi_connected:
-            try:
-                if self.logger is not None:
-                    self.logger.debug('Connecting to WiFi AP...')
-                self._wifi.connect()
-            except (RuntimeError, ValueError):
-                if self.logger is not None:
-                    self.logger.debug('Failed to reset WiFi module, retrying...')
-                time.sleep(1)
-        # we just reconnected, is the socket still connected?
-        if not self.is_sock_connected:
-            self.reconnect_socket()
-
-    def loop_forever(self):
-        """Starts a blocking message loop. Use this
-        method if you want to run a program forever.
-        Code below a call to this method will NOT execute.
-        Network reconnection is handled within this call.
-
-        """
-        while True:
-            # Check WiFi and socket status
-            if self.is_sock_connected:
-                try:
-                    self.loop()
-                except (RuntimeError, ValueError):
-                    if self._wifi:
-                        # Reconnect the WiFi module and the socket
-                        self.reconnect_wifi()
-                    continue
+            raise MMQTTException("Incorrect logging level provided!")
