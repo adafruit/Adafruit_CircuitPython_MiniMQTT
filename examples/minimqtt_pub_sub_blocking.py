@@ -86,9 +86,9 @@ print("Connected!")
 MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT.MQTT(broker = secrets['broker'],
-                        username = secrets['user'],
-                        password = secrets['pass'])
+mqtt_client = MQTT.MQTT(
+    broker=secrets["broker"], username=secrets["user"], password=secrets["pass"]
+)
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected
@@ -96,7 +96,7 @@ mqtt_client.on_disconnect = disconnected
 mqtt_client.on_message = message
 
 # Connect the client to the MQTT broker.
-print('Connecting to MQTT broker...')
+print("Connecting to MQTT broker...")
 mqtt_client.connect()
 
 # Start a blocking message loop...
