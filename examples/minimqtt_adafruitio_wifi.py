@@ -88,9 +88,11 @@ print("Connected!")
 MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT.MQTT(broker='http://io.adafruit.com',
-                        username=secrets['aio_username'],
-                        password=secrets['aio_key'])
+mqtt_client = MQTT.MQTT(
+    broker="http://io.adafruit.com",
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
+)
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected

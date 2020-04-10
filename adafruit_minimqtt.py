@@ -79,6 +79,7 @@ CONNACK_ERRORS = {
 _the_interface = None  # pylint: disable=invalid-name
 _the_sock = None  # pylint: disable=invalid-name
 
+
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
 
@@ -95,9 +96,10 @@ def set_socket(sock, iface=None):
     global _the_sock  # pylint: disable=invalid-name, global-statement
     _the_sock = sock
     if iface:
-        global _the_interface # pylint: disable=invalid-name, global-statement
+        global _the_interface  # pylint: disable=invalid-name, global-statement
         _the_interface = iface
         _the_sock.set_interface(iface)
+
 
 class MQTT:
     """MQTT Client for CircuitPython
@@ -114,14 +116,22 @@ class MQTT:
     """
 
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, broker, port=None, username=None,
-                 password=None, client_id=None,
-                 is_ssl=True, log=False, keep_alive=60):
+    def __init__(
+        self,
+        broker,
+        port=None,
+        username=None,
+        password=None,
+        client_id=None,
+        is_ssl=True,
+        log=False,
+        keep_alive=60,
+    ):
         self._sock = None
         # broker
-        try: # set broker IP
+        try:  # set broker IP
             self.broker = _the_interface.unpretty_ip(broker)
-        except ValueError: # set broker URL
+        except ValueError:  # set broker URL
             self.broker = broker
         # port/ssl
         self.port = MQTT_TCP_PORT
@@ -230,20 +240,26 @@ class MQTT:
             self.broker, port = self.broker.split(":", 1)
             port = int(port)
 
-        addr = _the_sock.getaddrinfo(self.broker, self.port, 0, _the_sock.SOCK_STREAM)[0]
+        addr = _the_sock.getaddrinfo(self.broker, self.port, 0, _the_sock.SOCK_STREAM)[
+            0
+        ]
         self._sock = _the_sock.socket(addr[0], addr[1], addr[2])
         self._sock.settimeout(15)
         if self.port == 8883:
             try:
                 if self.logger is not None:
-                    self.logger.debug('Attempting to establish secure MQTT connection...')
+                    self.logger.debug(
+                        "Attempting to establish secure MQTT connection..."
+                    )
                 self._sock.connect((self.broker, self.port), _the_interface.TLS_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
         else:
             try:
                 if self.logger is not None:
-                    self.logger.debug('Attempting to establish insecure MQTT connection...')
+                    self.logger.debug(
+                        "Attempting to establish insecure MQTT connection..."
+                    )
                 self._sock.connect(addr[-1], TCP_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
@@ -386,9 +402,9 @@ class MQTT:
             raise MMQTTException("Publish topic can not contain wildcards.")
         # check msg/qos kwargs
         if msg is None:
-            raise MMQTTException('Message can not be None.')
+            raise MMQTTException("Message can not be None.")
         if isinstance(msg, (int, float)):
-            msg = str(msg).encode('ascii')
+            msg = str(msg).encode("ascii")
         elif isinstance(msg, str):
             msg = str(msg).encode("utf-8")
         else:
@@ -628,8 +644,10 @@ class MQTT:
         if current_time - self._timestamp >= self.keep_alive:
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
             if self.logger is not None:
-                self.logger.debug('KeepAlive period elapsed - \
-                                   requesting a PINGRESP from the server...')
+                self.logger.debug(
+                    "KeepAlive period elapsed - \
+                                   requesting a PINGRESP from the server..."
+                )
             self.ping()
             self._timestamp = 0
         self._sock.settimeout(0.1)
@@ -699,10 +717,10 @@ class MQTT:
             raise MMQTTException("Topic may not be NoneType")
         # [MQTT-4.7.3-1]
         if not topic:
-            raise MMQTTException('Topic may not be empty.')
+            raise MMQTTException("Topic may not be empty.")
         # [MQTT-4.7.3-3]
-        if len(topic.encode('utf-8')) > MQTT_TOPIC_LENGTH_LIMIT:
-            raise MMQTTException('Topic length is too large.')
+        if len(topic.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT:
+            raise MMQTTException("Topic length is too large.")
 
     @staticmethod
     def _check_qos(qos_level):

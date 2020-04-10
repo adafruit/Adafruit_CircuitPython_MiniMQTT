@@ -95,9 +95,9 @@ print("Connected!")
 MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-client =  MQTT.MQTT(broker = secrets['broker'],
-                    username = secrets['user'],
-                    password = secrets['pass'])
+client = MQTT.MQTT(
+    broker=secrets["broker"], username=secrets["user"], password=secrets["pass"]
+)
 
 # Connect callback handlers to client
 client.on_connect = connect
