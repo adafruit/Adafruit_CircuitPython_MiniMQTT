@@ -615,6 +615,7 @@ class MQTT:
                     "Attempting to resubscribe to previously subscribed topics."
                 )
             subscribed_topics = self._subscribed_topics.copy()
+            self._subscribed_topics = []
             while subscribed_topics:
                 feed = subscribed_topics.pop()
                 self.subscribe(feed)
