@@ -240,9 +240,7 @@ class MQTT:
             broker, port = broker.split(":", 1)
             port = int(port)
 
-        addr = _the_sock.getaddrinfo(broker, self.port, 0, _the_sock.SOCK_STREAM)[
-            0
-        ]
+        addr = _the_sock.getaddrinfo(broker, self.port, 0, _the_sock.SOCK_STREAM)[0]
         self._sock = _the_sock.socket(addr[0], addr[1], addr[2])
         self._sock.settimeout(15)
         if self.port == 8883:
