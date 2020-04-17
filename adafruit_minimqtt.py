@@ -614,8 +614,9 @@ class MQTT:
                 self.logger.debug(
                     "Attempting to resubscribe to previously subscribed topics."
                 )
-            while self._subscribed_topics:
-                feed = self._subscribed_topics.pop()
+            subscribed_topics = self._subscribed_topics.copy()
+            while subscribed_topics:
+                feed = subscribed_topics.pop()
                 self.subscribe(feed)
 
     def loop_forever(self):
