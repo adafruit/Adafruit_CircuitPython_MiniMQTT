@@ -223,11 +223,11 @@ class MQTT:
 
         """
         try:
-            proto, dummy, self.broker, path = self.broker.split("/", 3)
+            proto, dummy, broker, path = self.broker.split("/", 3)
             # replace spaces in path
             path = path.replace(" ", "%20")
         except ValueError:
-            proto, dummy, self.broker = self.broker.split("/", 2)
+            proto, dummy, broker = self.broker.split("/", 2)
             path = ""
         if proto == "http:":
             self.port = MQTT_TCP_PORT
@@ -236,13 +236,11 @@ class MQTT:
         else:
             raise ValueError("Unsupported protocol: " + proto)
 
-        if ":" in self.broker:
-            self.broker, port = self.broker.split(":", 1)
+        if ":" in broker:
+            broker, port = broker.split(":", 1)
             port = int(port)
 
-        addr = _the_sock.getaddrinfo(self.broker, self.port, 0, _the_sock.SOCK_STREAM)[
-            0
-        ]
+        addr = _the_sock.getaddrinfo(broker, self.port, 0, _the_sock.SOCK_STREAM)[0]
         self._sock = _the_sock.socket(addr[0], addr[1], addr[2])
         self._sock.settimeout(15)
         if self.port == 8883:
@@ -251,7 +249,7 @@ class MQTT:
                     self.logger.debug(
                         "Attempting to establish secure MQTT connection..."
                     )
-                self._sock.connect((self.broker, self.port), _the_interface.TLS_MODE)
+                self._sock.connect((broker, self.port), _the_interface.TLS_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
         else:
