@@ -3,6 +3,7 @@ import board
 import busio
 import digitalio
 from adafruit_fona.adafruit_fona import FONA
+from adafruit_fona.adafruit_fona_gsm import GSM
 import adafruit_fona.adafruit_fona_socket as socket
 
 import adafruit_minimqtt as MQTT
@@ -21,6 +22,8 @@ except ImportError:
 # For other boards set RX = GPS module TX, and TX = GPS module RX pins.
 uart = busio.UART(board.TX, board.RX, baudrate=4800)
 rst = digitalio.DigitalInOut(board.D4)
+# Initialize FONA
+fona = FONA(uart, rst)
 
 ### Feeds ###
 
@@ -53,19 +56,19 @@ def message(client, topic, message):
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-# Connect to Cellular Network
-print("Initializing FONA (this may take a few seconds)")
-fona = FONA(uart, rst, debug=True)
+# Initialize GSM modem
+gsm = GSM(fona, (secrets["apn"], secrets["apn_username"], secrets["apn_password"]))
 
-# Enable GPS
-fona.gps = True
+while not gsm.is_attached:
+    print("Attaching to network...")
+    time.sleep(0.5)
+print("Attached to network!")
 
-# Bring up cellular connection
-fona.configure_gprs((secrets["apn"], secrets["apn_username"], secrets["apn_password"]))
-
-# Bring up GPRS
-fona.gprs = True
-print("FONA initialized")
+while not gsm.is_connected:
+    print("Connecting to network...")
+    gsm.connect()
+    time.sleep(5)
+print("Connected to network!")
 
 # Initialize MQTT interface with the cellular interface
 MQTT.set_socket(socket, fona)
