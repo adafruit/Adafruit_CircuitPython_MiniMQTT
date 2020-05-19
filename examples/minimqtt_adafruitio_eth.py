@@ -64,6 +64,7 @@ mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
     username=secrets["aio_username"],
     password=secrets["aio_key"],
+    is_ssl=False,
 )
 
 # Setup the callback methods above
