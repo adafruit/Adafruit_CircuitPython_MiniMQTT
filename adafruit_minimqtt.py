@@ -54,8 +54,6 @@ MQTT_MSG_SZ_LIM = const(10000000)
 MQTT_TOPIC_LENGTH_LIMIT = const(65535)
 MQTT_TCP_PORT = const(1883)
 MQTT_TLS_PORT = const(8883)
-TCP_MODE = const(0)
-TLS_MODE = const(2)
 
 # MQTT Commands
 MQTT_PINGREQ = b"\xc0\0"
@@ -128,11 +126,7 @@ class MQTT:
         keep_alive=60,
     ):
         self._sock = None
-        # broker
-        try:  # set broker IP
-            self.broker = _the_interface.unpretty_ip(broker)
-        except ValueError:  # set broker URL
-            self.broker = broker
+        self.broker = broker
         # port/ssl
         self.port = MQTT_TCP_PORT
         if is_ssl:
@@ -222,10 +216,7 @@ class MQTT:
         :param bool clean_session: Establishes a persistent session.
 
         """
-        addr = _the_sock.getaddrinfo(self.broker, self.port, 0, _the_sock.SOCK_STREAM)[
-            0
-        ]
-        self._sock = _the_sock.socket(addr[0], addr[1], addr[2])
+        self._sock = _the_sock.socket()
         self._sock.settimeout(15)
         if self.port == 8883:
             try:
@@ -233,7 +224,8 @@ class MQTT:
                     self.logger.debug(
                         "Attempting to establish secure MQTT connection..."
                     )
-                self._sock.connect((self.broker, self.port), _the_interface.TLS_MODE)
+                conntype = _the_interface.TLS_MODE
+                self._sock.connect((self.broker, self.port), conntype)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
         else:
@@ -242,7 +234,10 @@ class MQTT:
                     self.logger.debug(
                         "Attempting to establish insecure MQTT connection..."
                     )
-                self._sock.connect(addr[-1], TCP_MODE)
+                addr = _the_sock.getaddrinfo(
+                    self.broker, self.port, 0, _the_sock.SOCK_STREAM
+                )[0]
+                self._sock.connect(addr[-1], _the_interface.TCP_MODE)
             except RuntimeError as e:
                 raise MMQTTException("Invalid broker address defined.", e)
 
