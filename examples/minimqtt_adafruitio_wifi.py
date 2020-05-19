@@ -89,7 +89,7 @@ MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker="http://io.adafruit.com",
+    broker="io.adafruit.com",
     username=secrets["aio_username"],
     password=secrets["aio_key"],
 )
