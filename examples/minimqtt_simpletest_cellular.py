@@ -3,7 +3,7 @@ import board
 import busio
 import digitalio
 from adafruit_fona.adafruit_fona import FONA
-from adafruit_fona.adafruit_fona_gsm import GSM
+import adafruit_fona.adafruit_fona_network as network
 import adafruit_fona.adafruit_fona_socket as socket
 
 import adafruit_minimqtt as MQTT
@@ -65,19 +65,21 @@ def publish(client, userdata, topic, pid):
     print("Published to {0} with PID {1}".format(topic, pid))
 
 
-# Initialize GSM modem
-gsm = GSM(fona, (secrets["apn"], secrets["apn_username"], secrets["apn_password"]))
+# Initialize cellular data network
+network = network.CELLULAR(
+    fona, (secrets["apn"], secrets["apn_username"], secrets["apn_password"])
+)
 
-while not gsm.is_attached:
+while not network.is_attached:
     print("Attaching to network...")
     time.sleep(0.5)
-print("Attached to network!")
+print("Attached!")
 
-while not gsm.is_connected:
+while not network.is_connected:
     print("Connecting to network...")
-    gsm.connect()
-    time.sleep(5)
-print("Connected to network!")
+    network.connect()
+    time.sleep(0.5)
+print("Network Connected!")
 
 # Initialize MQTT interface with the cellular interface
 MQTT.set_socket(socket, fona)
