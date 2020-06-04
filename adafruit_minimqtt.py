@@ -165,6 +165,12 @@ class MQTT:
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
         self._timestamp = 0
+        # LWT
+        self._lw_topic = None
+        self._lw_qos = 0
+        self._lw_topic = None
+        self._lw_msg = None
+        self._lw_retain = False
         # List of subscribed topics, used for tracking
         self._subscribed_topics = []
         # Server callbacks
@@ -174,7 +180,6 @@ class MQTT:
         self.on_publish = None
         self.on_subscribe = None
         self.on_unsubscribe = None
-        self.last_will()
 
     def __enter__(self):
         return self
@@ -189,25 +194,28 @@ class MQTT:
         """
         self.disconnect()
 
-    def last_will(self, topic=None, message=None, qos=0, retain=False):
+    def will_set(self, topic=None, payload=None, qos=0, retain=False):
         """Sets the last will and testament properties. MUST be called before connect().
         :param str topic: MQTT Broker topic.
-        :param str message: Last will disconnection message.
+        :param str payload: Last will disconnection payload.
         :param int qos: Quality of Service level.
-        :param bool retain: Specifies if the message is to be retained when it is published.
+        :param bool retain: Specifies if the payload is to be retained when it is published.
 
         """
-        if self._is_connected:
-            raise MMQTTException(
-                "Last Will should be defined before connect() is called."
-            )
-        if qos < 0 or qos > 2:
-            raise MMQTTException("Invalid QoS level,  must be between 0 and 2.")
         if self.logger is not None:
             self.logger.debug("Setting last will properties")
+        self._check_qos(qos)
+        if self._is_connected:
+            raise MMQTTException("Last Will should only be called before connect().")
+        if payload is None:
+            raise MMQTTException("Message can not be None.")
+        if isinstance(payload, (int, float, str)):
+            payload = str(payload).encode()
+        else:
+            raise MMQTTException("Invalid message data type.")
         self._lw_qos = qos
         self._lw_topic = topic
-        self._lw_msg = message
+        self._lw_msg = payload
         self._lw_retain = retain
 
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
