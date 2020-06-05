@@ -4,7 +4,7 @@
 #
 # Original Work Copyright (c) 2016 Paul Sokolovsky, uMQTT
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -43,8 +43,8 @@ import struct
 import time
 from random import randint
 from micropython import const
-from .matcher import MQTTMatcher
 import adafruit_logging as logging
+from .matcher import MQTTMatcher
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
@@ -238,7 +238,7 @@ class MQTT:
         """
         if mqtt_topic is None:
             raise ValueError("MQTT Topic must be defined.")
-        pass
+        del self._on_message_filtered[mqtt_topic]
 
     @property
     def on_message(self):
@@ -260,7 +260,7 @@ class MQTT:
                 callback(client, topic, message) # on_msg with callback
                 matched = True
 
-        if matched == False and self.on_message: # regular on_message
+        if not matched and self.on_message: # regular on_message
             self.on_message(client, topic, message)
 
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
