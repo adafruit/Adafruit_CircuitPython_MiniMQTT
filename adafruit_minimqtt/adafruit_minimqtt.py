@@ -227,7 +227,6 @@ class MQTT:
         :param str callback_method: Name of callback method.
 
         """
-        print("adding topic callback...")
         if mqtt_topic is None or callback_method is None:
             raise ValueError("MQTT topic and callback method must both be defined.")
         self._on_message_filtered[mqtt_topic] = callback_method
@@ -239,7 +238,10 @@ class MQTT:
         """
         if mqtt_topic is None:
             raise ValueError("MQTT Topic must be defined.")
-        del self._on_message_filtered[mqtt_topic]
+        try:
+            del self._on_message_filtered[mqtt_topic]
+        except KeyError:
+            raise KeyError("MQTT topic callback not added with add_topic_callback.")
 
     @property
     def on_message(self):
