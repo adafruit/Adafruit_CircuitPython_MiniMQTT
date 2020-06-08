@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Yotch <https://github.com/yoch>
+# Copyright (c) 2017 Yoch <https://github.com/yoch>
 #
 # This file is dual licensed under the Eclipse Public License 1.0 and the
 # Eclipse Distribution License 1.0 as described in the epl-v10 and edl-v10 files.
@@ -10,7 +10,7 @@
 
 MQTT topic filter matcher from the Eclipse Project's Paho.MQTT.Python
 https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/matcher.py
-* Author(s): Yotch (https://github.com/yoch)
+* Author(s): Yoch (https://github.com/yoch)
 """
 
 
