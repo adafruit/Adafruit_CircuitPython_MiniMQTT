@@ -4,6 +4,7 @@
 #
 # Original Work Copyright (c) 2016 Paul Sokolovsky, uMQTT
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
+# Modified Work Copyright (c) 2012-2019 Roger Light and others, Paho MQTT Python
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +45,7 @@ import time
 from random import randint
 from micropython import const
 import adafruit_logging as logging
+from .matcher import MQTTMatcher
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
@@ -173,8 +175,9 @@ class MQTT:
         self._lw_retain = False
         # List of subscribed topics, used for tracking
         self._subscribed_topics = []
+        self._on_message_filtered = MQTTMatcher()
         # Server callbacks
-        self.on_message = None
+        self._on_message = None
         self.on_connect = None
         self.on_disconnect = None
         self.on_publish = None
@@ -217,6 +220,51 @@ class MQTT:
         self._lw_topic = topic
         self._lw_msg = payload
         self._lw_retain = retain
+
+    def add_topic_callback(self, mqtt_topic, callback_method):
+        """Registers a callback_method for a specific MQTT topic.
+        :param str mqtt_topic: MQTT topic.
+        :param str callback_method: Name of callback method.
+
+        """
+        if mqtt_topic is None or callback_method is None:
+            raise ValueError("MQTT topic and callback method must both be defined.")
+        self._on_message_filtered[mqtt_topic] = callback_method
+
+    def remove_topic_callback(self, mqtt_topic):
+        """Removes a registered callback method.
+        :param str mqtt_topic: MQTT topic.
+
+        """
+        if mqtt_topic is None:
+            raise ValueError("MQTT Topic must be defined.")
+        try:
+            del self._on_message_filtered[mqtt_topic]
+        except KeyError:
+            raise KeyError("MQTT topic callback not added with add_topic_callback.")
+
+    @property
+    def on_message(self):
+        """Called when a new message has been received on a subscribed topic.
+
+        Expected method signature is:
+            on_message(client, topic, message)
+        """
+        return self._on_message
+
+    @on_message.setter
+    def on_message(self, method):
+        self._on_message = method
+
+    def _handle_on_message(self, client, topic, message):
+        matched = False
+        if topic is not None:
+            for callback in self._on_message_filtered.iter_match(topic):
+                callback(client, topic, message)  # on_msg with callback
+                matched = True
+
+        if not matched and self.on_message:  # regular on_message
+            self.on_message(client, topic, message)
 
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
     def connect(self, clean_session=True):
@@ -665,8 +713,7 @@ class MQTT:
             pid = pid[0] << 0x08 | pid[1]
             sz -= 0x02
         msg = self._sock.recv(sz)
-        if self.on_message is not None:
-            self.on_message(self, topic, str(msg, "utf-8"))
+        self._handle_on_message(self, topic, str(msg, "utf-8"))
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
@@ -751,7 +798,7 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self._msg_size_lim = msg_size
 
-    # Logging
+    ### Logging ###
     def attach_logger(self, logger_name="log"):
         """Initializes and attaches a logger to the MQTTClient.
         :param str logger_name: Name of the logger instance
