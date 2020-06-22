@@ -9,7 +9,7 @@ from digitalio import DigitalInOut
 from adafruit_wiznet5k.adafruit_wiznet5k import WIZNET5K
 import adafruit_wiznet5k.adafruit_wiznet5k_socket as socket
 
-import adafruit_minimqtt as MQTT
+import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Get Adafruit IO details and more from a secrets.py file
 try:

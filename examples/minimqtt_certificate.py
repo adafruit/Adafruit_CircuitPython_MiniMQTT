@@ -6,7 +6,7 @@ from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
-import adafruit_minimqtt as MQTT
+import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 ### WiFi ###
 
