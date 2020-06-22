@@ -6,7 +6,7 @@ from adafruit_fona.adafruit_fona import FONA
 import adafruit_fona.adafruit_fona_network as network
 import adafruit_fona.adafruit_fona_socket as socket
 
-import adafruit_minimqtt as MQTT
+import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Get Adafruit IO details and more from a secrets.py file
 try:
