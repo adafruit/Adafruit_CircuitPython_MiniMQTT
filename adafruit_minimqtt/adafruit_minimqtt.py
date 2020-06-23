@@ -63,9 +63,13 @@ MQTT_PINGRESP = const(0xD0)
 MQTT_SUB = b"\x82"
 MQTT_UNSUB = b"\xA2"
 MQTT_PUB = bytearray(b"\x30\0")
-# Variable CONNECT header [MQTT 3.1.2]
-MQTT_VAR_HEADER = bytearray(b"\x04MQTT\x04\x02\0\0")
 MQTT_DISCONNECT = b"\xe0\0"
+
+# Variable CONNECT header [MQTT 3.1.2]
+MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
+# Variable PUBLISH header [MQTT 3.3.2]
+MQTT_HDR_PUBLISH = bytearray(b"\x00\x01\x61\x2F\x62\x00\x0a")
+
 
 CONNACK_ERRORS = {
     const(0x01): "Connection Refused - Incorrect Protocol Version",
@@ -301,8 +305,11 @@ class MQTT:
         fixed_header = bytearray()
         fixed_header.append(0x10)
 
+        # NOTE: Variable header is 
+        # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
+        # because final 4 bytes are 4, 2, 0, 0
         # Variable Header
-        var_header = MQTT_VAR_HEADER
+        var_header = MQTT_HDR_CONNECT
         var_header[6] = clean_session << 1
 
         # Set up variable header and remaining_length
@@ -403,7 +410,7 @@ class MQTT:
                     raise MMQTTException("PINGRESP not returned from broker.")
             return
 
-    # pylint: disable=too-many-branches, too-many-statements
+  # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to a topic provided.
         :param str topic: Unique topic identifier.
@@ -412,22 +419,15 @@ class MQTT:
         :param float msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message.
-
         Example of sending an integer, 3, to the broker on topic 'piVal'.
         .. code-block:: python
-
             mqtt_client.publish('topics/piVal', 3)
-
         Example of sending a float, 3.14, to the broker on topic 'piVal'.
         .. code-block:: python
-
             mqtt_client.publish('topics/piVal', 3.14)
-
         Example of sending a string, 'threepointonefour', to the broker on topic piVal.
         .. code-block:: python
-
             mqtt_client.publish('topics/piVal', 'threepointonefour')
-
         """
         self.is_connected()
         self._check_topic(topic)
@@ -445,56 +445,46 @@ class MQTT:
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MMQTTException("Message size larger than %db." % MQTT_MSG_MAX_SZ)
         self._check_qos(qos)
-        pkt = MQTT_PUB
-        pkt[0] |= qos << 1 | retain
-        sz = 2 + len(topic) + len(msg)
+
+        pub_hdr_fixed = bytearray()
+        pub_hdr_fixed.append(0x30)
+        #pub_hdr_var[0] |= qos << 1 | retain
+
+#       pub_hdr_var = bytearray(b"\x03\x61\x2F\x62\0\0")
+        pub_hdr_var = bytearray()
+        pub_hdr_var.append(0x03)
+
+        remaining_length = 4 + len(topic)
+
         if qos > 0:
-            sz += 2
-        assert sz < 2097152
-        i = 1
-        while sz > 0x7F:
-            pkt[i] = (sz & 0x7F) | 0x80
-            sz >>= 7
-            i += 1
-        pkt[i] = sz
-        if self.logger is not None:
-            self.logger.debug(
-                "Sending PUBLISH\nTopic: {0}\nMsg: {1}\
-                                \nQoS: {2}\nRetain? {3}".format(
-                    topic, msg, qos, retain
-                )
-            )
-        self._sock.send(pkt)
+            remaining_length += 2 + len(qos)
+
+        assert remaining_length < 2097152 # TODO: need a more descriptive error thrown here!
+
+        # Remaining length calculation
+        large_rel_length = False
+        if remaining_length > 0x7f:
+            large_rel_length = True
+            # Calculate Remaining Length [2.2.3]
+            while remaining_length > 0:
+                encoded_byte = remaining_length % 0x80
+                remaining_length = remaining_length // 0x80
+                # if there is more data to encode, set the top bit of the byte
+                if remaining_length > 0:
+                    encoded_byte |= 0x80
+                pub_hdr_fixed.append(encoded_byte)
+        if large_rel_length:
+            pub_hdr_fixed.append(0x00)
+        else:
+            pub_hdr_fixed.append(remaining_length)
+            pub_hdr_fixed.append(0x00)
+        print(pub_hdr_fixed)
+
+        self._sock.send(pub_hdr_fixed)
+        self._sock.send(pub_hdr_var)
         self._send_str(topic)
-        if qos == 0:
-            if self.on_publish is not None:
-                self.on_publish(self, self.user_data, topic, self._pid)
-        if qos > 0:
-            self._pid += 1
-            pid = self._pid
-            struct.pack_into("!H", pkt, 0, pid)
-            self._sock.send(pkt)
-            if self.on_publish is not None:
-                self.on_publish(self, self.user_data, topic, pid)
-        if self.logger is not None:
-            self.logger.debug("Sending PUBACK")
+        self._sock.send(b"\0\0")
         self._sock.send(msg)
-        if qos == 1:
-            while True:
-                op = self._wait_for_msg()
-                if op == 0x40:
-                    sz = self._sock.recv(1)
-                    assert sz == b"\x02"
-                    rcv_pid = self._sock.recv(2)
-                    rcv_pid = rcv_pid[0] << 0x08 | rcv_pid[1]
-                    if pid == rcv_pid:
-                        if self.on_publish is not None:
-                            self.on_publish(self, self.user_data, topic, rcv_pid)
-                        return
-        elif qos == 2:
-            assert 0
-            if self.on_publish is not None:
-                self.on_publish(self, self.user_data, topic, rcv_pid)
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
