@@ -460,6 +460,7 @@ class MQTT:
 
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
+            pid = self._pid
             remaining_length += 2
             pub_hdr_var.append(0x00)
             pub_hdr_var.append(self._pid)
@@ -478,13 +479,34 @@ class MQTT:
         else:
             pub_hdr_fixed.append(remaining_length)
 
-        print('pub_hdr_fixed', pub_hdr_fixed)
-        print('pub_hdr_var', pub_hdr_var)
-
+        if self.logger is not None:
+            self.logger.debug(
+                "Sending PUBLISH\nTopic: {0}\nMsg: {1}\
+                                \nQoS: {2}\nRetain? {3}".format(
+                    topic, msg, qos, retain
+                )
+            )
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
+        if self.on_publish is not None:
+            self.on_publish(self, self.user_data, topic, self._pid)
         self._sock.send(msg)
-
+        if qos == 1:
+            while True:
+                op = self._wait_for_msg()
+                if op == 0x40:
+                    sz = self._sock.recv(1)
+                    assert sz == b"\x02"
+                    rcv_pid = self._sock.recv(2)
+                    rcv_pid = rcv_pid[0] << 0x08 | rcv_pid[1]
+                    if pid == rcv_pid:
+                        if self.on_publish is not None:
+                            self.on_publish(self, self.user_data, topic, rcv_pid)
+                        return
+        elif qos == 2:
+            assert 0
+            if self.on_publish is not None:
+                self.on_publish(self, self.user_data, topic, rcv_pid)
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
