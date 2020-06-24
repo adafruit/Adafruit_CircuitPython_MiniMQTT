@@ -449,7 +449,6 @@ class MQTT:
         # fixed header
         pub_hdr_fixed = bytearray(b"\x30")
         pub_hdr_fixed[0] |= qos << 1 | retain
-        pub_hdr_fixed.append(2 + len(msg) + len(topic))
 
         # variable header
         pub_hdr_var = bytearray()
@@ -460,7 +459,7 @@ class MQTT:
         #pub_hdr_var.append(0x00) # pid msb
         #pub_hdr_var.append(0xa) #'PID LSB
 
-        remaining_length = 7 + len(msg)
+        remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
             remaining_length += 2 + len(qos)
 
@@ -479,11 +478,8 @@ class MQTT:
         if large_rel_length:
             pub_hdr_fixed.append(0x00)
         else:
-            # append MSB/LSB to header
-            #pub_hdr_fixed.append(len(topic) >> 8)
-            #pub_hdr_fixed.append(len(topic) & 0xFF)
-            print(remaining_length)
-        print(pub_hdr_fixed)
+            pub_hdr_fixed.append(remaining_length)
+            #pub_hdr_fixed()
 
 
         self._sock.send(pub_hdr_fixed)
