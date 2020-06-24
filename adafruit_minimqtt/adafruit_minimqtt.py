@@ -454,14 +454,16 @@ class MQTT:
 
         # variable header
         pub_hdr_var = bytearray()
-        pub_hdr_var.append(len(topic) >> 8)   # Topic len MSB
-        pub_hdr_var.append(len(topic) & 0xFF) # Topic len LSB
+        pub_hdr_var.append(len(topic) >> 8)       # Topic len MSB
+        pub_hdr_var.append(len(topic) & 0xFF)     # Topic len LSB
         pub_hdr_var.extend(topic.encode("utf-8")) # Topic structure
-        # TODO: Add PID to variable header if qos > 0
 
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
-            remaining_length += 2 + qos
+            remaining_length += 2
+            pub_hdr_var.append(0x00)
+            pub_hdr_var.append(self._pid)
+            self._pid += 1
 
         # Remaining length calculation
         if remaining_length > 0x7f:
@@ -483,8 +485,6 @@ class MQTT:
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
 
-        import gc
-        gc.collect()
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
