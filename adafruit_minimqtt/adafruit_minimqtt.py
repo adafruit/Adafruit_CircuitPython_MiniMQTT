@@ -447,13 +447,11 @@ class MQTT:
             raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
         self._check_qos(qos)
 
-        # fixed header
-        pub_hdr_fixed = bytearray()
+        pub_hdr_fixed = bytearray() # fixed header
         pub_hdr_fixed.extend(MQTT_PUB)
         pub_hdr_fixed[0] |= retain | qos << 1 
 
-        # variable header
-        pub_hdr_var = bytearray()
+        pub_hdr_var = bytearray()                 # variable header
         pub_hdr_var.append(len(topic) >> 8)       # Topic len MSB
         pub_hdr_var.append(len(topic) & 0xFF)     # Topic len LSB
         pub_hdr_var.extend(topic.encode("utf-8")) # Topic structure
@@ -488,9 +486,9 @@ class MQTT:
             )
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
-        if self.on_publish is not None:
-            self.on_publish(self, self.user_data, topic, self._pid)
         self._sock.send(msg)
+        if qos == 0 and self.on_publish is not None:
+                self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
             while True:
                 op = self._wait_for_msg()
