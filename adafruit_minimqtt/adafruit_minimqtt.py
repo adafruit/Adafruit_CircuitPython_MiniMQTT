@@ -446,25 +446,23 @@ class MQTT:
             raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
         self._check_qos(qos)
 
+        # fixed header
         pub_hdr_fixed = bytearray(b"\x30")
         pub_hdr_fixed[0] |= qos << 1 | retain
         pub_hdr_fixed.append(2 + len(msg) + len(topic))
 
+        # variable header
         pub_hdr_var = bytearray()
         pub_hdr_var.append(len(topic) >> 8)   # Topic len MSB
         pub_hdr_var.append(len(topic) & 0xFF) # Topic len LSB
-        pub_hdr_var.append(0x61) # 'a'
-        pub_hdr_var.append(0x2F) #'/'
-        pub_hdr_var.append(0x62) # 'b'
-        pub_hdr_var.append(0x00) # pid msb
-        pub_hdr_var.append(0xa) #'PID LSB
-        print('pub_hdr_var ', pub_hdr_var)
+        pub_hdr_var.extend(topic.encode("utf-8")) # Topic structure
+        # TODO: Add PID stuff back in
+        #pub_hdr_var.append(0x00) # pid msb
+        #pub_hdr_var.append(0xa) #'PID LSB
 
         remaining_length = 7 + len(msg)
         if qos > 0:
             remaining_length += 2 + len(qos)
-
-
 
         # Remaining length calculation
         large_rel_length = False
@@ -490,7 +488,6 @@ class MQTT:
 
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
-        self._send_str(topic)
         self._sock.send(msg)
 
     def subscribe(self, topic, qos=0):
