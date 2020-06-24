@@ -448,18 +448,16 @@ class MQTT:
         self._check_qos(qos)
 
         # fixed header
-        pub_hdr_fixed = MQTT_PUB
+        pub_hdr_fixed = bytearray()
+        pub_hdr_fixed.extend(MQTT_PUB)
         pub_hdr_fixed[0] |= retain | qos << 1 
-
 
         # variable header
         pub_hdr_var = bytearray()
         pub_hdr_var.append(len(topic) >> 8)   # Topic len MSB
         pub_hdr_var.append(len(topic) & 0xFF) # Topic len LSB
         pub_hdr_var.extend(topic.encode("utf-8")) # Topic structure
-        # TODO: Add PID stuff back in
-        #pub_hdr_var.append(0x00) # pid msb
-        #pub_hdr_var.append(0xa) #'PID LSB
+        # TODO: Add PID to variable header if qos > 0
 
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
@@ -476,13 +474,17 @@ class MQTT:
                     encoded_byte |= 0x80
                 pub_hdr_fixed.append(encoded_byte)
         else:
-            print('remaining_length', remaining_length)
             pub_hdr_fixed.append(remaining_length)
 
+        print('pub_hdr_fixed', pub_hdr_fixed)
+        print('pub_hdr_var', pub_hdr_var)
 
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
+
+        import gc
+        gc.collect()
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
