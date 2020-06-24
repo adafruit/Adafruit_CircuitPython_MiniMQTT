@@ -451,11 +451,21 @@ class MQTT:
         pub_hdr_fixed.append(2 + len(msg) + len(topic))
 
         pub_hdr_var = bytearray()
-        pub_hdr_var.extend(b"\x00\x17")
+        pub_hdr_var.append(len(topic) >> 8)   # Topic len MSB
+        pub_hdr_var.append(len(topic) & 0xFF) # Topic len LSB
+        pub_hdr_var.append(0x61) # 'a'
+        pub_hdr_var.append(0x2F) #'/'
+        pub_hdr_var.append(0x62) # 'b'
+        pub_hdr_var.append(0x00) # pid msb
+        pub_hdr_var.append(0xa) #'PID LSB
+        print('pub_hdr_var ', pub_hdr_var)
 
         remaining_length = 7 + len(msg)
         if qos > 0:
             remaining_length += 2 + len(qos)
+
+
+
         # Remaining length calculation
         large_rel_length = False
         if remaining_length > 0x7f:
@@ -471,15 +481,17 @@ class MQTT:
         if large_rel_length:
             pub_hdr_fixed.append(0x00)
         else:
-            pub_hdr_fixed.append(2)
-            pub_hdr_fixed.append(0x00)
+            # append MSB/LSB to header
+            #pub_hdr_fixed.append(len(topic) >> 8)
+            #pub_hdr_fixed.append(len(topic) & 0xFF)
+            print(remaining_length)
         print(pub_hdr_fixed)
 
 
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
         self._send_str(topic)
-#        self._sock.send(msg)
+        self._sock.send(msg)
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
