@@ -305,7 +305,7 @@ class MQTT:
         fixed_header = bytearray()
         fixed_header.append(0x10)
 
-        # NOTE: Variable header is 
+        # NOTE: Variable header is
         # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
         # because final 4 bytes are 4, 2, 0, 0
         # Variable Header
@@ -446,21 +446,25 @@ class MQTT:
             raise MMQTTException("Message size larger than %db." % MQTT_MSG_MAX_SZ)
         self._check_qos(qos)
 
-        pub_hdr_fixed = bytearray()
-        pub_hdr_fixed.append(0x30)
-        #pub_hdr_var[0] |= qos << 1 | retain
+        pub_hdr_fixed = bytearray(b"\x30")
 
-#       pub_hdr_var = bytearray(b"\x03\x61\x2F\x62\0\0")
+        pub_hdr_fixed[0] |= qos << 1 | retain
+        pub_hdr_fixed.append(len(msg))
+
         pub_hdr_var = bytearray()
-        pub_hdr_var.append(0x03)
+        pub_hdr_var.extend(b"\x00\x17")
 
-        remaining_length = 4 + len(topic)
+
+        print(len(topic))
+        print(len(msg))
+        remaining_length = 7 + len(msg)
 
         if qos > 0:
             remaining_length += 2 + len(qos)
 
         assert remaining_length < 2097152 # TODO: need a more descriptive error thrown here!
 
+        """
         # Remaining length calculation
         large_rel_length = False
         if remaining_length > 0x7f:
@@ -479,12 +483,16 @@ class MQTT:
             pub_hdr_fixed.append(remaining_length)
             pub_hdr_fixed.append(0x00)
         print(pub_hdr_fixed)
+        """
+
+
+
 
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
+        # UP TO HERE!!
         self._send_str(topic)
-        self._sock.send(b"\0\0")
-        self._sock.send(msg)
+#        self._sock.send(msg)
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
