@@ -42,6 +42,7 @@ Implementation Notes
 """
 import struct
 import time
+import gc
 from random import randint
 from micropython import const
 import adafruit_logging as logging
@@ -62,7 +63,7 @@ MQTT_PINGREQ = b"\xc0\0"
 MQTT_PINGRESP = const(0xD0)
 MQTT_SUB = b"\x82"
 MQTT_UNSUB = b"\xA2"
-MQTT_PUB = bytearray(b"\x30\0")
+MQTT_PUB = bytearray(b"\x30")
 MQTT_DISCONNECT = b"\xe0\0"
 
 # Variable CONNECT header [MQTT 3.1.2]
@@ -440,7 +441,6 @@ class MQTT:
             msg = str(msg).encode("ascii")
         elif isinstance(msg, str):
             msg = str(msg).encode("utf-8")
-            print(type(msg))
         else:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
@@ -448,8 +448,9 @@ class MQTT:
         self._check_qos(qos)
 
         # fixed header
-        pub_hdr_fixed = bytearray(b"\x30")
-        pub_hdr_fixed[0] |= qos << 1 | retain
+        pub_hdr_fixed = MQTT_PUB
+        pub_hdr_fixed[0] |= retain | qos << 1 
+
 
         # variable header
         pub_hdr_var = bytearray()
@@ -462,7 +463,7 @@ class MQTT:
 
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
-            remaining_length += 2 + len(qos)
+            remaining_length += 2 + qos
 
         # Remaining length calculation
         if remaining_length > 0x7f:
