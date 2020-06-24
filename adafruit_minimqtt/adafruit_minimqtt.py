@@ -443,28 +443,19 @@ class MQTT:
         else:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise MMQTTException("Message size larger than %db." % MQTT_MSG_MAX_SZ)
+            raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
         self._check_qos(qos)
 
         pub_hdr_fixed = bytearray(b"\x30")
-
         pub_hdr_fixed[0] |= qos << 1 | retain
-        pub_hdr_fixed.append(len(msg))
+        pub_hdr_fixed.append(2 + len(msg) + len(topic))
 
         pub_hdr_var = bytearray()
         pub_hdr_var.extend(b"\x00\x17")
 
-
-        print(len(topic))
-        print(len(msg))
         remaining_length = 7 + len(msg)
-
         if qos > 0:
             remaining_length += 2 + len(qos)
-
-        assert remaining_length < 2097152 # TODO: need a more descriptive error thrown here!
-
-        """
         # Remaining length calculation
         large_rel_length = False
         if remaining_length > 0x7f:
@@ -480,17 +471,13 @@ class MQTT:
         if large_rel_length:
             pub_hdr_fixed.append(0x00)
         else:
-            pub_hdr_fixed.append(remaining_length)
+            pub_hdr_fixed.append(2)
             pub_hdr_fixed.append(0x00)
         print(pub_hdr_fixed)
-        """
-
-
 
 
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
-        # UP TO HERE!!
         self._send_str(topic)
 #        self._sock.send(msg)
 
