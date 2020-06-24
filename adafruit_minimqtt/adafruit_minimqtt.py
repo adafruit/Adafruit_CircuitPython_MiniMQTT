@@ -440,6 +440,7 @@ class MQTT:
             msg = str(msg).encode("ascii")
         elif isinstance(msg, str):
             msg = str(msg).encode("utf-8")
+            print(type(msg))
         else:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
@@ -464,9 +465,7 @@ class MQTT:
             remaining_length += 2 + len(qos)
 
         # Remaining length calculation
-        large_rel_length = False
         if remaining_length > 0x7f:
-            large_rel_length = True
             # Calculate Remaining Length [2.2.3]
             while remaining_length > 0:
                 encoded_byte = remaining_length % 0x80
@@ -475,11 +474,9 @@ class MQTT:
                 if remaining_length > 0:
                     encoded_byte |= 0x80
                 pub_hdr_fixed.append(encoded_byte)
-        if large_rel_length:
-            pub_hdr_fixed.append(0x00)
         else:
+            print('remaining_length', remaining_length)
             pub_hdr_fixed.append(remaining_length)
-            #pub_hdr_fixed()
 
 
         self._sock.send(pub_hdr_fixed)
