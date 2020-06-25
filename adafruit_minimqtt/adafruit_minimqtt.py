@@ -42,7 +42,6 @@ Implementation Notes
 """
 import struct
 import time
-import gc
 from random import randint
 from micropython import const
 import adafruit_logging as logging
@@ -411,7 +410,7 @@ class MQTT:
                     raise MMQTTException("PINGRESP not returned from broker.")
             return
 
-  # pylint: disable=too-many-branches, too-many-statements
+    # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to a topic provided.
         :param str topic: Unique topic identifier.
@@ -447,14 +446,14 @@ class MQTT:
             raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
         self._check_qos(qos)
 
-        pub_hdr_fixed = bytearray() # fixed header
+        pub_hdr_fixed = bytearray()  # fixed header
         pub_hdr_fixed.extend(MQTT_PUB)
-        pub_hdr_fixed[0] |= retain | qos << 1 
+        pub_hdr_fixed[0] |= retain | qos << 1
 
-        pub_hdr_var = bytearray()                 # variable header
-        pub_hdr_var.append(len(topic) >> 8)       # Topic len MSB
-        pub_hdr_var.append(len(topic) & 0xFF)     # Topic len LSB
-        pub_hdr_var.extend(topic.encode("utf-8")) # Topic structure
+        pub_hdr_var = bytearray()  # variable header
+        pub_hdr_var.append(len(topic) >> 8)  # Topic len MSB
+        pub_hdr_var.append(len(topic) & 0xFF)  # Topic len LSB
+        pub_hdr_var.extend(topic.encode("utf-8"))  # Topic structure
 
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
@@ -465,7 +464,7 @@ class MQTT:
             self._pid += 1
 
         # Remaining length calculation
-        if remaining_length > 0x7f:
+        if remaining_length > 0x7F:
             # Calculate Remaining Length [2.2.3]
             while remaining_length > 0:
                 encoded_byte = remaining_length % 0x80
@@ -488,7 +487,7 @@ class MQTT:
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
         if qos == 0 and self.on_publish is not None:
-                self.on_publish(self, self.user_data, topic, self._pid)
+            self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
             while True:
                 op = self._wait_for_msg()
