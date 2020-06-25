@@ -67,8 +67,6 @@ MQTT_DISCONNECT = b"\xe0\0"
 
 # Variable CONNECT header [MQTT 3.1.2]
 MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
-# Variable PUBLISH header [MQTT 3.3.2]
-MQTT_HDR_PUBLISH = bytearray(b"\x00\x01\x61\x2F\x62\x00\x0a")
 
 
 CONNACK_ERRORS = {
@@ -444,32 +442,33 @@ class MQTT:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
-        self._check_qos(qos)
+        assert (
+            0 <= qos <= 1
+        ), "Quality of Service Level 2 is unsupported by this library."
 
         pub_hdr_fixed = bytearray()  # fixed header
         pub_hdr_fixed.extend(MQTT_PUB)
-        pub_hdr_fixed[0] |= retain | qos << 1
+        pub_hdr_fixed[0] |= retain | qos << 1  # [3.3.1.2], [3.3.1.3]
 
         pub_hdr_var = bytearray()  # variable header
-        pub_hdr_var.append(len(topic) >> 8)  # Topic len MSB
-        pub_hdr_var.append(len(topic) & 0xFF)  # Topic len LSB
-        pub_hdr_var.extend(topic.encode("utf-8"))  # Topic structure
+        pub_hdr_var.append(len(topic) >> 8)  # Topic length, MSB
+        pub_hdr_var.append(len(topic) & 0xFF)  # Topic length, LSB
+        pub_hdr_var.extend(topic.encode("utf-8"))  # Topic name
 
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
+            # packet identifier where QoS level is 1 or 2. [3.3.2.2]
             pid = self._pid
             remaining_length += 2
             pub_hdr_var.append(0x00)
             pub_hdr_var.append(self._pid)
             self._pid += 1
 
-        # Remaining length calculation
+        # Calculate remaining length [2.2.3]
         if remaining_length > 0x7F:
-            # Calculate Remaining Length [2.2.3]
             while remaining_length > 0:
                 encoded_byte = remaining_length % 0x80
                 remaining_length = remaining_length // 0x80
-                # if there is more data to encode, set the top bit of the byte
                 if remaining_length > 0:
                     encoded_byte |= 0x80
                 pub_hdr_fixed.append(encoded_byte)
@@ -500,10 +499,6 @@ class MQTT:
                         if self.on_publish is not None:
                             self.on_publish(self, self.user_data, topic, rcv_pid)
                         return
-        elif qos == 2:
-            assert 0
-            if self.on_publish is not None:
-                self.on_publish(self, self.user_data, topic, rcv_pid)
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
