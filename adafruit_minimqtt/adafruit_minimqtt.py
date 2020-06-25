@@ -417,14 +417,20 @@ class MQTT:
         :param float msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message.
+
         Example of sending an integer, 3, to the broker on topic 'piVal'.
         .. code-block:: python
+
             mqtt_client.publish('topics/piVal', 3)
+
         Example of sending a float, 3.14, to the broker on topic 'piVal'.
         .. code-block:: python
+
             mqtt_client.publish('topics/piVal', 3.14)
+
         Example of sending a string, 'threepointonefour', to the broker on topic piVal.
         .. code-block:: python
+
             mqtt_client.publish('topics/piVal', 'threepointonefour')
         """
         self.is_connected()
