@@ -200,7 +200,7 @@ class MQTT:
         self.disconnect()
 
     def will_set(self, topic=None, payload=None, qos=0, retain=False):
-        """Sets the last will and testament properties. MUST be called before connect().
+        """Sets the last will and testament properties. MUST be called before `connect()`.
 
         :param str topic: MQTT Broker topic.
         :param str payload: Last will disconnection payload.
@@ -681,10 +681,11 @@ class MQTT:
         method if you want to run a program forever.
         Code below a call to this method will NOT execute.
 
-        NOTE: This method is depreciated and will be removed in the
-        next major release. Please see examples/minimqtt_pub_sub_blocking.py
-        for an example of creating a blocking loop which can handle wireless
-        network events.
+        .. note:: This method is depreciated and will be removed in the
+            next major release. Please see
+            `examples/minimqtt_pub_sub_blocking.py <examples.html#basic-forever-loop>`_
+            for an example of creating a blocking loop which can handle wireless
+            network events.
         """
         while True:
             if self._sock.connected:
@@ -835,7 +836,7 @@ class MQTT:
     def set_logger_level(self, log_level):
         """Sets the level of the logger, if defined during init.
 
-        :param string log_level: Level of logging to output to the REPL.
+        :param str log_level: Level of logging to output to the REPL.
         """
         if self.logger is None:
             raise MMQTTException(
