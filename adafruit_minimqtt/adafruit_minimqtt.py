@@ -193,9 +193,7 @@ class MQTT:
         self.deinit()
 
     def deinit(self):
-        """De-initializes the MQTT client and disconnects from
-        the mqtt broker.
-
+        """De-initializes the MQTT client and disconnects from the mqtt broker.
         """
         self.disconnect()
 
@@ -203,9 +201,15 @@ class MQTT:
         """Sets the last will and testament properties. MUST be called before `connect()`.
 
         :param str topic: MQTT Broker topic.
-        :param str payload: Last will disconnection payload.
-        :param int qos: Quality of Service level.
-        :param bool retain: Specifies if the payload is to be retained when it is published.
+        :param int,float,str payload: Last will disconnection payload.
+            payloads of type int & float are converted to a string.
+        :param int qos: Quality of Service level, defaults to
+            zero. Conventional options are ``0`` (send at least once), ``1``
+            (send at most once), or ``2`` (send exactly once).
+
+            .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
+        :param bool retain: Specifies if the payload is to be retained when
+            it is published.
         """
         if self.logger is not None:
             self.logger.debug("Setting last will properties")
@@ -226,7 +230,7 @@ class MQTT:
     def add_topic_callback(self, mqtt_topic, callback_method):
         """Registers a callback_method for a specific MQTT topic.
 
-        :param str mqtt_topic: MQTT topic.
+        :param str mqtt_topic: MQTT topic identifier.
         :param str callback_method: Name of callback method.
         """
         if mqtt_topic is None or callback_method is None:
@@ -236,7 +240,7 @@ class MQTT:
     def remove_topic_callback(self, mqtt_topic):
         """Removes a registered callback method.
 
-        :param str mqtt_topic: MQTT topic.
+        :param str mqtt_topic: MQTT topic identifier string.
         """
         if mqtt_topic is None:
             raise ValueError("MQTT Topic must be defined.")
@@ -249,8 +253,7 @@ class MQTT:
     def on_message(self):
         """Called when a new message has been received on a subscribed topic.
 
-        Expected method signature is:
-            on_message(client, topic, message)
+        Expected method signature is ``on_message(client, topic, message)``
         """
         return self._on_message
 
@@ -300,8 +303,7 @@ class MQTT:
                 raise MMQTTException("Invalid broker address defined.", e)
 
         # Fixed Header
-        fixed_header = bytearray()
-        fixed_header.append(0x10)
+        fixed_header = bytearray([0x10])
 
         # NOTE: Variable header is
         # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
@@ -413,11 +415,13 @@ class MQTT:
         """Publishes a message to a topic provided.
 
         :param str topic: Unique topic identifier.
-        :param str msg: Data to send to the broker.
-        :param int msg: Data to send to the broker.
-        :param float msg: Data to send to the broker.
+        :param str,int,float msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
-        :param int qos: Quality of Service level for the message.
+        :param int qos: Quality of Service level for the message, defaults to
+            zero. Conventional options are ``0`` (send at least once), ``1``
+            (send at most once), or ``2`` (send exactly once).
+
+            .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
 
         Example of sending an integer, 3, to the broker on topic 'piVal'.
 
@@ -514,10 +518,16 @@ class MQTT:
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topics or multiple topics.
 
-        :param str topic: Unique MQTT topic identifier.
-        :param int qos: Quality of Service level for the topic, defaults to zero.
-        :param tuple topic: Tuple containing topic identifier strings and qos level integers.
-        :param list topic: List of tuples containing topic identifier strings and qos.
+        :param str,tuple,list topic: Unique MQTT topic identifier string. If
+            this is a `tuple`, then the tuple should contain topic identifier
+            string and qos level integer. If this is a `list`, then each list
+            element should be a tuple containing a topic identifier string and
+            qos level integer.
+        :param int qos: Quality of Service level for the topic, defaults to
+            zero. Conventional options are ``0`` (send at least once), ``1``
+            (send at most once), or ``2`` (send exactly once).
+
+            .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
 
         Example of subscribing a topic string.
 
@@ -593,8 +603,9 @@ class MQTT:
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
 
-        :param str topic: Unique MQTT topic identifier.
-        :param list topic: List of tuples containing topic identifier strings.
+        :param str,list topic: Unique MQTT topic identifier string or a list
+            of tuples, where each tuple contains an MQTT topic identier
+            string.
 
         Example of unsubscribing from a topic string.
 
@@ -804,7 +815,7 @@ class MQTT:
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, raises
-        a MMQTTException if False.
+        a `MMQTTException` if `False`.
         """
         if self._sock is None or self._is_connected is False:
             raise MMQTTException("MiniMQTT is not connected.")
@@ -837,6 +848,8 @@ class MQTT:
         """Sets the level of the logger, if defined during init.
 
         :param str log_level: Level of logging to output to the REPL.
+            Acceptable options are ``DEBUG``, ``INFO``, ``WARNING``, or
+            ``ERROR``.
         """
         if self.logger is None:
             raise MMQTTException(
