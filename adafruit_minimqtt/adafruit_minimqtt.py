@@ -115,8 +115,8 @@ class MQTT:
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
-    """
 
+    """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(
         self,
@@ -193,8 +193,7 @@ class MQTT:
         self.deinit()
 
     def deinit(self):
-        """De-initializes the MQTT client and disconnects from the mqtt broker.
-        """
+        """De-initializes the MQTT client and disconnects from the mqtt broker."""
         self.disconnect()
 
     def will_set(self, topic=None, payload=None, qos=0, retain=False):
@@ -303,7 +302,8 @@ class MQTT:
                 raise MMQTTException("Invalid broker address defined.", e)
 
         # Fixed Header
-        fixed_header = bytearray([0x10])
+        fixed_header = bytearray()
+        fixed_header.append(0x10)
 
         # NOTE: Variable header is
         # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
