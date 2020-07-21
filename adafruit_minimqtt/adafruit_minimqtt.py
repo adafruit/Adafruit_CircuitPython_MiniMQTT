@@ -303,8 +303,7 @@ class MQTT:
                 raise MMQTTException("Invalid broker address defined.", e)
 
         # Fixed Header
-        fixed_header = bytearray()
-        fixed_header.append(0x10)
+        fixed_header = bytearray([0x10])
 
         # NOTE: Variable header is
         # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
@@ -687,21 +686,6 @@ class MQTT:
             while subscribed_topics:
                 feed = subscribed_topics.pop()
                 self.subscribe(feed)
-
-    def loop_forever(self):
-        """Starts a blocking message loop. Use this
-        method if you want to run a program forever.
-        Code below a call to this method will NOT execute.
-
-        .. note:: This method is depreciated and will be removed in the
-            next major release. Please see
-            `examples/minimqtt_pub_sub_blocking.py <examples.html#basic-forever-loop>`_
-            for an example of creating a blocking loop which can handle wireless
-            network events.
-        """
-        while True:
-            if self._sock.connected:
-                self.loop()
 
     def loop(self):
         """Non-blocking message loop. Use this method to
