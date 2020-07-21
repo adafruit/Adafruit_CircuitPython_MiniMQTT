@@ -91,9 +91,9 @@ class MMQTTException(Exception):
 
 def set_socket(sock, iface=None):
     """Helper to set the global socket and optionally set the global network interface.
+
     :param sock: socket object.
     :param iface: internet interface object
-
     """
     global _the_sock  # pylint: disable=invalid-name, global-statement
     _the_sock = sock
@@ -105,6 +105,7 @@ def set_socket(sock, iface=None):
 
 class MQTT:
     """MQTT Client for CircuitPython
+
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
@@ -193,19 +194,22 @@ class MQTT:
         self.deinit()
 
     def deinit(self):
-        """De-initializes the MQTT client and disconnects from
-        the mqtt broker.
-
-        """
+        """De-initializes the MQTT client and disconnects from the mqtt broker."""
         self.disconnect()
 
     def will_set(self, topic=None, payload=None, qos=0, retain=False):
-        """Sets the last will and testament properties. MUST be called before connect().
-        :param str topic: MQTT Broker topic.
-        :param str payload: Last will disconnection payload.
-        :param int qos: Quality of Service level.
-        :param bool retain: Specifies if the payload is to be retained when it is published.
+        """Sets the last will and testament properties. MUST be called before `connect()`.
 
+        :param str topic: MQTT Broker topic.
+        :param int,float,str payload: Last will disconnection payload.
+            payloads of type int & float are converted to a string.
+        :param int qos: Quality of Service level, defaults to
+            zero. Conventional options are ``0`` (send at most once), ``1``
+            (send at least once), or ``2`` (send exactly once).
+
+            .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
+        :param bool retain: Specifies if the payload is to be retained when
+            it is published.
         """
         if self.logger is not None:
             self.logger.debug("Setting last will properties")
@@ -225,9 +229,9 @@ class MQTT:
 
     def add_topic_callback(self, mqtt_topic, callback_method):
         """Registers a callback_method for a specific MQTT topic.
-        :param str mqtt_topic: MQTT topic.
-        :param str callback_method: Name of callback method.
 
+        :param str mqtt_topic: MQTT topic identifier.
+        :param str callback_method: Name of callback method.
         """
         if mqtt_topic is None or callback_method is None:
             raise ValueError("MQTT topic and callback method must both be defined.")
@@ -235,8 +239,8 @@ class MQTT:
 
     def remove_topic_callback(self, mqtt_topic):
         """Removes a registered callback method.
-        :param str mqtt_topic: MQTT topic.
 
+        :param str mqtt_topic: MQTT topic identifier string.
         """
         if mqtt_topic is None:
             raise ValueError("MQTT Topic must be defined.")
@@ -249,8 +253,7 @@ class MQTT:
     def on_message(self):
         """Called when a new message has been received on a subscribed topic.
 
-        Expected method signature is:
-            on_message(client, topic, message)
+        Expected method signature is ``on_message(client, topic, message)``
         """
         return self._on_message
 
@@ -271,8 +274,8 @@ class MQTT:
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
-        :param bool clean_session: Establishes a persistent session.
 
+        :param bool clean_session: Establishes a persistent session.
         """
         self._sock = _the_sock.socket()
         self._sock.settimeout(15)
@@ -411,24 +414,30 @@ class MQTT:
     # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to a topic provided.
+
         :param str topic: Unique topic identifier.
-        :param str msg: Data to send to the broker.
-        :param int msg: Data to send to the broker.
-        :param float msg: Data to send to the broker.
+        :param str,int,float msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
-        :param int qos: Quality of Service level for the message.
+        :param int qos: Quality of Service level for the message, defaults to
+            zero. Conventional options are ``0`` (send at most once), ``1``
+            (send at least once), or ``2`` (send exactly once).
+
+            .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
 
         Example of sending an integer, 3, to the broker on topic 'piVal'.
+
         .. code-block:: python
 
             mqtt_client.publish('topics/piVal', 3)
 
         Example of sending a float, 3.14, to the broker on topic 'piVal'.
+
         .. code-block:: python
 
             mqtt_client.publish('topics/piVal', 3.14)
 
         Example of sending a string, 'threepointonefour', to the broker on topic piVal.
+
         .. code-block:: python
 
             mqtt_client.publish('topics/piVal', 'threepointonefour')
@@ -509,27 +518,38 @@ class MQTT:
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topics or multiple topics.
-        :param str topic: Unique MQTT topic identifier.
-        :param int qos: Quality of Service level for the topic, defaults to zero.
-        :param tuple topic: Tuple containing topic identifier strings and qos level integers.
-        :param list topic: List of tuples containing topic identifier strings and qos.
+
+        :param str,tuple,list topic: Unique MQTT topic identifier string. If
+            this is a `tuple`, then the tuple should contain topic identifier
+            string and qos level integer. If this is a `list`, then each list
+            element should be a tuple containing a topic identifier string and
+            qos level integer.
+        :param int qos: Quality of Service level for the topic, defaults to
+            zero. Conventional options are ``0`` (send at most once), ``1``
+            (send at least once), or ``2`` (send exactly once).
+
+            .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
 
         Example of subscribing a topic string.
+
         .. code-block:: python
 
             mqtt_client.subscribe('topics/ledState')
 
         Example of subscribing to a topic and setting the qos level to 1.
+
         .. code-block:: python
 
             mqtt_client.subscribe('topics/ledState', 1)
 
         Example of subscribing to topic string and setting qos level to 1, as a tuple.
+
         .. code-block:: python
 
             mqtt_client.subscribe(('topics/ledState', 1))
 
         Example of subscribing to multiple topics with different qos levels.
+
         .. code-block:: python
 
             mqtt_client.subscribe([('topics/ledState', 1), ('topics/servoAngle', 0)])
@@ -583,15 +603,19 @@ class MQTT:
 
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
-        :param str topic: Unique MQTT topic identifier.
-        :param list topic: List of tuples containing topic identifier strings.
+
+        :param str,list topic: Unique MQTT topic identifier string or a list
+            of tuples, where each tuple contains an MQTT topic identier
+            string.
 
         Example of unsubscribing from a topic string.
+
         .. code-block:: python
 
             mqtt_client.unsubscribe('topics/ledState')
 
         Example of unsubscribing from multiple topics.
+
         .. code-block:: python
 
             mqtt_client.unsubscribe([('topics/ledState'), ('topics/servoAngle')])
@@ -645,6 +669,7 @@ class MQTT:
 
     def reconnect(self, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
+
         :param bool resub_topics: Resubscribe to previously subscribed topics.
         """
         if self.logger is not None:
@@ -668,11 +693,11 @@ class MQTT:
         method if you want to run a program forever.
         Code below a call to this method will NOT execute.
 
-        NOTE: This method is depreciated and will be removed in the
-        next major release. Please see examples/minimqtt_pub_sub_blocking.py
-        for an example of creating a blocking loop which can handle wireless
-        network events.
-
+        .. note:: This method is depreciated and will be removed in the
+            next major release. Please see
+            `examples/minimqtt_pub_sub_blocking.py <examples.html#basic-forever-loop>`_
+            for an example of creating a blocking loop which can handle wireless
+            network events.
         """
         while True:
             if self._sock.connected:
@@ -681,7 +706,6 @@ class MQTT:
     def loop(self):
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
-
         """
         if self._timestamp == 0:
             self._timestamp = time.monotonic()
@@ -744,6 +768,7 @@ class MQTT:
 
     def _send_str(self, string):
         """Packs and encodes a string to a socket.
+
         :param str string: String to write to the socket.
         """
         self._sock.send(struct.pack("!H", len(string)))
@@ -755,6 +780,7 @@ class MQTT:
     @staticmethod
     def _check_topic(topic):
         """Checks if topic provided is a valid mqtt topic.
+
         :param str topic: Topic identifier
         """
         if topic is None:
@@ -769,6 +795,7 @@ class MQTT:
     @staticmethod
     def _check_qos(qos_level):
         """Validates the quality of service level.
+
         :param int qos_level: Desired QoS level.
         """
         if isinstance(qos_level, int):
@@ -789,7 +816,7 @@ class MQTT:
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, raises
-        a MMQTTException if False.
+        a `MMQTTException` if `False`.
         """
         if self._sock is None or self._is_connected is False:
             raise MMQTTException("MiniMQTT is not connected.")
@@ -803,6 +830,7 @@ class MQTT:
     @mqtt_msg.setter
     def mqtt_msg(self, msg_size):
         """Sets the maximum MQTT message payload size.
+
         :param int msg_size: Maximum MQTT payload size.
         """
         if msg_size < MQTT_MSG_MAX_SZ:
@@ -811,6 +839,7 @@ class MQTT:
     ### Logging ###
     def attach_logger(self, logger_name="log"):
         """Initializes and attaches a logger to the MQTTClient.
+
         :param str logger_name: Name of the logger instance
         """
         self.logger = logging.getLogger(logger_name)
@@ -818,7 +847,10 @@ class MQTT:
 
     def set_logger_level(self, log_level):
         """Sets the level of the logger, if defined during init.
-        :param string log_level: Level of logging to output to the REPL.
+
+        :param str log_level: Level of logging to output to the REPL.
+            Acceptable options are ``DEBUG``, ``INFO``, ``WARNING``, or
+            ``ERROR``.
         """
         if self.logger is None:
             raise MMQTTException(
