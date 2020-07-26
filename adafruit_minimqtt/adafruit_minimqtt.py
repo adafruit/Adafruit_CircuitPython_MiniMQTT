@@ -460,13 +460,11 @@ class MQTT:
             0 <= qos <= 1
         ), "Quality of Service Level 2 is unsupported by this library."
 
-        pub_hdr_fixed = bytearray()  # fixed header
-        pub_hdr_fixed.extend(MQTT_PUB)
-        pub_hdr_fixed[0] |= retain | qos << 1  # [3.3.1.2], [3.3.1.3]
+        # fixed header. [3.3.1.2], [3.3.1.3]
+        pub_hdr_fixed = bytearray([MQTT_PUB[0] | retain | qos << 1])
 
-        pub_hdr_var = bytearray()  # variable header
-        pub_hdr_var.append(len(topic) >> 8)  # Topic length, MSB
-        pub_hdr_var.append(len(topic) & 0xFF)  # Topic length, LSB
+        # variable header = 2-byte Topic length (big endian)
+        pub_hdr_var = struct.pack('>H', len(topic))
         pub_hdr_var.extend(topic.encode("utf-8"))  # Topic name
 
         remaining_length = 2 + len(msg) + len(topic)
