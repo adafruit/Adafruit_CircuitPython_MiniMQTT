@@ -464,7 +464,7 @@ class MQTT:
         pub_hdr_fixed = bytearray([MQTT_PUB[0] | retain | qos << 1])
 
         # variable header = 2-byte Topic length (big endian)
-        pub_hdr_var = struct.pack('>H', len(topic))
+        pub_hdr_var = struct.pack(">H", len(topic))
         pub_hdr_var.extend(topic.encode("utf-8"))  # Topic name
 
         remaining_length = 2 + len(msg) + len(topic)
