@@ -217,7 +217,7 @@ class MQTT:
         if self._is_connected:
             raise MMQTTException("Last Will should only be called before connect().")
         if payload is None:
-            raise MMQTTException("Message can not be None.")
+            payload = ""
         if isinstance(payload, (int, float, str)):
             payload = str(payload).encode()
         else:
