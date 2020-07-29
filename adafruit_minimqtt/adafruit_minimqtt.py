@@ -62,7 +62,6 @@ MQTT_PINGREQ = b"\xc0\0"
 MQTT_PINGRESP = const(0xD0)
 MQTT_SUB = b"\x82"
 MQTT_UNSUB = b"\xA2"
-MQTT_PUB = bytearray(b"\x30")
 MQTT_DISCONNECT = b"\xe0\0"
 
 # Variable CONNECT header [MQTT 3.1.2]
@@ -461,11 +460,11 @@ class MQTT:
         ), "Quality of Service Level 2 is unsupported by this library."
 
         # fixed header. [3.3.1.2], [3.3.1.3]
-        pub_hdr_fixed = bytearray([MQTT_PUB[0] | retain | qos << 1])
+        pub_hdr_fixed = bytearray([0x30 | retain | qos << 1])
 
         # variable header = 2-byte Topic length (big endian)
-        pub_hdr_var = struct.pack(">H", len(topic))
-        pub_hdr_var.extend(topic.encode("utf-8"))  # Topic name
+        pub_hdr_var = bytearray(struct.pack(">H", len(topic)))
+        pub_hdr_var.append(topic.encode("utf-8"))  # Topic name
 
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
