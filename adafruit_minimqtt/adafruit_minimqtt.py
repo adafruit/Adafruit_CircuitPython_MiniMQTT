@@ -62,7 +62,6 @@ MQTT_PINGREQ = b"\xc0\0"
 MQTT_PINGRESP = const(0xD0)
 MQTT_SUB = b"\x82"
 MQTT_UNSUB = b"\xA2"
-MQTT_PUB = bytearray(b"\x30")
 MQTT_DISCONNECT = b"\xe0\0"
 
 # Variable CONNECT header [MQTT 3.1.2]
@@ -303,8 +302,7 @@ class MQTT:
                 raise MMQTTException("Invalid broker address defined.", e)
 
         # Fixed Header
-        fixed_header = bytearray()
-        fixed_header.append(0x10)
+        fixed_header = bytearray([0x10])
 
         # NOTE: Variable header is
         # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
@@ -461,13 +459,11 @@ class MQTT:
             0 <= qos <= 1
         ), "Quality of Service Level 2 is unsupported by this library."
 
-        pub_hdr_fixed = bytearray()  # fixed header
-        pub_hdr_fixed.extend(MQTT_PUB)
-        pub_hdr_fixed[0] |= retain | qos << 1  # [3.3.1.2], [3.3.1.3]
+        # fixed header. [3.3.1.2], [3.3.1.3]
+        pub_hdr_fixed = bytearray([0x30 | retain | qos << 1])
 
-        pub_hdr_var = bytearray()  # variable header
-        pub_hdr_var.append(len(topic) >> 8)  # Topic length, MSB
-        pub_hdr_var.append(len(topic) & 0xFF)  # Topic length, LSB
+        # variable header = 2-byte Topic length (big endian)
+        pub_hdr_var = bytearray(struct.pack(">H", len(topic)))
         pub_hdr_var.extend(topic.encode("utf-8"))  # Topic name
 
         remaining_length = 2 + len(msg) + len(topic)
@@ -687,21 +683,6 @@ class MQTT:
             while subscribed_topics:
                 feed = subscribed_topics.pop()
                 self.subscribe(feed)
-
-    def loop_forever(self):
-        """Starts a blocking message loop. Use this
-        method if you want to run a program forever.
-        Code below a call to this method will NOT execute.
-
-        .. note:: This method is depreciated and will be removed in the
-            next major release. Please see
-            `examples/minimqtt_pub_sub_blocking.py <examples.html#basic-forever-loop>`_
-            for an example of creating a blocking loop which can handle wireless
-            network events.
-        """
-        while True:
-            if self._sock.connected:
-                self.loop()
 
     def loop(self):
         """Non-blocking message loop. Use this method to
