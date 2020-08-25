@@ -246,7 +246,7 @@ class MQTT:
         try:
             del self._on_message_filtered[mqtt_topic]
         except KeyError:
-            raise from KeyError("MQTT topic callback not added with add_topic_callback.")
+            raise KeyError("MQTT topic callback not added with add_topic_callback.") from None
 
     @property
     def on_message(self):
@@ -287,7 +287,7 @@ class MQTT:
                 conntype = _the_interface.TLS_MODE
                 self._sock.connect((self.broker, self.port), conntype)
             except RuntimeError as e:
-                raise from MMQTTException("Invalid broker address defined.", e)
+                raise MMQTTException("Invalid broker address defined.", e) from None
         else:
             try:
                 if self.logger is not None:
@@ -299,7 +299,7 @@ class MQTT:
                 )[0]
                 self._sock.connect(addr[-1], _the_interface.TCP_MODE)
             except RuntimeError as e:
-                raise from MMQTTException("Invalid broker address defined.", e)
+                raise MMQTTException("Invalid broker address defined.", e) from None
 
         # Fixed Header
         fixed_header = bytearray([0x10])
