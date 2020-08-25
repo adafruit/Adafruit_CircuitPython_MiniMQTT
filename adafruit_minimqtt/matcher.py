@@ -55,7 +55,7 @@ class MQTTMatcher:
                 raise KeyError(key)
             return node.content
         except KeyError:
-            raise KeyError(key)
+            raise from KeyError(key)
 
     def __delitem__(self, key):
         """Delete the value associated with some topic filter :key"""
@@ -67,7 +67,7 @@ class MQTTMatcher:
                 lst.append((parent, k, node))
             node.content = None
         except KeyError:
-            raise KeyError(key)
+            raise from KeyError(key)
         else:  # cleanup
             for parent, k, node in reversed(lst):
                 if node.children or node.content is not None:
