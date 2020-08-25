@@ -246,7 +246,9 @@ class MQTT:
         try:
             del self._on_message_filtered[mqtt_topic]
         except KeyError:
-            raise KeyError("MQTT topic callback not added with add_topic_callback.") from None
+            raise KeyError(
+                "MQTT topic callback not added with add_topic_callback."
+            ) from None
 
     @property
     def on_message(self):
