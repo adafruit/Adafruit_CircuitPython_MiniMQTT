@@ -210,6 +210,37 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
+    # Socket helpers
+    def _free_socket(self, socket):
+    """Frees a socket for re-use."""
+        if socket not in self._open_sockets.values():
+            raise RuntimeError("Socket not from MQTT client.")
+        self._socket_free[socket] = True
+
+    def _close_socket(self, socket)
+    """Closes a slocket."""
+        socket.close()
+        del self._socket_free[socket]
+        key = None
+        for k in self._open_sockets:
+            if self._open_sockets[k] == socket:
+                key = k
+                break
+        if key:
+            del self._open_sockets[key]
+
+    def _free_sockets(self):
+        """Closes all free sockets."""
+        free_sockets = []
+        for sock in self._socket_free:
+            if self._socket_free[sock]:
+                free_sockets.append(sock)
+        for sock in free_sockets:
+            self._close_socket(sock)
+
+    def _get_socket(self, host, port, *, timeout=1):
+        pass
+
 
     def __enter__(self):
         return self
