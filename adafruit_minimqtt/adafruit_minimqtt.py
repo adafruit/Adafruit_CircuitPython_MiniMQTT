@@ -27,13 +27,23 @@
 `adafruit_minimqtt`
 ================================================================================
 
-MQTT Library for CircuitPython.
+A minimal MQTT Library for CircuitPython.
 
 * Author(s): Brent Rubell
 
 Implementation Notes
 --------------------
 
+Adapted from https://github.com/micropython/micropython-lib/tree/master/umqtt.simple/umqtt
+
+micropython-lib consists of multiple modules from different sources and
+authors. Each module comes under its own licensing terms. Short name of
+a license can be found in a file within a module directory (usually
+metadata.txt or setup.py). Complete text of each license used is provided
+at https://github.com/micropython/micropython-lib/blob/master/LICENSE
+
+author='Paul Sokolovsky'
+license='MIT'
 **Software and Dependencies:**
 
 * Adafruit CircuitPython firmware for the supported boards:
@@ -100,6 +110,73 @@ def set_socket(sock, iface=None):
         global _the_interface  # pylint: disable=invalid-name, global-statement
         _the_interface = iface
         _the_sock.set_interface(iface)
+
+
+class Session:
+    """Session which shares sockets and SSL context."""
+    def __init__(self, socket_pool, ssl_context=None):
+        self._socket_pool = socket_pool
+        self._ssl_context = ssl_context
+        # Hang onto open sockets so that we can reuse them.
+        self._open_sockets = {}
+        self._socket_free = {}
+        self._last_response = None
+
+    def _free_socket(self, socket):
+        if socket not in self._open_sockets.values():
+            raise RuntimeError("Socket not from active MQTT session.")
+        self._socket_free[socket] = True
+
+    def _close_socket(self, sock):
+        sock.close()
+        del self._socket_free[sock]
+        key = None
+        for k in self._open_sockets:
+            if self._open_sockets[k] == sock:
+                key = k
+                break
+        if key:
+            del self._open_sockets[key]
+
+    def _free_sockets(self):
+        free_sockets = []
+        for sock in self._socket_free:
+            if self._socket_free[sock]:
+                free_sockets.append(sock)
+        for sock in free_sockets:
+            self._close_socket(sock)
+
+    def _get_socket(self):
+        pass
+
+    """ # Pre-existing get_socket
+            self._sock = _the_sock.socket()
+            self._sock.settimeout(15)
+            if self.port == 8883:
+                try:
+                    if self.logger is not None:
+                        self.logger.debug(
+                            "Attempting to establish secure MQTT connection..."
+                        )
+                    conntype = _the_interface.TLS_MODE
+                    self._sock.connect((self.broker, self.port), conntype)
+                except RuntimeError as e:
+                    raise MMQTTException("Invalid broker address defined.", e) from None
+            else:
+                try:
+                    if self.logger is not None:
+                        self.logger.debug(
+                            "Attempting to establish insecure MQTT connection..."
+                        )
+                    addr = _the_sock.getaddrinfo(
+                        self.broker, self.port, 0, _the_sock.SOCK_STREAM
+                    )[0]
+                    self._sock.connect(addr[-1], _the_interface.TCP_MODE)
+                except RuntimeError as e:
+                    raise MMQTTException("Invalid broker address defined.", e) from None
+
+    """
+
 
 
 class MQTT:
@@ -278,6 +355,7 @@ class MQTT:
 
         :param bool clean_session: Establishes a persistent session.
         """
+        # TODO: This will need to implement _get_socket in the future
         self._sock = _the_sock.socket()
         self._sock.settimeout(15)
         if self.port == 8883:
