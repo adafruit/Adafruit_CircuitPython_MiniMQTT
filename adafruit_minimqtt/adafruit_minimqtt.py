@@ -158,7 +158,7 @@ class MQTT:
         self._pid = 0
         self._timestamp = 0
 
-        self.broker = broker
+        self._broker = broker
         self._username = username
         self._password = password
         if (
@@ -167,11 +167,11 @@ class MQTT:
         ): # [MQTT-3.1.3.5]
             raise MMQTTException("Password length is too large.")
 
-        self.port = MQTT_TCP_PORT
+        self._port = MQTT_TCP_PORT
         if is_ssl:
-            self.port = MQTT_TLS_PORT
+            self._port = MQTT_TLS_PORT
         if port is not None:
-            self.port = port
+            self._port = port
 
         # define client identifer
         if client_id is not None:
@@ -239,8 +239,57 @@ class MQTT:
             self._close_socket(sock)
 
     def _get_socket(self, host, port, *, timeout=1):
-        pass
+        key = (host, port)
+        if key in self._open_sockets:
+            sock = self._open_sockets[key]
+            if self._socket_free[sock]:
+                self._socket_free[sock] = False
+                return sock
+        if port == 8883 and not self._ssl_context:
+            raise RuntimeError(
+                "ssl_context must be set before using adafruit_mqtt for secure MQTT."
+            )
+        addr_info = self._socket_pool.getaddrinfo(
+            host, port, 0, self._socket_pool.SOCK_STREAM
+        )[0]
+        retry_count = 0
+        sock = None
+        while retry_count < 5 and sock is None:
+            if retry_count > 0:
+                if any(self._socket_free.items()):
+                    self._free_sockets()
+                else:
+                    raise RuntimeError("Sending request failed")
+            retry_count += 1
 
+            try:
+                sock = self._socket_pool.socket(
+                    addr_info[0], addr_info[1], addr_info[2]
+                )
+            except OSError:
+                continue
+
+            connect_host = addr_info[-1][0]
+            if port == 1883:
+                sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
+                connect_host = host
+            sock.settimeout(timeout)
+
+            try:
+                sock.connect((connect_host, port))
+            except MemoryError:
+                sock.close()
+                sock = None
+            except OSError:
+                sock.close()
+                sock = None
+
+        if sock is None:
+            raise RuntimeError("Repeated socket failures")
+
+        self._open_sockets[key] = sock
+        self._socket_free[sock] = False
+        return sock
 
     def __enter__(self):
         return self
@@ -341,36 +390,25 @@ class MQTT:
             self._password = password
 
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
-    def connect(self, clean_session=True):
+    def connect(self, clean_session=True, host=None, port=None, keepalive=None):
         """Initiates connection with the MQTT Broker.
 
         :param bool clean_session: Establishes a persistent session.
+        :param str host: Hostname or IP address of the remote broker.
+        :param int port: Network port of the remote broker.
+        :param int keepalive: Maximum period allowed for communication
+                                with the broker, in seconds
+
         """
-        # TODO: This will need to implement _get_socket in the future
-        self._sock = _the_sock.socket()
-        self._sock.settimeout(15)
-        if self.port == 8883:
-            try:
-                if self.logger is not None:
-                    self.logger.debug(
-                        "Attempting to establish secure MQTT connection..."
-                    )
-                conntype = _the_interface.TLS_MODE
-                self._sock.connect((self.broker, self.port), conntype)
-            except RuntimeError as e:
-                raise MMQTTException("Invalid broker address defined.", e) from None
-        else:
-            try:
-                if self.logger is not None:
-                    self.logger.debug(
-                        "Attempting to establish insecure MQTT connection..."
-                    )
-                addr = _the_sock.getaddrinfo(
-                    self.broker, self.port, 0, _the_sock.SOCK_STREAM
-                )[0]
-                self._sock.connect(addr[-1], _the_interface.TCP_MODE)
-            except RuntimeError as e:
-                raise MMQTTException("Invalid broker address defined.", e) from None
+        if host is not None:
+            self._broker = host
+        if port is not None:
+            self._port = port
+
+        self.logger.debug("Attempting to establish MQTT connection...")
+
+        # Attempt to get a new socket
+        self._sock = self._get_socket(host, port)
 
         # Fixed Header
         fixed_header = bytearray([0x10])
