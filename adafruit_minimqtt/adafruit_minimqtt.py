@@ -146,38 +146,59 @@ class Session:
         for sock in free_sockets:
             self._close_socket(sock)
 
-    def _get_socket(self):
-        pass
+    def _get_socket(self, host, port, *, timeout=1):
+        key = (host, port)
+        if key in self._open_sockets:
+            sock = self._open_sockets[key]
+            if self._socket_free[sock]:
+                self._socket_free[sock] = False
+                return sock
+        if port == 8883 and not self._ssl_context:
+            raise RuntimeError(
+                "ssl_context must be set before using adafruit_minimqtt for secure mqtt"
+            )
+        addr_info = self._socket_pool.getaddrinfo(
+            host, port, 0, self._socket_pool.SOCK_STREAM
+        )[0]
+        retry_count = 0
+        sock = None
 
-    """ # Pre-existing get_socket
-            self._sock = _the_sock.socket()
-            self._sock.settimeout(15)
-            if self.port == 8883:
-                try:
-                    if self.logger is not None:
-                        self.logger.debug(
-                            "Attempting to establish secure MQTT connection..."
-                        )
-                    conntype = _the_interface.TLS_MODE
-                    self._sock.connect((self.broker, self.port), conntype)
-                except RuntimeError as e:
-                    raise MMQTTException("Invalid broker address defined.", e) from None
-            else:
-                try:
-                    if self.logger is not None:
-                        self.logger.debug(
-                            "Attempting to establish insecure MQTT connection..."
-                        )
-                    addr = _the_sock.getaddrinfo(
-                        self.broker, self.port, 0, _the_sock.SOCK_STREAM
-                    )[0]
-                    self._sock.connect(addr[-1], _the_interface.TCP_MODE)
-                except RuntimeError as e:
-                    raise MMQTTException("Invalid broker address defined.", e) from None
+        while retry_count < 5 and sock is None:
+            if retry_count > 0:
+                if any(self._socket_free.items()):
+                    self._free_sockets()
+                else:
+                    raise RuntimeError("Unable to obtain free socket.")
+            retry_count += 1
 
-    """
+            try:
+                sock = self._socket_pool.socket(
+                    addr_info[0], addr_info[1], addr_info[2]
+                )
+            except OSError:
+                continue
 
+            connect_host = addr_info[-1][0]
+            if port == 8883:
+                sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
+                connect_host = host
+            sock.settimeout(timeout)  # socket read timeout
 
+            try:
+                sock.connect((connect_host, port))
+            except MemoryError:
+                sock.close()
+                sock = None
+            except OSError:
+                sock.close()
+                sock = None
+
+        if sock is None:
+            raise RuntimeError("Repeated socket failures")
+
+        self._open_sockets[key] = sock
+        self._socket_free[sock] = False
+        return sock
 
 class MQTT:
     """MQTT Client for CircuitPython
