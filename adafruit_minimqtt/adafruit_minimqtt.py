@@ -266,9 +266,7 @@ class MQTT:
 
         self.logger = None
         if log is True:
-            # TODO: This should call an enable_logging() method
-            self.logger = logging.getLogger("log")
-            self.logger.setLevel(logging.INFO)
+            self.enable_logger()
 
         # LWT
         self._lw_topic = None
