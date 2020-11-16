@@ -201,21 +201,57 @@ class Session:
         return sock
 
 class MQTT:
-    """MQTT Client for CircuitPython.
-    :param str client_id: Client identifier. If `client_id ` is 
-        set to None, then an identifier string will be randomly generated.
-    :param bool clean_session: Broker removes all information about this client
-        after disconnection. If `False`, subscriptions and queued messages are retained
-        after the client disconnects.
-    :param str user_data: User defined data that is passed as userdata to callbacks.
+class MQTT:
+    """MQTT Client for CircuitPython
+
+    :param str broker: MQTT Broker URL or IP Address.
+    :param int port: Optional port definition, defaults to 8883.
+    :param str username: Username for broker authentication.
+    :param str password: Password for broker authentication.
+    :param network_manager: NetworkManager object, such as WiFiManager from ESPSPI_WiFiManager.
+    :param str client_id: Optional client identifier, defaults to a unique, generated string.
+    :param bool is_ssl: Sets a secure or insecure connection with the broker.
+    :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
+    :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
 
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
-    def __init__(self, client_id=None, clean_session=True, _user_data=None):
-        self._user_data = _user_data
-        self._clean_session = clean_session
+    def __init__(
+        self,
+        broker,
+        port=None,
+        username=None,
+        password=None,
+        client_id=None,
+        is_ssl=True,
+        log=False,
+        keep_alive=60,
+    ):
 
-        # Assign client identifier
+        self._sock = None
+        self.keep_alive = keep_alive
+        self._user_data = None
+        self._is_connected = False
+        self._msg_size_lim = MQTT_MSG_SZ_LIM
+        self._pid = 0
+        self._timestamp = 0
+
+        self.broker = broker
+        self.user = username
+        self.password = password
+        if (
+            self.password is not None
+            and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
+        ): # [MQTT-3.1.3.5]
+            raise MMQTTException("Password length is too large.")
+
+        self.port = MQTT_TCP_PORT
+        if is_ssl:
+            self.port = MQTT_TLS_PORT
+        if port is not None:
+            self.port = port
+
+        # define client identifer
         if client_id is not None:
             # user-defined client_id MAY allow client_id's > 23 bytes or
             # non-alpha-numeric characters
@@ -228,15 +264,12 @@ class MQTT:
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id) > 23 or not self.client_id:
                 raise ValueError("MQTT Client ID must be between 1 and 23 bytes")
-        # Set up logger instance
-        self.logger = None
-        # TODO: enable_logger() should be implemented instead of this!
-        self.logger = logging.getLogger("log")
-        self.logger.setLevel(logging.INFO)
 
-        # List of subscribed topics, used for reconnections
-        self._subscribed_topics = []
-        self._on_message_filtered = MQTTMatcher()
+        self.logger = None
+        if log is True:
+            # TODO: This should call an enable_logging() method
+            self.logger = logging.getLogger("log")
+            self.logger.setLevel(logging.INFO)
 
         # LWT
         self._lw_topic = None
@@ -245,19 +278,17 @@ class MQTT:
         self._lw_msg = None
         self._lw_retain = False
 
-        # Default callback methods
+        # List of subscribed topics, used for tracking
+        self._subscribed_topics = []
+        self._on_message_filtered = MQTTMatcher()
+
+        # Default topic callback methods
         self._on_message = None
         self.on_connect = None
         self.on_disconnect = None
         self.on_publish = None
         self.on_subscribe = None
         self.on_unsubscribe = None
-
-        # Library defaults
-        self._is_connected = False
-        self._msg_size_lim = MQTT_MSG_SZ_LIM
-        self._pid = 0
-        self._timestamp = 0
 
 
     def __enter__(self):
@@ -450,7 +481,7 @@ class MQTT:
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
-                    self.on_connect(self, self._user_data, result, rc[2])
+                    self.on_connect(self, self.__user_data, result, rc[2])
                 return result
 
     def disconnect(self):
@@ -466,7 +497,7 @@ class MQTT:
         self._is_connected = False
         self._subscribed_topics = None
         if self.on_disconnect is not None:
-            self.on_disconnect(self, self._user_data, 0)
+            self.on_disconnect(self, self.__user_data, 0)
 
     def ping(self):
         """Pings the MQTT Broker to confirm if the broker is alive or if
@@ -574,7 +605,7 @@ class MQTT:
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
         if qos == 0 and self.on_publish is not None:
-            self.on_publish(self, self._user_data, topic, self._pid)
+            self.on_publish(self, self.__user_data, topic, self._pid)
         if qos == 1:
             while True:
                 op = self._wait_for_msg()
@@ -585,7 +616,7 @@ class MQTT:
                     rcv_pid = rcv_pid[0] << 0x08 | rcv_pid[1]
                     if pid == rcv_pid:
                         if self.on_publish is not None:
-                            self.on_publish(self, self._user_data, topic, rcv_pid)
+                            self.on_publish(self, self.__user_data, topic, rcv_pid)
                         return
 
     def subscribe(self, topic, qos=0):
@@ -670,7 +701,7 @@ class MQTT:
                     raise MMQTTException("SUBACK Failure!")
                 for t, q in topics:
                     if self.on_subscribe is not None:
-                        self.on_subscribe(self, self._user_data, t, q)
+                        self.on_subscribe(self, self.__user_data, t, q)
                     self._subscribed_topics.append(t)
                 return
 
@@ -736,7 +767,7 @@ class MQTT:
                 )
                 for t in topics:
                     if self.on_unsubscribe is not None:
-                        self.on_unsubscribe(self, self._user_data, t, self._pid)
+                        self.on_unsubscribe(self, self.__user_data, t, self._pid)
                     self._subscribed_topics.remove(t)
                 return
 
