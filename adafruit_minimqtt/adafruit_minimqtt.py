@@ -201,7 +201,6 @@ class Session:
         return sock
 
 class MQTT:
-class MQTT:
     """MQTT Client for CircuitPython
 
     :param str broker: MQTT Broker URL or IP Address.
@@ -237,10 +236,10 @@ class MQTT:
         self._timestamp = 0
 
         self.broker = broker
-        self.user = username
-        self.password = password
+        self._username = username
+        self._password = password
         if (
-            self.password is not None
+            self._password is not None
             and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
         ): # [MQTT-3.1.3.5]
             raise MMQTTException("Password length is too large.")
@@ -377,6 +376,18 @@ class MQTT:
         if not matched and self.on_message:  # regular on_message
             self.on_message(client, topic, message)
 
+    def username_pw_set(self, username, password=None):
+        """Set client's username and an optional password.
+        :param str username: Username to use with your MQTT broker.
+        :param str password: Password to use with your MQTT broker.
+
+        """
+        if self._is_connected:
+            raise MMQTTException("This method must be called before connect().")
+        self._username = username
+        if password is not None:
+            self._password = password
+
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
     def connect(self, clean_session=True):
         """Initiates connection with the MQTT Broker.
@@ -421,8 +432,8 @@ class MQTT:
 
         # Set up variable header and remaining_length
         remaining_length = 12 + len(self.client_id)
-        if self.user is not None:
-            remaining_length += 2 + len(self.user) + 2 + len(self.password)
+        if self._username is not None:
+            remaining_length += 2 + len(self._username) + 2 + len(self._password)
             var_header[6] |= 0xC0
         if self.keep_alive:
             assert self.keep_alive < MQTT_TOPIC_LENGTH_LIMIT
@@ -464,11 +475,11 @@ class MQTT:
             # [MQTT-3.1.3-11]
             self._send_str(self._lw_topic)
             self._send_str(self._lw_msg)
-        if self.user is None:
-            self.user = None
+        if self._username is None:
+            self._username = None
         else:
-            self._send_str(self.user)
-            self._send_str(self.password)
+            self._send_str(self._username)
+            self._send_str(self._password)
         if self.logger is not None:
             self.logger.debug("Receiving CONNACK packet from broker")
         while True:
