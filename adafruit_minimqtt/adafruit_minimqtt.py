@@ -492,7 +492,7 @@ class MQTT:
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
-                    self.on_connect(self, self.__user_data, result, rc[2])
+                    self.on_connect(self, self._user_data, result, rc[2])
                 return result
 
     def disconnect(self):
@@ -508,7 +508,7 @@ class MQTT:
         self._is_connected = False
         self._subscribed_topics = None
         if self.on_disconnect is not None:
-            self.on_disconnect(self, self.__user_data, 0)
+            self.on_disconnect(self, self._user_data, 0)
 
     def ping(self):
         """Pings the MQTT Broker to confirm if the broker is alive or if
@@ -616,7 +616,7 @@ class MQTT:
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
         if qos == 0 and self.on_publish is not None:
-            self.on_publish(self, self.__user_data, topic, self._pid)
+            self.on_publish(self, self._user_data, topic, self._pid)
         if qos == 1:
             while True:
                 op = self._wait_for_msg()
@@ -627,7 +627,7 @@ class MQTT:
                     rcv_pid = rcv_pid[0] << 0x08 | rcv_pid[1]
                     if pid == rcv_pid:
                         if self.on_publish is not None:
-                            self.on_publish(self, self.__user_data, topic, rcv_pid)
+                            self.on_publish(self, self._user_data, topic, rcv_pid)
                         return
 
     def subscribe(self, topic, qos=0):
@@ -712,7 +712,7 @@ class MQTT:
                     raise MMQTTException("SUBACK Failure!")
                 for t, q in topics:
                     if self.on_subscribe is not None:
-                        self.on_subscribe(self, self.__user_data, t, q)
+                        self.on_subscribe(self, self._user_data, t, q)
                     self._subscribed_topics.append(t)
                 return
 
@@ -778,7 +778,7 @@ class MQTT:
                 )
                 for t in topics:
                     if self.on_unsubscribe is not None:
-                        self.on_unsubscribe(self, self.__user_data, t, self._pid)
+                        self.on_unsubscribe(self, self._user_data, t, self._pid)
                     self._subscribed_topics.remove(t)
                 return
 
@@ -939,11 +939,32 @@ class MQTT:
     ### Logging ###
     def attach_logger(self, logger_name="log"):
         """Initializes and attaches a logger to the MQTTClient.
-
         :param str logger_name: Name of the logger instance
+        NOTE: This method is replaced by enable_logger and
+                will be removed in a future release to
+                remove this lib's dependency from adafruit_logging.
+
         """
         self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.INFO)
+
+    def enable_logger(self, logger=None):
+        """Enables logging using the logging package. If a `logger`
+        is specified, then that object will be used. Otherwise, a `logger`
+        will be automatically created.
+
+        """
+        if logger:
+            self.logger = logger
+        else:
+            self.logger = logging.getLogger("log")
+            self.logger.setLevel(logging.INFO)
+
+    def disable_logger(self):
+        """Disables logging."""
+        if not self.logger:
+            raise ValueError("Can not disable logging - no logger enabled!")
+        self.logger = None
 
     def set_logger_level(self, log_level):
         """Sets the level of the logger, if defined during init.
