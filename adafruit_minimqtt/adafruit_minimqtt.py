@@ -123,6 +123,8 @@ class MQTT:
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
+    :param socket socket_pool: A pool of socket resources available for the given radio.
+    :param ssl_context: SSL context for long-lived SSL connections.
 
     """
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
@@ -136,7 +138,17 @@ class MQTT:
         is_ssl=True,
         log=False,
         keep_alive=60,
+        socket_pool=None
+        ssl_context=None
     ):
+        # Socket Pool
+        if socket_pool is not None:
+            self._socket_pool = socket_pool
+        if ssl_context is not None:
+            self._ssl_context = ssl_context
+        # Hang onto open sockets so that we can reuse them
+        self._socket_free = {}
+        self._open_sockets = {}
 
         self._sock = None
         self.keep_alive = keep_alive

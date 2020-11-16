@@ -53,14 +53,12 @@ def publish(mqtt_client, userdata, topic, pid):
     print("Published to {0} with PID {1}".format(topic, pid))
 
 
-mqtt_client = MQTT.session(socket)
-
-# Initialize MQTT interface with the esp interface
-# MQTT.set_socket(socket, esp)
-
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"], username=secrets["user"], password=secrets["pass"]
+    broker=secrets["broker"],
+    username=secrets["user"],
+    password=secrets["pass"],
+    socket
 )
 
 # Connect callback handlers to mqtt_client
