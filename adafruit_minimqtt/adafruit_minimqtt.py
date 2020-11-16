@@ -93,7 +93,6 @@ _the_sock = None  # pylint: disable=invalid-name
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
-
     # pylint: disable=unnecessary-pass
     # pass
 
@@ -111,94 +110,6 @@ def set_socket(sock, iface=None):
         _the_interface = iface
         _the_sock.set_interface(iface)
 
-
-class Session:
-    """Session which shares sockets and SSL context."""
-    def __init__(self, socket_pool, ssl_context=None):
-        self._socket_pool = socket_pool
-        self._ssl_context = ssl_context
-        # Hang onto open sockets so that we can reuse them.
-        self._open_sockets = {}
-        self._socket_free = {}
-        self._last_response = None
-
-    def _free_socket(self, socket):
-        if socket not in self._open_sockets.values():
-            raise RuntimeError("Socket not from active MQTT session.")
-        self._socket_free[socket] = True
-
-    def _close_socket(self, sock):
-        sock.close()
-        del self._socket_free[sock]
-        key = None
-        for k in self._open_sockets:
-            if self._open_sockets[k] == sock:
-                key = k
-                break
-        if key:
-            del self._open_sockets[key]
-
-    def _free_sockets(self):
-        free_sockets = []
-        for sock in self._socket_free:
-            if self._socket_free[sock]:
-                free_sockets.append(sock)
-        for sock in free_sockets:
-            self._close_socket(sock)
-
-    def _get_socket(self, host, port, *, timeout=1):
-        key = (host, port)
-        if key in self._open_sockets:
-            sock = self._open_sockets[key]
-            if self._socket_free[sock]:
-                self._socket_free[sock] = False
-                return sock
-        if port == 8883 and not self._ssl_context:
-            raise RuntimeError(
-                "ssl_context must be set before using adafruit_minimqtt for secure mqtt"
-            )
-        addr_info = self._socket_pool.getaddrinfo(
-            host, port, 0, self._socket_pool.SOCK_STREAM
-        )[0]
-        retry_count = 0
-        sock = None
-
-        while retry_count < 5 and sock is None:
-            if retry_count > 0:
-                if any(self._socket_free.items()):
-                    self._free_sockets()
-                else:
-                    raise RuntimeError("Unable to obtain free socket.")
-            retry_count += 1
-
-            try:
-                sock = self._socket_pool.socket(
-                    addr_info[0], addr_info[1], addr_info[2]
-                )
-            except OSError:
-                continue
-
-            connect_host = addr_info[-1][0]
-            if port == 8883:
-                sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
-                connect_host = host
-            sock.settimeout(timeout)  # socket read timeout
-
-            try:
-                sock.connect((connect_host, port))
-            except MemoryError:
-                sock.close()
-                sock = None
-            except OSError:
-                sock.close()
-                sock = None
-
-        if sock is None:
-            raise RuntimeError("Repeated socket failures")
-
-        self._open_sockets[key] = sock
-        self._socket_free[sock] = False
-        return sock
 
 class MQTT:
     """MQTT Client for CircuitPython
