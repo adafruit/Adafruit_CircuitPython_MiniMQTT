@@ -54,7 +54,10 @@ import struct
 import time
 from random import randint
 from micropython import const
-import adafruit_logging as logging
+try:
+    import logging
+except:
+    import adafruit_logging as logging
 from .matcher import MQTTMatcher
 
 __version__ = "0.0.0-auto.0"
@@ -138,7 +141,7 @@ class MQTT:
         is_ssl=True,
         log=False,
         keep_alive=60,
-        socket_pool=None
+        socket_pool=None,
         ssl_context=None
     ):
         # Socket Pool
@@ -158,7 +161,7 @@ class MQTT:
         self._pid = 0
         self._timestamp = 0
 
-        self._broker = broker
+        self.broker = broker
         self._username = username
         self._password = password
         if (
@@ -167,11 +170,11 @@ class MQTT:
         ): # [MQTT-3.1.3.5]
             raise MMQTTException("Password length is too large.")
 
-        self._port = MQTT_TCP_PORT
+        self.port = MQTT_TCP_PORT
         if is_ssl:
-            self._port = MQTT_TLS_PORT
+            self.port = MQTT_TLS_PORT
         if port is not None:
-            self._port = port
+            self.port = port
 
         # define client identifer
         if client_id is not None:
@@ -212,13 +215,13 @@ class MQTT:
 
     # Socket helpers
     def _free_socket(self, socket):
-    """Frees a socket for re-use."""
+        """Frees a socket for re-use."""
         if socket not in self._open_sockets.values():
             raise RuntimeError("Socket not from MQTT client.")
         self._socket_free[socket] = True
 
-    def _close_socket(self, socket)
-    """Closes a slocket."""
+    def _close_socket(self, socket):
+        """Closes a slocket."""
         socket.close()
         del self._socket_free[socket]
         key = None
@@ -249,6 +252,7 @@ class MQTT:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
+        print(key)
         addr_info = self._socket_pool.getaddrinfo(
             host, port, 0, self._socket_pool.SOCK_STREAM
         )[0]
@@ -270,7 +274,7 @@ class MQTT:
                 continue
 
             connect_host = addr_info[-1][0]
-            if port == 1883:
+            if port == 8883:
                 sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
                 connect_host = host
             sock.settimeout(timeout)
@@ -401,14 +405,15 @@ class MQTT:
 
         """
         if host is not None:
-            self._broker = host
+            self.broker = host
         if port is not None:
-            self._port = port
+            self.port = port
 
-        self.logger.debug("Attempting to establish MQTT connection...")
+        if self.logger:
+            self.logger.debug("Attempting to establish MQTT connection...")
 
         # Attempt to get a new socket
-        self._sock = self._get_socket(host, port)
+        self._sock = self._get_socket(self.broker, self.port)
 
         # Fixed Header
         fixed_header = bytearray([0x10])
