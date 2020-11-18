@@ -826,20 +826,16 @@ class MQTT:
             self._sock.recv_into(res, 1)
         except BlockingIOError: # fix for macOS Errno
             return None
-        print("Res: ", res)
         self._sock.setblocking(True)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
             sz = self._sock.recv(1)[0]
-            print("got ping!")
             assert sz == 0
             return None
         if res[0] & 0xF0 != 0x30:
             return res[0]
-        print("obtaining sz")
         sz = self._recv_len()
-        print("sz: ", sz)
         topic_len = self._sock.recv(2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
         topic = self._sock.recv(topic_len)
@@ -850,7 +846,6 @@ class MQTT:
             pid = pid[0] << 0x08 | pid[1]
             sz -= 0x02
         msg = self._sock.recv(sz)
-        print(msg, topic)
         self._handle_on_message(self, topic, str(msg, "utf-8"))
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
