@@ -54,10 +54,10 @@ import struct
 import time
 from random import randint
 from micropython import const
-try:
-    import logging
-except:
+try: # try circuitpython logging module
     import adafruit_logging as logging
+except ImportError: # try cpython logging
+    import logging
 from .matcher import MQTTMatcher
 
 __version__ = "0.0.0-auto.0"
