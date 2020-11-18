@@ -516,7 +516,7 @@ class MQTT:
         if self.logger:
             self.logger.debug("Checking PINGRESP")
         while True:
-            op = self._wait_for_msg(0.5)
+            op = self._wait_for_msg()
             if op == 208:
                 ping_resp = self._sock.recv(2)
                 if ping_resp[0] != 0x00:
