@@ -1,7 +1,7 @@
 import socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### Secrets Setup ###
+### Secrets File Setup ###
 
 try:
     from secrets import secrets
