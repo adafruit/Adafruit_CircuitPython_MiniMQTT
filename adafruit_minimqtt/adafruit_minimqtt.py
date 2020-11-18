@@ -319,7 +319,7 @@ class MQTT:
         :param bool retain: Specifies if the payload is to be retained when
             it is published.
         """
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Setting last will properties")
         self._check_qos(qos)
         if self._is_connected:
@@ -457,7 +457,7 @@ class MQTT:
             fixed_header.append(remaining_length)
             fixed_header.append(0x00)
 
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Sending CONNECT to broker")
             self.logger.debug(
                 "Fixed Header: {}\nVariable Header: {}".format(fixed_header, var_header)
@@ -475,7 +475,7 @@ class MQTT:
         else:
             self._send_str(self._username)
             self._send_str(self._password)
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Receiving CONNACK packet from broker")
         while True:
             op = self._wait_for_msg()
@@ -494,10 +494,10 @@ class MQTT:
         """Disconnects the MiniMQTT client from the MQTT broker.
         """
         self.is_connected()
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Sending DISCONNECT packet to broker")
         self._sock.send(MQTT_DISCONNECT)
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Closing socket")
         self._sock.close()
         self._is_connected = False
@@ -510,10 +510,10 @@ class MQTT:
         there is an active network connection.
         """
         self.is_connected()
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Checking PINGRESP")
         while True:
             op = self._wait_for_msg(0.5)
@@ -600,7 +600,7 @@ class MQTT:
         else:
             pub_hdr_fixed.append(remaining_length)
 
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug(
                 "Sending PUBLISH\nTopic: {0}\nMsg: {1}\
                                 \nQoS: {2}\nRetain? {3}".format(
@@ -695,7 +695,7 @@ class MQTT:
             qos_byte = q.to_bytes(1, "big")
             #print(packet, "\n", topic_size, "\n", t, "\n", qos_byte)
             packet += topic_size + t.encode() + qos_byte
-        if self.logger is not None:
+        if self.logger:
             for t, q in topics:
                 self.logger.debug("SUBSCRIBING to topic {0} with QoS {1}".format(t, q))
         self._sock.send(packet)
@@ -756,11 +756,11 @@ class MQTT:
         for t in topics:
             topic_size = len(t).to_bytes(2, "big")
             packet += topic_size + t.encode()
-        if self.logger is not None:
+        if self.logger:
             for t in topics:
                 self.logger.debug("UNSUBSCRIBING from topic {0}.".format(t))
         self._sock.send(packet)
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Waiting for UNSUBACK...")
         while True:
             op = self._wait_for_msg()
@@ -783,13 +783,13 @@ class MQTT:
 
         :param bool resub_topics: Resubscribe to previously subscribed topics.
         """
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Attempting to reconnect with MQTT broker")
         self.connect()
-        if self.logger is not None:
+        if self.logger:
             self.logger.debug("Reconnected with broker")
         if resub_topics:
-            if self.logger is not None:
+            if self.logger:
                 self.logger.debug(
                     "Attempting to resubscribe to previously subscribed topics."
                 )
@@ -808,7 +808,7 @@ class MQTT:
         current_time = time.monotonic()
         if current_time - self._timestamp >= self.keep_alive:
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
-            if self.logger is not None:
+            if self.logger:
                 self.logger.debug(
                     "KeepAlive period elapsed - \
                                    requesting a PINGRESP from the server..."
