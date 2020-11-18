@@ -693,7 +693,8 @@ class MQTT:
         for t, q in topics:
             topic_size = len(t).to_bytes(2, "big")
             qos_byte = q.to_bytes(1, "big")
-            packet += topic_size + t + qos_byte
+            #print(packet, "\n", topic_size, "\n", t, "\n", qos_byte)
+            packet += topic_size + t.encode() + qos_byte
         if self.logger is not None:
             for t, q in topics:
                 self.logger.debug("SUBSCRIBING to topic {0} with QoS {1}".format(t, q))
@@ -814,15 +815,19 @@ class MQTT:
                 )
             self.ping()
             self._timestamp = 0
-        self._sock.settimeout(0.1)
+        #self._sock.settimeout(0.0)
         return self._wait_for_msg()
 
-    def _wait_for_msg(self, timeout=30):
-        """Reads and processes network events.
-        Returns response code if successful.
-        """
+    def _wait_for_msg(self):
+        """Reads and processes network events."""
+        self._sock.setblocking(False)
+        print('Sock Blocking: ', self._sock.getblocking())
+        print('Sock timeout: ', self._sock.gettimeout())
         res = self._sock.recv(1)
-        self._sock.settimeout(timeout)
+        print("Res: ", res)
+        
+        self._sock.setblocking(True)
+
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
