@@ -755,7 +755,7 @@ class MQTT:
         packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
         for t in topics:
             topic_size = len(t).to_bytes(2, "big")
-            packet += topic_size + t
+            packet += topic_size + t.encode()
         if self.logger is not None:
             for t in topics:
                 self.logger.debug("UNSUBSCRIBING from topic {0}.".format(t))
