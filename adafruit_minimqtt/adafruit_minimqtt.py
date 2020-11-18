@@ -394,20 +394,22 @@ class MQTT:
             self._password = password
 
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
-    def connect(self, clean_session=True, host=None, port=None, keepalive=None):
+    def connect(self, clean_session=True, host=None, port=None, keep_alive=None):
         """Initiates connection with the MQTT Broker.
 
         :param bool clean_session: Establishes a persistent session.
         :param str host: Hostname or IP address of the remote broker.
         :param int port: Network port of the remote broker.
-        :param int keepalive: Maximum period allowed for communication
+        :param int keep_alive: Maximum period allowed for communication
                                 with the broker, in seconds
 
         """
-        if host is not None:
+        if host:
             self.broker = host
-        if port is not None:
+        if port:
             self.port = port
+        if keep_alive:
+            self.keep_alive = keep_alive
 
         if self.logger:
             self.logger.debug("Attempting to establish MQTT connection...")
@@ -427,7 +429,7 @@ class MQTT:
 
         # Set up variable header and remaining_length
         remaining_length = 12 + len(self.client_id)
-        if self._username is not None:
+        if self._username:
             remaining_length += 2 + len(self._username) + 2 + len(self._password)
             var_header[6] |= 0xC0
         if self.keep_alive:
@@ -458,10 +460,8 @@ class MQTT:
             fixed_header.append(0x00)
 
         if self.logger:
-            self.logger.debug("Sending CONNECT to broker")
-            self.logger.debug(
-                "Fixed Header: {}\nVariable Header: {}".format(fixed_header, var_header)
-            )
+            self.logger.debug("Sending CONNECT to broker...")
+            self.logger.debug("Fixed Header: %x\nVariable Header: %x", fixed_header, var_header)
         self._sock.send(fixed_header)
         self._sock.send(var_header)
         # [MQTT-3.1.3-4]
@@ -602,10 +602,9 @@ class MQTT:
 
         if self.logger:
             self.logger.debug(
-                "Sending PUBLISH\nTopic: {0}\nMsg: {1}\
-                                \nQoS: {2}\nRetain? {3}".format(
+                "Sending PUBLISH\nTopic: %s\nMsg: %x\
+                                \nQoS: %d\nRetain? %r",
                     topic, msg, qos, retain
-                )
             )
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
@@ -697,7 +696,7 @@ class MQTT:
             packet += topic_size + t.encode() + qos_byte
         if self.logger:
             for t, q in topics:
-                self.logger.debug("SUBSCRIBING to topic {0} with QoS {1}".format(t, q))
+                self.logger.debug("SUBSCRIBING to topic %s with QoS %d", t, q)
         self._sock.send(packet)
         while True:
             op = self._wait_for_msg()
@@ -758,7 +757,7 @@ class MQTT:
             packet += topic_size + t.encode()
         if self.logger:
             for t in topics:
-                self.logger.debug("UNSUBSCRIBING from topic {0}.".format(t))
+                self.logger.debug("UNSUBSCRIBING from topic %s", t)
         self._sock.send(packet)
         if self.logger:
             self.logger.debug("Waiting for UNSUBACK...")
