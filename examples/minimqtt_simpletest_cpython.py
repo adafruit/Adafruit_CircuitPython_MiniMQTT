@@ -17,7 +17,7 @@ except ImportError:
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-mqtt_topic = 'brubell/feeds/temperature'
+mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
 
 ### Code ###
 
