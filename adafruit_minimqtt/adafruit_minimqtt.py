@@ -273,7 +273,8 @@ class MQTT:
 
             connect_host = addr_info[-1][0]
             if port == 8883:
-                sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
+                sock = self._ssl_context.wrap_socket(sock,
+                        server_hostname=host)
                 connect_host = host
             sock.settimeout(timeout)
 
@@ -796,9 +797,11 @@ class MQTT:
                 feed = subscribed_topics.pop()
                 self.subscribe(feed)
 
-    def loop(self):
+    def loop(self, timeout=0.01):
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
+        :param float timeout: Set timeout in seconds for
+                                polling the message queue.
         """
         if self._timestamp == 0:
             self._timestamp = time.monotonic()
@@ -812,17 +815,20 @@ class MQTT:
                 )
             self.ping()
             self._timestamp = 0
-        return self._wait_for_msg()
+        return self._wait_for_msg(timeout)
 
-    def _wait_for_msg(self):
+    def _wait_for_msg(self, timeout=0.01):
         """Reads and processes network events."""
         res = bytearray(1) #TODO: This should be a globally shared buffer for readinto
 
-        self._sock.setblocking(False)
+        self._sock.settimeout(timeout)
         try:
             self._sock.recv_into(res, 1)
         except BlockingIOError: # fix for macOS Errno
             return None
+        except self._socket_pool.timeout:
+            return None
+
         self._sock.setblocking(True)
         if res in [None, b""]:
             return None
