@@ -145,10 +145,9 @@ class MQTT:
         ssl_context=None
     ):
         # Socket Pool
-        if socket_pool is not None:
+        if socket_pool:
             self._socket_pool = socket_pool
-        if ssl_context is not None:
-            self._ssl_context = ssl_context
+        self._ssl_context = ssl_context
         # Hang onto open sockets so that we can reuse them
         self._socket_free = {}
         self._open_sockets = {}
@@ -165,7 +164,7 @@ class MQTT:
         self._username = username
         self._password = password
         if (
-            self._password is not None
+            self._password
             and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
         ): # [MQTT-3.1.3.5]
             raise MMQTTException("Password length is too large.")
@@ -173,11 +172,11 @@ class MQTT:
         self.port = MQTT_TCP_PORT
         if is_ssl:
             self.port = MQTT_TLS_PORT
-        if port is not None:
+        if port:
             self.port = port
 
         # define client identifer
-        if client_id is not None:
+        if client_id:
             # user-defined client_id MAY allow client_id's > 23 bytes or
             # non-alpha-numeric characters
             self.client_id = client_id
@@ -252,7 +251,6 @@ class MQTT:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
-        print(key)
         addr_info = self._socket_pool.getaddrinfo(
             host, port, 0, self._socket_pool.SOCK_STREAM
         )[0]
