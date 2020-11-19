@@ -144,15 +144,15 @@ class MQTT:
         socket_pool=None,
         ssl_context=None
     ):
-        # Socket Pool
-        if socket_pool:
-            self._socket_pool = socket_pool
+
+        self._socket_pool = socket_pool
         self._ssl_context = ssl_context
         # Hang onto open sockets so that we can reuse them
         self._socket_free = {}
         self._open_sockets = {}
-
         self._sock = None
+        self._backwards_compatible_sock = False
+
         self.keep_alive = keep_alive
         self._user_data = None
         self._is_connected = False
@@ -289,6 +289,8 @@ class MQTT:
 
         if sock is None:
             raise RuntimeError("Repeated socket failures")
+
+        self._backwards_compatible_sock = not hasattr(sock, "recv_into")
 
         self._open_sockets[key] = sock
         self._socket_free[sock] = False
@@ -819,14 +821,15 @@ class MQTT:
 
     def _wait_for_msg(self, timeout=0.01):
         """Reads and processes network events."""
-        res = bytearray(1) #TODO: This should be a globally shared buffer for readinto
 
+        # attempt to recv from socket within `timeout` seconds
         self._sock.settimeout(timeout)
         try:
+            res = bytearray(1) #TODO: This should be a globally shared buffer for readinto
             self._sock.recv_into(res, 1)
-        except BlockingIOError: # fix for macOS Errno
-            return None
         except self._socket_pool.timeout:
+            return None
+        except BlockingIOError: # fixes macOS socket Errno 35
             return None
 
         self._sock.setblocking(True)
@@ -867,6 +870,17 @@ class MQTT:
             if not b & 0x80:
                 return n
             sh += 7
+
+    def _recv_into(self, buf, size=0):
+        """Backwards-compatible _recv_into implementation.
+        """
+        if self._backwards_compatible_sock:
+            size = len(buf) if size == 0 else size
+            b = self._sock.recv(size)
+            read_size = len(b)
+            buf[:read_size] = b
+            return read_size
+        return self._sock.recv_into(buf, size)
 
     def _send_str(self, string):
         """Packs and encodes a string to a socket.
