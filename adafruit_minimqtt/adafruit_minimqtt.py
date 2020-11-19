@@ -212,6 +212,10 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
+        # Shared buffer
+        self._rx_length = 0
+        self._rx_buffer = bytearray(32)
+
     # Socket helpers
     def _free_socket(self, socket):
         """Frees a socket for re-use."""
@@ -405,6 +409,7 @@ class MQTT:
                                 with the broker, in seconds
 
         """
+        buf = self._rx_buffer
         if host:
             self.broker = host
         if port:
@@ -481,14 +486,14 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op == 32:
-                rc = self._sock.recv(3)
-                assert rc[0] == 0x02
-                if rc[2] != 0x00:
-                    raise MMQTTException(CONNACK_ERRORS[rc[2]])
+                self._recv_into(buf, 3)
+                assert buf[0] == 0x02
+                if buf[2] != 0x00:
+                    raise MMQTTException(CONNACK_ERRORS[buf[2]])
                 self._is_connected = True
-                result = rc[0] & 1
+                result = buf[0] & 1
                 if self.on_connect is not None:
-                    self.on_connect(self, self._user_data, result, rc[2])
+                    self.on_connect(self, self._user_data, result, buf[2])
                 return result
 
     def disconnect(self):
