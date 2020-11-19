@@ -505,7 +505,7 @@ class MQTT:
         self._sock.send(MQTT_DISCONNECT)
         if self.logger:
             self.logger.debug("Closing socket")
-        self._sock.close()
+        self._free_sockets()
         self._is_connected = False
         self._subscribed_topics = None
         if self.on_disconnect is not None:
@@ -516,6 +516,7 @@ class MQTT:
         there is an active network connection.
         """
         self.is_connected()
+        buf = self._rx_buffer
         if self.logger:
             self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
@@ -524,8 +525,8 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op == 208:
-                ping_resp = self._sock.recv(2)
-                if ping_resp[0] != 0x00:
+                self._recv_into(buf, 2)
+                if buf[0] != 0x00:
                     raise MMQTTException("PINGRESP not returned from broker.")
             return
 
@@ -579,6 +580,7 @@ class MQTT:
             0 <= qos <= 1
         ), "Quality of Service Level 2 is unsupported by this library."
 
+        buf = self._rx_buffer
         # fixed header. [3.3.1.2], [3.3.1.3]
         pub_hdr_fixed = bytearray([0x30 | retain | qos << 1])
 
@@ -621,13 +623,14 @@ class MQTT:
             while True:
                 op = self._wait_for_msg()
                 if op == 0x40:
-                    sz = self._sock.recv(1)
-                    assert sz == b"\x02"
-                    rcv_pid = self._sock.recv(2)
-                    rcv_pid = rcv_pid[0] << 0x08 | rcv_pid[1]
-                    if pid == rcv_pid:
+                    self._recv_into(buf, 1)
+                    assert buf == b"\x02"
+                    # rcv_pid = self._sock.recv(2)
+                    self._recv_into(buf, 2)
+                    buf = buf[0] << 0x08 | buf[1]
+                    if pid == buf:
                         if self.on_publish is not None:
-                            self.on_publish(self, self._user_data, topic, rcv_pid)
+                            self.on_publish(self, self._user_data, topic, buf)
                         return
 
     def subscribe(self, topic, qos=0):
@@ -686,6 +689,8 @@ class MQTT:
                 self._check_qos(q)
                 self._check_topic(t)
                 topics.append((t, q))
+        # Rx buffer
+        buf = self._rx_buffer
         # Assemble packet
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic) for topic, qos in topics)
@@ -707,9 +712,9 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op == 0x90:
-                rc = self._sock.recv(4)
-                assert rc[1] == packet[2] and rc[2] == packet[3]
-                if rc[3] == 0x80:
+                self._recv_into(buf, 4)
+                assert buf[1] == packet[2] and buf[2] == packet[3]
+                if buf[3] == 0x80:
                     raise MMQTTException("SUBACK Failure!")
                 for t, q in topics:
                     if self.on_subscribe is not None:
@@ -751,6 +756,8 @@ class MQTT:
                 raise MMQTTException(
                     "Topic must be subscribed to before attempting unsubscribe."
                 )
+        # Rx buffer
+        buf = self._rx_buffer
         # Assemble packet
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic) for topic in topics)
@@ -770,12 +777,12 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op == 176:
-                return_code = self._sock.recv(3)
-                assert return_code[0] == 0x02
+                self._recv_into(buf, 3)
+                assert buf[0] == 0x02
                 # [MQTT-3.32]
                 assert (
-                    return_code[1] == packet_id_bytes[0]
-                    and return_code[2] == packet_id_bytes[1]
+                    buf[1] == packet_id_bytes[0]
+                    and buf[2] == packet_id_bytes[1]
                 )
                 for t in topics:
                     if self.on_unsubscribe is not None:
