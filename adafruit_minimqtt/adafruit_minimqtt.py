@@ -876,10 +876,11 @@ class MQTT:
     def _recv_len(self):
         n = 0
         sh = 0
+        b = bytearray(1)
         while True:
-            b = self._sock.recv(1)[0]
-            n |= (b & 0x7F) << sh
-            if not b & 0x80:
+            self._recv_into(b, 1)
+            n |= (b[0] & 0x7F) << sh
+            if not b[0] & 0x80:
                 return n
             sh += 7
 
