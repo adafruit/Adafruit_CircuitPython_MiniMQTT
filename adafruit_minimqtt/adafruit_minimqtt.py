@@ -376,15 +376,15 @@ class MQTT:
     def on_message(self, method):
         self._on_message = method
 
-    def _handle_on_message(self, client, topic, message):
+    def _handle_on_message(self, client, topic):
         matched = False
         if topic is not None:
             for callback in self._on_message_filtered.iter_match(topic):
-                callback(client, topic, message)  # on_msg with callback
+                callback(client, topic, self._rx_buffer.decode())  # on_msg with callback
                 matched = True
 
         if not matched and self.on_message:  # regular on_message
-            self.on_message(client, topic, message)
+            self.on_message(client, topic, self._rx_buffer.decode())
 
     def username_pw_set(self, username, password=None):
         """Set client's username and an optional password.
@@ -833,6 +833,7 @@ class MQTT:
 
     def _wait_for_msg(self, timeout=0.01):
         """Reads and processes network events."""
+        buf = self._rx_buffer
         # attempt to recv from socket within `timeout` seconds
         self._sock.settimeout(0)
 
@@ -873,10 +874,18 @@ class MQTT:
             pid = pid[0] << 0x08 | pid[1]
             sz -= 0x02
 
-        # TODO: Potentially resize buffer here if > 32bytes
-        msg = bytearray(sz)
-        self._recv_into(msg, len(msg))
-        self._handle_on_message(self, topic, str(msg, "utf-8"))
+        # if expected packet size is larger than buffer
+        if sz > len(buf):
+            # resize buffer to match expected size
+            new_size = sz + len(buf)
+            new_buf = bytearray(new_size)
+            new_buf[: len(buf)] = buf
+            buf = new_buf
+            self._rx_buffer = buf
+        # read incoming packet
+        self._recv_into(self._rx_buffer, sz)
+
+        self._handle_on_message(self, topic)
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
@@ -884,6 +893,7 @@ class MQTT:
         elif res[0] & 6 == 4:
             assert 0
         return res[0]
+
 
     def _recv_len(self):
         n = 0
