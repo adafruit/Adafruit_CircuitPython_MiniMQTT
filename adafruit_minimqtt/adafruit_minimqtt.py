@@ -833,18 +833,23 @@ class MQTT:
 
     def _wait_for_msg(self, timeout=0.01):
         """Reads and processes network events."""
-
         # attempt to recv from socket within `timeout` seconds
-        self._sock.settimeout(timeout)
+        self._sock.settimeout(0)
+
         try:
-            res = bytearray(1) #TODO: This should be a globally shared buffer for readinto
-            self._sock.recv_into(res, 1)
-        except self._socket_pool.timeout:
-            return None
-        except BlockingIOError: # fixes macOS socket Errno 35
+            res = bytearray(1)
+            self._recv_into(res, 1)
+            print(res)
+        except OSError:
             return None
 
-        self._sock.setblocking(True)
+        # TODO: Re-implement these?
+        # except self._sock.timeout:
+            # return None
+        # except BlockingIOError: # fixes macOS socket Errno 35
+            # return None
+
+        self._sock.settimeout(0)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
@@ -854,16 +859,23 @@ class MQTT:
         if res[0] & 0xF0 != 0x30:
             return res[0]
         sz = self._recv_len()
-        topic_len = self._sock.recv(2)
+        # topic length MSB & LSB
+        topic_len = bytearray(2)
+        self._recv_into(topic_len, 2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
-        topic = self._sock.recv(topic_len)
+        topic = bytearray(topic_len)
+        self._recv_into(topic, topic_len)
         topic = str(topic, "utf-8")
         sz -= topic_len + 2
         if res[0] & 0x06:
-            pid = self._sock.recv(2)
+            pid = bytearray(2)
+            self._recv_into(pid, 2)
             pid = pid[0] << 0x08 | pid[1]
             sz -= 0x02
-        msg = self._sock.recv(sz)
+
+        # TODO: Potentially resize buffer here if > 32bytes
+        msg = bytearray(sz)
+        self._recv_into(msg, len(msg))
         self._handle_on_message(self, topic, str(msg, "utf-8"))
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
