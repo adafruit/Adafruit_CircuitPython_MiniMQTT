@@ -840,15 +840,8 @@ class MQTT:
         try:
             res = bytearray(1)
             self._recv_into(res, 1)
-            print(res)
         except OSError:
             return None
-
-        # TODO: Re-implement these?
-        # except self._sock.timeout:
-            # return None
-        # except BlockingIOError: # fixes macOS socket Errno 35
-            # return None
 
         self._sock.settimeout(0)
         if res in [None, b""]:
