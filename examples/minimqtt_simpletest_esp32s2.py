@@ -1,14 +1,38 @@
-import socket
-
+# adafruit_minimqtt usage with native wifi
+import ssl
+from random import randint
+import adafruit_requests
+import socketpool
+import wifi
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### WiFi ###
-
-# Get wifi details and more from a secrets.py file
+# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
+# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
+# source control.
+# pylint: disable=no-name-in-module,wrong-import-order
 try:
     from secrets import secrets
 except ImportError:
     print("WiFi secrets are kept in secrets.py, please add them there!")
+    raise
+
+# Set your Adafruit IO Username and Key in secrets.py
+# (visit io.adafruit.com if you need to create an account,
+# or if you need your Adafruit IO key.)
+aio_username = secrets["aio_username"]
+aio_key = secrets["aio_key"]
+
+print("Connecting to %s"%secrets["ssid"])
+wifi.radio.connect(secrets["ssid"], secrets["password"])
+print("Connected to %s!"%secrets["ssid"])
+
+
+### Secrets File Setup ###
+
+try:
+    from secrets import secrets
+except ImportError:
+    print("Connection secrets are kept in secrets.py, please add them there!")
     raise
 
 ### Topic Setup ###
@@ -19,9 +43,12 @@ mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = 'aio_user/feeds/temperature'
+# mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
 
 ### Code ###
+
+# Keep track of client connection state
+disconnect_client = False
 
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
@@ -53,12 +80,27 @@ def publish(mqtt_client, userdata, topic, pid):
     print("Published to {0} with PID {1}".format(topic, pid))
 
 
+def message(client, topic, message):
+    # Method callled when a client's subscribed feed has a new value.
+    global disconnect_client
+    print("New message on topic {0}: {1}".format(topic, message))
+    
+    print("Unsubscribing from %s" % mqtt_topic)
+    mqtt_client.unsubscribe(mqtt_topic)
+    # Allow us to gracefully stop the `while True` loop
+    disconnect_client = True
+
+# Create a socket pool
+pool = socketpool.SocketPool(wifi.radio)
+
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"],
-    username=secrets["user"],
-    password=secrets["pass"],
-    socket
+    broker=secrets['broker'],
+    port=secrets['port'],
+    username=secrets['aio_username'],
+    password=secrets['aio_key'],
+    socket_pool=pool,
+    ssl_context= ssl.create_default_context()
 )
 
 # Connect callback handlers to mqtt_client
@@ -67,10 +109,9 @@ mqtt_client.on_disconnect = disconnect
 mqtt_client.on_subscribe = subscribe
 mqtt_client.on_unsubscribe = unsubscribe
 mqtt_client.on_publish = publish
+mqtt_client.on_message = message
 
 print("Attempting to connect to %s" % mqtt_client.broker)
-# TODO: Move config into connect call?
-#     broker=secrets["broker"], username=secrets["user"], password=secrets["pass"]
 mqtt_client.connect()
 
 print("Subscribing to %s" % mqtt_topic)
@@ -79,8 +120,9 @@ mqtt_client.subscribe(mqtt_topic)
 print("Publishing to %s" % mqtt_topic)
 mqtt_client.publish(mqtt_topic, "Hello Broker!")
 
-print("Unsubscribing from %s" % mqtt_topic)
-mqtt_client.unsubscribe(mqtt_topic)
+# Pump the loop until we receive a message on `mqtt_topic`
+while disconnect_client == False:
+    mqtt_client.loop()
 
 print("Disconnecting from %s" % mqtt_client.broker)
 mqtt_client.disconnect()
