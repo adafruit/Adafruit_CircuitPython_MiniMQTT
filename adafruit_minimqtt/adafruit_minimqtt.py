@@ -55,11 +55,6 @@ import struct
 import time
 from random import randint
 from micropython import const
-# TODO: Remove logging dependency, pass in the logger instead!
-try: # try circuitpython logging module
-    import adafruit_logging as logging
-except ImportError: # try cpython logging
-    import logging
 from .matcher import MQTTMatcher
 
 __version__ = "0.0.0-auto.0"
@@ -140,7 +135,6 @@ class _FakeSSLContext:
         # pylint: disable=unused-argument
         return _FakeSSLSocket(socket, self._iface.TLS_MODE)
 
-
 class MQTT:
     """MQTT Client for CircuitPython
 
@@ -151,7 +145,6 @@ class MQTT:
     :param network_manager: NetworkManager object, such as WiFiManager from ESPSPI_WiFiManager.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
-    :param bool log: Attaches a logger to the MQTT client, defaults to logging level INFO.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
     :param socket socket_pool: A pool of socket resources available for the given radio.
     :param ssl_context: SSL context for long-lived SSL connections.
@@ -166,7 +159,6 @@ class MQTT:
         password=None,
         client_id=None,
         is_ssl=True,
-        log=False,
         keep_alive=60,
         socket_pool=None,
         ssl_context=None
@@ -194,6 +186,7 @@ class MQTT:
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
         self._timestamp = 0
+        self.logger = None
 
         self.broker = broker
         self._username = username
@@ -224,9 +217,6 @@ class MQTT:
             if len(self.client_id) > 23 or not self.client_id:
                 raise ValueError("MQTT Client ID must be between 1 and 23 bytes")
 
-        self.logger = None
-        if log is True:
-            self.enable_logger()
 
         # LWT
         self._lw_topic = None
@@ -1021,43 +1011,34 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self._msg_size_lim = msg_size
 
-    ### Logging ###
-    def attach_logger(self, logger_name="log"):
-        """Initializes and attaches a logger to the MQTTClient.
-        :param str logger_name: Name of the logger instance
-        NOTE: This method is replaced by enable_logger and
-                will be removed in a future release to
-                remove this lib's dependency from adafruit_logging.
+    ### Logging API ###
+
+    def enable_logger(self, logger, log_level=20):
+        """Enables library logging provided a `logger` object.
+
+        :param logging.Logger logger: A python logger pacakge.
+        :param log_level: Numeric value of a logging level, defaults to `logging.INFO`.
 
         """
-        self.logger = logging.getLogger(logger_name)
-        self.logger.setLevel(logging.INFO)
-
-    def enable_logger(self, logger=None):
-        """Enables logging using the logging package. If a `logger`
-        is specified, then that object will be used. Otherwise, a `logger`
-        will be automatically created.
-
-        """
-        if logger:
-            self.logger = logger
-        else:
-            self.logger = logging.getLogger("log")
-            self.logger.setLevel(logging.INFO)
+        self.logger = logging.getLogger("log")
+        self.logger.setLevel(log_level)
 
     def disable_logger(self):
         """Disables logging."""
         if not self.logger:
-            raise ValueError("Can not disable logging - no logger enabled!")
+            raise ValueError("Can't disable logging - no logger enabled!")
         self.logger = None
 
     def set_logger_level(self, log_level):
         """Sets the level of the logger, if defined during init.
+        NOTE: This method is deprecated and will be removed. Use 
+            `enable_logger`'s `log_level` as an alternative to this method.
 
         :param str log_level: Level of logging to output to the REPL.
             Acceptable options are ``DEBUG``, ``INFO``, ``WARNING``, or
             ``ERROR``.
         """
+        print("This method ")
         if self.logger is None:
             raise MMQTTException(
                 "No logger attached - did you create it during initialization?"
@@ -1072,3 +1053,12 @@ class MQTT:
             self.logger.setLevel(logging.CRITICIAL)
         else:
             raise MMQTTException("Incorrect logging level provided!")
+
+    def attach_logger(self, logger_name="log"):
+        """Initializes and attaches a logger to the MQTTClient.
+        :param str logger_name: Name of the logger instance
+        NOTE: This method is deprecated and will be removed. Use 
+            `enable_logger` as an alternative to this method.
+
+        """
+        self.enable_logger()
