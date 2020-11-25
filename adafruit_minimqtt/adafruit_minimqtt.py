@@ -114,6 +114,15 @@ def set_socket(sock, iface=None):
         _the_sock.set_interface(iface)
 
 
+class _FakeSSLContext:
+    def __init__(self, iface):
+        self._iface = iface
+
+    def wrap_socket(self, socket, server_hostname=None):
+        """Return the same socket"""
+        # pylint: disable=unused-argument
+        return _FakeSSLSocket(socket, self._iface.TLS_MODE)
+
 class MQTT:
     """MQTT Client for CircuitPython
 
@@ -146,7 +155,15 @@ class MQTT:
     ):
 
         self._socket_pool = socket_pool
+        # Legacy API - if we do not have a socket pool, use default socket
+        if self._socket_pool is None:
+            self._socket_pool = _the_sock
+
         self._ssl_context = ssl_context
+        # Legacy API - if we do not have SSL context, fake it
+        if self._ssl_context is None:
+            self._ssl_context = _FakeSSLContext(_the_interface)
+
         # Hang onto open sockets so that we can reuse them
         self._socket_free = {}
         self._open_sockets = {}
