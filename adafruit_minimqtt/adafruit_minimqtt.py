@@ -50,10 +50,12 @@ license='MIT'
   https://github.com/adafruit/circuitpython/releases
 
 """
+import errno
 import struct
 import time
 from random import randint
 from micropython import const
+# TODO: Remove logging dependency, pass in the logger instead!
 try: # try circuitpython logging module
     import adafruit_logging as logging
 except ImportError: # try cpython logging
@@ -89,16 +91,16 @@ CONNACK_ERRORS = {
     const(0x05): "Connection Refused - Unauthorized",
 }
 
-
 _the_interface = None  # pylint: disable=invalid-name
 _the_sock = None  # pylint: disable=invalid-name
-
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
     # pylint: disable=unnecessary-pass
     # pass
 
+
+# Legacy Socket API
 
 def set_socket(sock, iface=None):
     """Legacy API for setting the socket and network interface, use a `Session` instead.
@@ -113,6 +115,21 @@ def set_socket(sock, iface=None):
         _the_interface = iface
         _the_sock.set_interface(iface)
 
+class _FakeSSLSocket:
+    def __init__(self, socket, tls_mode):
+        self._socket = socket
+        self._mode = tls_mode
+        self.settimeout = socket.settimeout
+        self.send = socket.send
+        self.recv = socket.recv
+        self.close = socket.close
+
+    def connect(self, address):
+        """connect wrapper to add non-standard mode parameter"""
+        try:
+            return self._socket.connect(address, self._mode)
+        except RuntimeError as error:
+            raise OSError(errno.ENOMEM) from error
 
 class _FakeSSLContext:
     def __init__(self, iface):
@@ -122,6 +139,7 @@ class _FakeSSLContext:
         """Return the same socket"""
         # pylint: disable=unused-argument
         return _FakeSSLSocket(socket, self._iface.TLS_MODE)
+
 
 class MQTT:
     """MQTT Client for CircuitPython
