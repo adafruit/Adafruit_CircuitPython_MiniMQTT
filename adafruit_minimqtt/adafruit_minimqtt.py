@@ -255,6 +255,11 @@ class MQTT:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
+
+        # Legacy API - use a default socket instead of socket pool
+        if self._socket_pool is None:
+            self._socket_pool = _the_sock
+
         addr_info = self._socket_pool.getaddrinfo(
             host, port, 0, self._socket_pool.SOCK_STREAM
         )[0]
@@ -835,7 +840,8 @@ class MQTT:
         """Reads and processes network events."""
         buf = self._rx_buffer
         # attempt to recv from socket within `timeout` seconds
-        self._sock.settimeout(0)
+        # TODO: This line is inconsistent btween versions!
+        self._sock.settimeout(timeout)
 
         try:
             res = bytearray(1)
