@@ -861,20 +861,24 @@ class MQTT:
             self._timestamp = 0
         return self._wait_for_msg(timeout)
 
-    def _wait_for_msg(self, timeout=0.01):
+    def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
         buf = self._rx_buffer
-        # attempt to recv from socket within `timeout` seconds
-        # TODO: This line is inconsistent btween versions!
-        self._sock.settimeout(timeout)
+        res = bytearray(1)
 
+        # Attempt to recv
+        self._sock.setblocking(False)
         try:
-            res = bytearray(1)
-            self._recv_into(res, 1)
-        except OSError:
+            self._sock.recv_into(res, 1)
+            print("Resp: ", res)
+        except BlockingIOError: # fix for macOS Errno
+            return None
+        except self._socket_pool.timeout:
+            print("timeout!")
             return None
 
-        self._sock.settimeout(0)
+        # Block while we parse the rest of the response
+        self._sock.setblocking(True)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
