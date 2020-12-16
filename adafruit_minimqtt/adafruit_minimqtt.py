@@ -866,14 +866,12 @@ class MQTT:
         buf = self._rx_buffer
         res = bytearray(1)
 
-        self._sock.settimeout(0)
+        # Attempt to read
+        self._sock.settimeout(1)
         try:
             self._sock.recv_into(res, 1)
-            print("Resp: ", res)
-        except BlockingIOError: # fix for macOS Errno
-            return None
+            print("Resp: ", res) # TODO BR: Remove debugging
         except self._socket_pool.timeout:
-            print("timeout!")
             return None
 
         # Block while we parse the rest of the response
