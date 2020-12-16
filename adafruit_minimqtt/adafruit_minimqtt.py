@@ -866,8 +866,7 @@ class MQTT:
         buf = self._rx_buffer
         res = bytearray(1)
 
-        # Attempt to recv
-        self._sock.setblocking(False)
+        self._sock.settimeout(0)
         try:
             self._sock.recv_into(res, 1)
             print("Resp: ", res)
@@ -878,7 +877,7 @@ class MQTT:
             return None
 
         # Block while we parse the rest of the response
-        self._sock.setblocking(True)
+        self._sock.settimeout(None)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
