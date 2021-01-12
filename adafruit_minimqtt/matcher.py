@@ -25,8 +25,7 @@ class MQTTMatcher:
 
     # pylint: disable=too-few-public-methods
     class Node:
-        """Individual node on the MQTT prefix tree.
-        """
+        """Individual node on the MQTT prefix tree."""
 
         __slots__ = "children", "content"
 
