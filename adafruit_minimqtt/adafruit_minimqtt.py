@@ -1,28 +1,11 @@
-# The MIT License (MIT)
+# SPDX-FileCopyrightText: 2019 Brent Rubell for Adafruit Industries
 #
-# Copyright (c) 2019 Brent Rubell for Adafruit Industries
-#
+# SPDX-License-Identifier: MIT
+
 # Original Work Copyright (c) 2016 Paul Sokolovsky, uMQTT
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
 # Modified Work Copyright (c) 2012-2019 Roger Light and others, Paho MQTT Python
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+
 """
 `adafruit_minimqtt`
 ================================================================================
@@ -379,8 +362,7 @@ class MQTT:
                 return result
 
     def disconnect(self):
-        """Disconnects the MiniMQTT client from the MQTT broker.
-        """
+        """Disconnects the MiniMQTT client from the MQTT broker."""
         self.is_connected()
         if self.logger is not None:
             self.logger.debug("Sending DISCONNECT packet to broker")

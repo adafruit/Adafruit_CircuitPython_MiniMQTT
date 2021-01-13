@@ -1,9 +1,7 @@
-# Copyright (c) 2017 Yoch <https://github.com/yoch>
+# SPDX-FileCopyrightText: 2017 Yoch <https://github.com/yoch>
 #
-# This file is dual licensed under the Eclipse Public License 1.0 and the
-# Eclipse Distribution License 1.0 as described in the epl-v10 and edl-v10 files.
-#
-#
+# SPDX-License-Identifier: EPL-1.0
+
 """
 `matcher`
 ====================================================================================
@@ -25,8 +23,7 @@ class MQTTMatcher:
 
     # pylint: disable=too-few-public-methods
     class Node:
-        """Individual node on the MQTT prefix tree.
-        """
+        """Individual node on the MQTT prefix tree."""
 
         __slots__ = "children", "content"
 
