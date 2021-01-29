@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2019 Brent Rubell for Adafruit Industries
+# Copyright (c) 2019-2021 Brent Rubell for Adafruit Industries
 #
 # Original Work Copyright (c) 2016 Paul Sokolovsky, uMQTT
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
@@ -36,14 +36,6 @@ Implementation Notes
 
 Adapted from https://github.com/micropython/micropython-lib/tree/master/umqtt.simple/umqtt
 
-micropython-lib consists of multiple modules from different sources and
-authors. Each module comes under its own licensing terms. Short name of
-a license can be found in a file within a module directory (usually
-metadata.txt or setup.py). Complete text of each license used is provided
-at https://github.com/micropython/micropython-lib/blob/master/LICENSE
-
-author='Paul Sokolovsky'
-license='MIT'
 **Software and Dependencies:**
 
 * Adafruit CircuitPython firmware for the supported boards:
@@ -95,8 +87,7 @@ class MMQTTException(Exception):
     # pass
 
 
-# Legacy Socket API
-
+# Legacy ESP32SPI Socket API
 def set_socket(sock, iface=None):
     """Legacy API for setting the socket and network interface, use a `Session` instead.
 
@@ -237,8 +228,6 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
-        # Shared buffer
-        self._rx_length = 0
         self._rx_buffer = bytearray(32)
 
     # Socket helpers
@@ -516,14 +505,14 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op == 32:
-                self._recv_into(buf, 3)
-                assert buf[0] == 0x02
-                if buf[2] != 0x00:
-                    raise MMQTTException(CONNACK_ERRORS[buf[2]])
+                rc = self._sock_exact_recv(3)
+                assert rc[0] == 0x02
+                if rc[2] != 0x00:
+                    raise MMQTTException(CONNACK_ERRORS[rc[2]])
                 self._is_connected = True
-                result = buf[0] & 1
+                result = rc[0] & 1
                 if self.on_connect is not None:
-                    self.on_connect(self, self._user_data, result, buf[2])
+                    self.on_connect(self, self._user_data, result, rc[2])
                 return result
 
     def disconnect(self):
@@ -944,6 +933,41 @@ class MQTT:
             buf[:read_size] = b
             return read_size
         return self._sock.recv_into(buf, size)
+
+    def _sock_exact_recv(self, bufsize):
+        """Reads _exact_ number of bytes from the connected socket. Will only return
+        string with the exact number of bytes requested.
+
+        The semantics of native socket receive is that it returns no more than the
+        specified number of bytes (i.e. max size). However, it makes no guarantees in
+        terms of the minimum size of the buffer, which could be 1 byte. This is a
+        wrapper for socket recv() to ensure that no less than the expected number of
+        bytes is returned or trigger a timeout exception.
+        :param int bufsize: number of bytes to receive
+
+        """
+        if not self._backwards_compatible_sock:
+            # CPython/Socketpool Impl.
+            rc = bytearray(bufsize)
+            self._sock.recv_into(rc, bufsize)
+        else: # ESP32SPI Impl.
+            stamp = time.monotonic()
+            read_timeout = self.keep_alive
+            rc = self._sock.recv(bufsize)
+            to_read = bufsize - len(rc)
+            assert to_read >= 0
+            read_timeout = self.keep_alive
+            while to_read > 0:
+                recv = self._sock.recv(to_read)
+                to_read -= len(recv)
+                rc += recv
+                if time.monotonic() - stamp > read_timeout:
+                    raise MMQTTException(
+                        "Unable to receive {} bytes within {} seconds.".format(
+                            to_read, read_timeout
+                        )
+                    )
+        return rc
 
     def _send_str(self, string):
         """Packs and encodes a string to a socket.
