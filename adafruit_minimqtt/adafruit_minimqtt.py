@@ -721,7 +721,6 @@ class MQTT:
         for t, q in topics:
             topic_size = len(t).to_bytes(2, "big")
             qos_byte = q.to_bytes(1, "big")
-            #print(packet, "\n", topic_size, "\n", t, "\n", qos_byte)
             packet += topic_size + t.encode() + qos_byte
         if self.logger:
             for t, q in topics:
@@ -730,9 +729,9 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op == 0x90:
-                self._recv_into(buf, 4)
-                assert buf[1] == packet[2] and buf[2] == packet[3]
-                if buf[3] == 0x80:
+                rc = self._sock_exact_recv(4)
+                assert rc[1] == packet[2] and rc[2] == packet[3]
+                if rc[3] == 0x80:
                     raise MMQTTException("SUBACK Failure!")
                 for t, q in topics:
                     if self.on_subscribe is not None:
