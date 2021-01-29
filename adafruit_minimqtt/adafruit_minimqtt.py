@@ -870,9 +870,12 @@ class MQTT:
         self._sock.settimeout(1)
         try:
             self._sock.recv_into(res, 1)
-            print("Resp: ", res) # TODO BR: Remove debugging
-        except self._socket_pool.timeout:
-            return None
+        except OSError as error:
+            if error.errno == errno.ETIMEDOUT:
+                # raised by a socketpool
+                return None
+            else:
+                raise MMQTTException(error)
 
         # Block while we parse the rest of the response
         self._sock.settimeout(None)
