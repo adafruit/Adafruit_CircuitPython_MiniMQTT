@@ -81,8 +81,10 @@ CONNACK_ERRORS = {
 _the_interface = None  # pylint: disable=invalid-name
 _the_sock = None  # pylint: disable=invalid-name
 
+
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
+
     # pylint: disable=unnecessary-pass
     # pass
 
@@ -101,6 +103,7 @@ def set_socket(sock, iface=None):
         _the_interface = iface
         _the_sock.set_interface(iface)
 
+
 class _FakeSSLSocket:
     def __init__(self, socket, tls_mode):
         self._socket = socket
@@ -117,6 +120,7 @@ class _FakeSSLSocket:
         except RuntimeError as error:
             raise OSError(errno.ENOMEM) from error
 
+
 class _FakeSSLContext:
     def __init__(self, iface):
         self._iface = iface
@@ -125,6 +129,7 @@ class _FakeSSLContext:
         """Return the same socket"""
         # pylint: disable=unused-argument
         return _FakeSSLSocket(socket, self._iface.TLS_MODE)
+
 
 class MQTT:
     """MQTT Client for CircuitPython
@@ -141,6 +146,7 @@ class MQTT:
     :param ssl_context: SSL context for long-lived SSL connections.
 
     """
+
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(
         self,
@@ -152,7 +158,7 @@ class MQTT:
         is_ssl=True,
         keep_alive=60,
         socket_pool=None,
-        ssl_context=None
+        ssl_context=None,
     ):
 
         self._socket_pool = socket_pool
@@ -183,9 +189,8 @@ class MQTT:
         self._username = username
         self._password = password
         if (
-            self._password
-            and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
-        ): # [MQTT-3.1.3.5]
+            self._password and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
+        ):  # [MQTT-3.1.3.5]
             raise MMQTTException("Password length is too large.")
 
         self.port = MQTT_TCP_PORT
@@ -207,7 +212,6 @@ class MQTT:
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id) > 23 or not self.client_id:
                 raise ValueError("MQTT Client ID must be between 1 and 23 bytes")
-
 
         # LWT
         self._lw_topic = None
@@ -295,8 +299,7 @@ class MQTT:
 
             connect_host = addr_info[-1][0]
             if port == 8883:
-                sock = self._ssl_context.wrap_socket(sock,
-                        server_hostname=host)
+                sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
                 connect_host = host
             sock.settimeout(timeout)
 
@@ -497,7 +500,9 @@ class MQTT:
 
         if self.logger:
             self.logger.debug("Sending CONNECT to broker...")
-            self.logger.debug("Fixed Header: %x\nVariable Header: %x", fixed_header, var_header)
+            self.logger.debug(
+                "Fixed Header: %x\nVariable Header: %x", fixed_header, var_header
+            )
         self._sock.send(fixed_header)
         self._sock.send(var_header)
         # [MQTT-3.1.3-4]
@@ -644,7 +649,10 @@ class MQTT:
             self.logger.debug(
                 "Sending PUBLISH\nTopic: %s\nMsg: %x\
                                 \nQoS: %d\nRetain? %r",
-                    topic, msg, qos, retain
+                topic,
+                msg,
+                qos,
+                retain,
             )
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
@@ -806,10 +814,7 @@ class MQTT:
                 rc = self._sock_exact_recv(3)
                 assert rc[0] == 0x02
                 # [MQTT-3.32]
-                assert (
-                    rc[1] == packet_id_bytes[0]
-                    and rc[2] == packet_id_bytes[1]
-                )
+                assert rc[1] == packet_id_bytes[0] and rc[2] == packet_id_bytes[1]
                 for t in topics:
                     if self.on_unsubscribe is not None:
                         self.on_unsubscribe(self, self._user_data, t, self._pid)
@@ -861,17 +866,16 @@ class MQTT:
         rc = self._wait_for_msg()
         return [rc] if rc else None
 
-
     def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
         # CPython socket module contains a timeout attribute
-        if (hasattr(self._socket_pool, "timeout")):
+        if hasattr(self._socket_pool, "timeout"):
             try:
                 res = self._sock_exact_recv(1)
             except self._socket_pool.timeout as error:
                 print("timed out", error)
                 return None
-        else: # socketpool, esp32spi
+        else:  # socketpool, esp32spi
             try:
                 res = self._sock_exact_recv(1)
             except OSError as error:
@@ -926,8 +930,7 @@ class MQTT:
             sh += 7
 
     def _recv_into(self, buf, size=0):
-        """Backwards-compatible _recv_into implementation.
-        """
+        """Backwards-compatible _recv_into implementation."""
         if self._backwards_compatible_sock:
             size = len(buf) if size == 0 else size
             b = self._sock.recv(size)
@@ -952,7 +955,7 @@ class MQTT:
             # CPython/Socketpool Impl.
             rc = bytearray(bufsize)
             self._sock.recv_into(rc, bufsize)
-        else: # ESP32SPI Impl.
+        else:  # ESP32SPI Impl.
             stamp = time.monotonic()
             read_timeout = self.keep_alive
             rc = self._sock.recv(bufsize)

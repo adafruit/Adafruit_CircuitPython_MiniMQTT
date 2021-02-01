@@ -16,11 +16,11 @@ except ImportError:
 
 # MQTT Topic
 # Use this topic if you'd like to connect to a standard MQTT broker
-#mqtt_topic = "test/topic"
+# mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
+mqtt_topic = secrets["aio_username"] + "/feeds/temperature"
 
 ### Code ###
 
@@ -59,21 +59,16 @@ def publish(mqtt_client, userdata, topic, pid):
 
 def message(client, topic, message):
     # Method callled when a client's subscribed feed has a new value.
-    global disconnect_client
     print("New message on topic {0}: {1}".format(topic, message))
-    
-    print("Unsubscribing from %s" % mqtt_topic)
-    mqtt_client.unsubscribe(mqtt_topic)
-    # Allow us to gracefully stop the `while True` loop
-    disconnect_client = True
+
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets['broker'],
+    broker=secrets["broker"],
     port=1883,
-    username=secrets['aio_username'],
-    password=secrets['aio_key'],
-    socket_pool=socket
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
+    socket_pool=socket,
 )
 
 # Connect callback handlers to mqtt_client
@@ -93,9 +88,8 @@ mqtt_client.subscribe(mqtt_topic)
 print("Publishing to %s" % mqtt_topic)
 mqtt_client.publish(mqtt_topic, "Hello Broker!")
 
-# Pump the loop until we receive a message on `mqtt_topic`
-while disconnect_client == False:
-    mqtt_client.loop()
+print("Unsubscribing from %s" % mqtt_topic)
+mqtt_client.unsubscribe(mqtt_topic)
 
 print("Disconnecting from %s" % mqtt_client.broker)
 mqtt_client.disconnect()

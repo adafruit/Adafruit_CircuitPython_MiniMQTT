@@ -2,7 +2,6 @@
 import board
 import busio
 from digitalio import DigitalInOut
-import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
@@ -57,9 +56,6 @@ mqtt_topic = "test/topic"
 
 ### Code ###
 
-# Keep track of client connection state
-disconnect_client = False
-
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connect(mqtt_client, userdata, flags, rc):
@@ -91,24 +87,18 @@ def publish(mqtt_client, userdata, topic, pid):
 
 
 def message(client, topic, message):
-    # Method callled when a client's subscribed feed has a new value.
-    global disconnect_client
     print("New message on topic {0}: {1}".format(topic, message))
-    
-    print("Unsubscribing from %s" % mqtt_topic)
-    mqtt_client.unsubscribe(mqtt_topic)
-    # Allow us to gracefully stop the `while True` loop
-    disconnect_client = True
+
 
 socket.set_interface(esp)
 MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets['broker'],
-    port=secrets['port'],
-    username=secrets['username'],
-    password=secrets['password']
+    broker=secrets["broker"],
+    port=secrets["port"],
+    username=secrets["username"],
+    password=secrets["password"],
 )
 
 # Connect callback handlers to mqtt_client
@@ -128,9 +118,8 @@ mqtt_client.subscribe(mqtt_topic)
 print("Publishing to %s" % mqtt_topic)
 mqtt_client.publish(mqtt_topic, "Hello Broker!")
 
-# Pump the loop until we receive a message on `mqtt_topic`
-while disconnect_client == False:
-    mqtt_client.loop()
+print("Unsubscribing from %s" % mqtt_topic)
+mqtt_client.unsubscribe(mqtt_topic)
 
 print("Disconnecting from %s" % mqtt_client.broker)
 mqtt_client.disconnect()

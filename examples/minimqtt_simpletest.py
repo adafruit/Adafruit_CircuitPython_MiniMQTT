@@ -23,9 +23,9 @@ except ImportError:
 aio_username = secrets["aio_username"]
 aio_key = secrets["aio_key"]
 
-print("Connecting to %s"%secrets["ssid"])
+print("Connecting to %s" % secrets["ssid"])
 wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!"%secrets["ssid"])
+print("Connected to %s!" % secrets["ssid"])
 
 ### Topic Setup ###
 
@@ -38,10 +38,6 @@ mqtt_topic = "test/topic"
 # mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
 
 ### Code ###
-
-# Keep track of client connection state
-disconnect_client = False
-
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connect(mqtt_client, userdata, flags, rc):
@@ -74,25 +70,20 @@ def publish(mqtt_client, userdata, topic, pid):
 
 def message(client, topic, message):
     # Method callled when a client's subscribed feed has a new value.
-    global disconnect_client
     print("New message on topic {0}: {1}".format(topic, message))
-    
-    print("Unsubscribing from %s" % mqtt_topic)
-    mqtt_client.unsubscribe(mqtt_topic)
-    # Allow us to gracefully stop the `while True` loop
-    disconnect_client = True
+
 
 # Create a socket pool
 pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets['broker'],
-    port=secrets['port'],
-    username=secrets['aio_username'],
-    password=secrets['aio_key'],
+    broker=secrets["broker"],
+    port=secrets["port"],
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
     socket_pool=pool,
-    ssl_context= ssl.create_default_context()
+    ssl_context=ssl.create_default_context(),
 )
 
 # Connect callback handlers to mqtt_client
@@ -112,9 +103,8 @@ mqtt_client.subscribe(mqtt_topic)
 print("Publishing to %s" % mqtt_topic)
 mqtt_client.publish(mqtt_topic, "Hello Broker!")
 
-# Pump the loop until we receive a message on `mqtt_topic`
-while disconnect_client == False:
-    mqtt_client.loop()
+print("Unsubscribing from %s" % mqtt_topic)
+mqtt_client.unsubscribe(mqtt_topic)
 
 print("Disconnecting from %s" % mqtt_client.broker)
 mqtt_client.disconnect()

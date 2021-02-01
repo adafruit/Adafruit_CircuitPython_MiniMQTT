@@ -47,11 +47,11 @@ def message(client, topic, message):
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets['broker'],
+    broker=secrets["broker"],
     port=1883,
-    username=secrets['aio_username'],
-    password=secrets['aio_key'],
-    socket_pool=socket
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
+    socket_pool=socket,
 )
 
 # Setup the callback methods above

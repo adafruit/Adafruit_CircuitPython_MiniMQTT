@@ -98,7 +98,9 @@ client.on_disconnect = disconnected
 client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_message = on_message
-client.add_topic_callback(secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg)
+client.add_topic_callback(
+    secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg
+)
 
 # Connect the client to the MQTT broker.
 print("Connecting to MQTT broker...")

@@ -23,9 +23,9 @@ except ImportError:
 aio_username = secrets["aio_username"]
 aio_key = secrets["aio_key"]
 
-print("Connecting to %s"%secrets["ssid"])
+print("Connecting to %s" % secrets["ssid"])
 wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!"%secrets["ssid"])
+print("Connected to %s!" % secrets["ssid"])
 
 ### Adafruit IO Setup ###
 
@@ -42,9 +42,11 @@ def connected(client, userdata, flags, rc):
     # Subscribe to all changes on the default_topic feed.
     client.subscribe(default_topic)
 
+
 def disconnected(client, userdata, rc):
     # This method is called when the client is disconnected
     print("Disconnected from MQTT Broker!")
+
 
 def message(client, topic, message):
     """Method callled when a client's subscribed feed has a new
@@ -54,17 +56,18 @@ def message(client, topic, message):
     """
     print("New message on topic {0}: {1}".format(topic, message))
 
+
 # Create a socket pool
 pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets['broker'],
-    port=secrets['port'],
-    username=secrets['aio_username'],
-    password=secrets['aio_key'],
+    broker=secrets["broker"],
+    port=secrets["port"],
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
     socket_pool=pool,
-    ssl_context= ssl.create_default_context()
+    ssl_context=ssl.create_default_context(),
 )
 
 # Setup the callback methods above

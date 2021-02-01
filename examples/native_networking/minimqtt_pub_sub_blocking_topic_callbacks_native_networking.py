@@ -23,9 +23,9 @@ except ImportError:
 aio_username = secrets["aio_username"]
 aio_key = secrets["aio_key"]
 
-print("Connecting to %s"%secrets["ssid"])
+print("Connecting to %s" % secrets["ssid"])
 wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!"%secrets["ssid"])
+print("Connected to %s!" % secrets["ssid"])
 
 ### Code ###
 
@@ -63,17 +63,18 @@ def on_message(client, topic, message):
     # Method callled when a client's subscribed feed has a new value.
     print("New message on topic {0}: {1}".format(topic, message))
 
+
 # Create a socket pool
 pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
 client = MQTT.MQTT(
-    broker=secrets['broker'],
-    port=secrets['port'],
-    username=secrets['aio_username'],
-    password=secrets['aio_key'],
+    broker=secrets["broker"],
+    port=secrets["port"],
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
     socket_pool=pool,
-    ssl_context= ssl.create_default_context()
+    ssl_context=ssl.create_default_context(),
 )
 
 # Setup the callback methods above
@@ -82,7 +83,9 @@ client.on_disconnect = disconnected
 client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_message = on_message
-client.add_topic_callback(secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg)
+client.add_topic_callback(
+    secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg
+)
 
 # Connect the client to the MQTT broker.
 print("Connecting to MQTT broker...")
