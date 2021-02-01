@@ -1,4 +1,4 @@
-# adafruit_minimqtt usage with native wifi
+# adafruit_minimqtt usage with native networking
 import ssl
 import socketpool
 import wifi
