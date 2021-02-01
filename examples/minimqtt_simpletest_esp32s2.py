@@ -1,7 +1,5 @@
 # adafruit_minimqtt usage with native wifi
 import ssl
-from random import randint
-import adafruit_requests
 import socketpool
 import wifi
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
