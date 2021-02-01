@@ -584,9 +584,8 @@ class MQTT:
         :param str topic: Unique topic identifier.
         :param str,int,float msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
-        :param int qos: Quality of Service level for the message, defaults to
-            zero. Conventional options are ``0`` (send at most once), ``1``
-            (send at least once), or ``2`` (send exactly once).
+        :param int qos: Quality of Service level for the message, defaults to zero.
+
         """
         self.is_connected()
         self._valid_topic(topic)
@@ -665,14 +664,11 @@ class MQTT:
         This method can subscribe to one topics or multiple topics.
 
         :param str,tuple,list topic: Unique MQTT topic identifier string. If
-            this is a `tuple`, then the tuple should contain topic identifier
+          this is a `tuple`, then the tuple should contain topic identifier
             string and qos level integer. If this is a `list`, then each list
             element should be a tuple containing a topic identifier string and
             qos level integer.
-        :param int qos: Quality of Service level for the topic, defaults to
-            zero. Conventional options are ``0`` (send at most once), ``1``
-            (send at least once), or ``2`` (send exactly once).
-
+        :param int qos: Quality of Service level for the topic, defaults to zero.
             .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
 
         """
