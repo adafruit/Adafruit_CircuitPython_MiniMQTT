@@ -723,8 +723,7 @@ class MQTT:
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
         :param str,list topic: Unique MQTT topic identifier string or a list
-          of tuples, where each tuple contains an MQTT topic identier
-          string.
+          of tuples, where each tuple contains an MQTT topic identier string.
 
         """
         topics = None
