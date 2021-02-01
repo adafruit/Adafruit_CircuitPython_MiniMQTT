@@ -81,13 +81,11 @@ CONNACK_ERRORS = {
 _the_interface = None  # pylint: disable=invalid-name
 _the_sock = None  # pylint: disable=invalid-name
 
-
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
 
     # pylint: disable=unnecessary-pass
     # pass
-
 
 # Legacy ESP32SPI Socket API
 def set_socket(sock, iface=None):
@@ -572,7 +570,6 @@ class MQTT:
     # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to a topic provided.
-
         :param str topic: Unique topic identifier.
         :param str,int,float msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
@@ -580,25 +577,6 @@ class MQTT:
             zero. Conventional options are ``0`` (send at most once), ``1``
             (send at least once), or ``2`` (send exactly once).
 
-            .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
-
-        Example of sending an integer, 3, to the broker on topic 'piVal'.
-
-        .. code-block:: python
-
-            mqtt_client.publish('topics/piVal', 3)
-
-        Example of sending a float, 3.14, to the broker on topic 'piVal'.
-
-        .. code-block:: python
-
-            mqtt_client.publish('topics/piVal', 3.14)
-
-        Example of sending a string, 'threepointonefour', to the broker on topic piVal.
-
-        .. code-block:: python
-
-            mqtt_client.publish('topics/piVal', 'threepointonefour')
         """
         self.is_connected()
         self._valid_topic(topic)
@@ -686,30 +664,6 @@ class MQTT:
             (send at least once), or ``2`` (send exactly once).
 
             .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
-
-        Example of subscribing a topic string.
-
-        .. code-block:: python
-
-            mqtt_client.subscribe('topics/ledState')
-
-        Example of subscribing to a topic and setting the qos level to 1.
-
-        .. code-block:: python
-
-            mqtt_client.subscribe('topics/ledState', 1)
-
-        Example of subscribing to topic string and setting qos level to 1, as a tuple.
-
-        .. code-block:: python
-
-            mqtt_client.subscribe(('topics/ledState', 1))
-
-        Example of subscribing to multiple topics with different qos levels.
-
-        .. code-block:: python
-
-            mqtt_client.subscribe([('topics/ledState', 1), ('topics/servoAngle', 0)])
 
         """
         self.is_connected()
@@ -882,7 +836,7 @@ class MQTT:
                 if error.errno == errno.ETIMEDOUT:
                     # raised by a socket timeout in socketpool
                     return None
-                raise MMQTTException(error)
+                raise MMQTTException from error
 
         # Block while we parse the rest of the response
         self._sock.settimeout(timeout)
