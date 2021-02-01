@@ -865,13 +865,22 @@ class MQTT:
     def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
         res = bytearray(1)
-        try:
-            self._recv_into(res, 1)
-        except OSError as error:
-            if error.errno == errno.ETIMEDOUT:
-                # raised by a socket timeout in socketpool/cpython
+
+        # CPython socket module contains a timeout attribute
+        if (hasattr(self._socket_pool, "timeout")):
+            try:
+                self._recv_into(res, 1)
+            except self._socket_pool.timeout as error:
+                print("timed out", error)
                 return None
-            raise MMQTTException(error)
+        else: # socketpool, esp32spi
+            try:
+                self._recv_into(res, 1)
+            except OSError as error:
+                if error.errno == errno.ETIMEDOUT:
+                    # raised by a socket timeout in socketpool
+                    return None
+                raise MMQTTException(error)
 
         # Block while we parse the rest of the response
         self._sock.settimeout(timeout)
@@ -905,7 +914,6 @@ class MQTT:
         elif res[0] & 6 == 4:
             assert 0
         return res[0]
-
 
     def _recv_len(self):
         """Unpack MQTT message length."""
