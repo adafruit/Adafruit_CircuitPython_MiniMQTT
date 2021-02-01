@@ -345,7 +345,7 @@ class MQTT:
         """
         if self.logger:
             self.logger.debug("Setting last will properties")
-        self._check_qos(qos)
+        self._valid_qos(qos)
         if self._is_connected:
             raise MMQTTException("Last Will should only be called before connect().")
         if payload is None:
@@ -584,7 +584,7 @@ class MQTT:
             mqtt_client.publish('topics/piVal', 'threepointonefour')
         """
         self.is_connected()
-        self._check_topic(topic)
+        self._valid_topic(topic)
         if "+" in topic or "#" in topic:
             raise MMQTTException("Publish topic can not contain wildcards.")
         # check msg/qos kwargs
@@ -696,17 +696,17 @@ class MQTT:
         topics = None
         if isinstance(topic, tuple):
             topic, qos = topic
-            self._check_topic(topic)
-            self._check_qos(qos)
+            self._valid_topic(topic)
+            self._valid_qos(qos)
         if isinstance(topic, str):
-            self._check_topic(topic)
-            self._check_qos(qos)
+            self._valid_topic(topic)
+            self._valid_qos(qos)
             topics = [(topic, qos)]
         if isinstance(topic, list):
             topics = []
             for t, q in topic:
-                self._check_qos(q)
-                self._check_topic(t)
+                self._valid_qos(q)
+                self._valid_topic(t)
                 topics.append((t, q))
         # Assemble packet
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
@@ -760,12 +760,12 @@ class MQTT:
         """
         topics = None
         if isinstance(topic, str):
-            self._check_topic(topic)
+            self._valid_topic(topic)
             topics = [(topic)]
         if isinstance(topic, list):
             topics = []
             for t in topic:
-                self._check_topic(t)
+                self._valid_topic(t)
                 topics.append((t))
         for t in topics:
             if t not in self._subscribed_topics:
@@ -854,7 +854,7 @@ class MQTT:
         """Reads and processes network events."""
         res = bytearray(1)
         try:
-            self._sock.recv_into(res, 1)
+            self._recv_into(res, 1)
         except OSError as error:
             if error.errno == errno.ETIMEDOUT:
                 # raised by a socketpool
@@ -955,9 +955,9 @@ class MQTT:
         return rc
 
     def _send_str(self, string):
-        """Packs and encodes a string to a socket.
-
+        """Encodes a string and sends it to a socket.
         :param str string: String to write to the socket.
+
         """
         self._sock.send(struct.pack("!H", len(string)))
         if isinstance(string, str):
@@ -966,10 +966,10 @@ class MQTT:
             self._sock.send(string)
 
     @staticmethod
-    def _check_topic(topic):
-        """Checks if topic provided is a valid mqtt topic.
-
+    def _valid_topic(topic):
+        """Validates if topic provided is proper MQTT topic format.
         :param str topic: Topic identifier
+
         """
         if topic is None:
             raise MMQTTException("Topic may not be NoneType")
@@ -981,26 +981,16 @@ class MQTT:
             raise MMQTTException("Topic length is too large.")
 
     @staticmethod
-    def _check_qos(qos_level):
-        """Validates the quality of service level.
-
+    def _valid_qos(qos_level):
+        """Validates if the QoS level is supported by this library
         :param int qos_level: Desired QoS level.
+
         """
         if isinstance(qos_level, int):
             if qos_level < 0 or qos_level > 2:
                 raise MMQTTException("QoS must be between 1 and 2.")
         else:
             raise MMQTTException("QoS must be an integer.")
-
-    def _set_interface(self):
-        """Sets a desired network hardware interface.
-        The network hardware must be set in init
-        prior to calling this method.
-        """
-        if self._wifi:
-            self._socket.set_interface(self._wifi.esp)
-        else:
-            raise TypeError("Network Manager Required.")
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, raises
