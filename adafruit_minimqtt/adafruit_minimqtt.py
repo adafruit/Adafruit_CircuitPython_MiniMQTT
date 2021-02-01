@@ -395,15 +395,15 @@ class MQTT:
     def on_message(self, method):
         self._on_message = method
 
-    def _handle_on_message(self, client, topic):
+    def _handle_on_message(self, client, topic, message):
         matched = False
         if topic is not None:
             for callback in self._on_message_filtered.iter_match(topic):
-                callback(client, topic, self._rx_buffer.decode())  # on_msg with callback
+                callback(client, topic, message)  # on_msg with callback
                 matched = True
 
         if not matched and self.on_message:  # regular on_message
-            self.on_message(client, topic, self._rx_buffer.decode())
+            self.on_message(client, topic, message)
 
     def username_pw_set(self, username, password=None):
         """Set client's username and an optional password.
@@ -428,7 +428,6 @@ class MQTT:
                                 with the broker, in seconds
 
         """
-        buf = self._rx_buffer
         if host:
             self.broker = host
         if port:
@@ -603,7 +602,6 @@ class MQTT:
             0 <= qos <= 1
         ), "Quality of Service Level 2 is unsupported by this library."
 
-        buf = self._rx_buffer
         # fixed header. [3.3.1.2], [3.3.1.3]
         pub_hdr_fixed = bytearray([0x30 | retain | qos << 1])
 
@@ -614,7 +612,6 @@ class MQTT:
         remaining_length = 2 + len(msg) + len(topic)
         if qos > 0:
             # packet identifier where QoS level is 1 or 2. [3.3.2.2]
-            pid = self._pid
             remaining_length += 2
             pub_hdr_var.append(0x00)
             pub_hdr_var.append(self._pid)
@@ -711,8 +708,6 @@ class MQTT:
                 self._check_qos(q)
                 self._check_topic(t)
                 topics.append((t, q))
-        # Rx buffer
-        buf = self._rx_buffer
         # Assemble packet
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic) for topic, qos in topics)
@@ -777,8 +772,6 @@ class MQTT:
                 raise MMQTTException(
                     "Topic must be subscribed to before attempting unsubscribe."
                 )
-        # Rx buffer
-        buf = self._rx_buffer
         # Assemble packet
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic) for topic in topics)
@@ -859,9 +852,7 @@ class MQTT:
 
     def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
-        buf = self._rx_buffer
         res = bytearray(1)
-
         try:
             self._sock.recv_into(res, 1)
         except OSError as error:
@@ -872,7 +863,7 @@ class MQTT:
                 raise MMQTTException(error)
 
         # Block while we parse the rest of the response
-        self._sock.settimeout(None)
+        self._sock.settimeout(timeout)
         if res in [None, b""]:
             return None
         if res == MQTT_PINGRESP:
@@ -883,32 +874,19 @@ class MQTT:
             return res[0]
         sz = self._recv_len()
         # topic length MSB & LSB
-        topic_len = bytearray(2)
-        self._recv_into(topic_len, 2)
+        topic_len = self._sock_exact_recv(2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
-        topic = bytearray(topic_len)
-        self._recv_into(topic, topic_len)
+        topic = self._sock_exact_recv(topic_len)
         topic = str(topic, "utf-8")
         sz -= topic_len + 2
         pid = 0
         if res[0] & 0x06:
-            pid = bytearray(2)
-            self._recv_into(pid, 2)
+            pid = self._sock_exact_recv(2)
             pid = pid[0] << 0x08 | pid[1]
             sz -= 0x02
-
-        # if expected packet size is larger than buffer
-        if sz > len(buf):
-            # resize buffer to match expected size
-            new_size = sz + len(buf)
-            new_buf = bytearray(new_size)
-            new_buf[: len(buf)] = buf
-            buf = new_buf
-            self._rx_buffer = buf
-        # read incoming packet
-        self._recv_into(self._rx_buffer, sz)
-
-        self._handle_on_message(self, topic)
+        # read message contents
+        msg = self._sock_exact_recv(sz)
+        self._handle_on_message(self, topic, str(msg, "utf-8"))
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
