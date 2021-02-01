@@ -67,22 +67,27 @@ def connect(client, userdata, flags, rc):
     print("Connected to MQTT Broker!")
     print("Flags: {0}\n RC: {1}".format(flags, rc))
 
+
 def disconnect(client, userdata, rc):
     # This method is called when the client disconnects
     # from the broker.
     print("Disconnected from MQTT Broker!")
 
+
 def subscribe(client, userdata, topic, granted_qos):
     # This method is called when the client subscribes to a new feed.
     print("Subscribed to {0} with QOS level {1}".format(topic, granted_qos))
+
 
 def unsubscribe(client, userdata, topic, pid):
     # This method is called when the client unsubscribes from a feed.
     print("Unsubscribed from {0} with PID {1}".format(topic, pid))
 
+
 def publish(client, userdata, topic, pid):
     # This method is called when the client publishes data to a feed.
     print("Published to {0} with PID {1}".format(topic, pid))
+
 
 # Get certificate and private key from a certificates.py file
 try:
