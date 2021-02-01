@@ -228,8 +228,6 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
-        self._rx_buffer = bytearray(32)
-
     # Socket helpers
     def _free_socket(self, socket):
         """Frees a socket for re-use."""
@@ -328,6 +326,20 @@ class MQTT:
     def deinit(self):
         """De-initializes the MQTT client and disconnects from the mqtt broker."""
         self.disconnect()
+
+    @property
+    def mqtt_msg(self):
+        """Returns maximum MQTT payload and topic size."""
+        return self._msg_size_lim, MQTT_TOPIC_LENGTH_LIMIT
+
+    @mqtt_msg.setter
+    def mqtt_msg(self, msg_size):
+        """Sets the maximum MQTT message payload size.
+
+        :param int msg_size: Maximum MQTT payload size.
+        """
+        if msg_size < MQTT_MSG_MAX_SZ:
+            self._msg_size_lim = msg_size
 
     def will_set(self, topic=None, payload=None, qos=0, retain=False):
         """Sets the last will and testament properties. MUST be called before `connect()`.
@@ -857,10 +869,9 @@ class MQTT:
             self._recv_into(res, 1)
         except OSError as error:
             if error.errno == errno.ETIMEDOUT:
-                # raised by a socketpool
+                # raised by a socket timeout in socketpool/cpython
                 return None
-            else:
-                raise MMQTTException(error)
+            raise MMQTTException(error)
 
         # Block while we parse the rest of the response
         self._sock.settimeout(timeout)
@@ -1000,22 +1011,7 @@ class MQTT:
             raise MMQTTException("MiniMQTT is not connected.")
         return self._is_connected
 
-    @property
-    def mqtt_msg(self):
-        """Returns maximum MQTT payload and topic size."""
-        return self._msg_size_lim, MQTT_TOPIC_LENGTH_LIMIT
-
-    @mqtt_msg.setter
-    def mqtt_msg(self, msg_size):
-        """Sets the maximum MQTT message payload size.
-
-        :param int msg_size: Maximum MQTT payload size.
-        """
-        if msg_size < MQTT_MSG_MAX_SZ:
-            self._msg_size_lim = msg_size
-
-    ### Logging API ###
-
+    # Logging
     def enable_logger(self, logger, log_level=20):
         """Enables library logging provided a `logger` object.
 
@@ -1023,45 +1019,11 @@ class MQTT:
         :param log_level: Numeric value of a logging level, defaults to `logging.INFO`.
 
         """
-        self.logger = logging.getLogger("log")
+        self.logger = logger.getLogger("log")
         self.logger.setLevel(log_level)
 
     def disable_logger(self):
         """Disables logging."""
         if not self.logger:
-            raise ValueError("Can't disable logging - no logger enabled!")
+            raise MMQTTException("Can not disable logger, no logger found.")
         self.logger = None
-
-    def set_logger_level(self, log_level):
-        """Sets the level of the logger, if defined during init.
-        NOTE: This method is deprecated and will be removed. Use 
-            `enable_logger`'s `log_level` as an alternative to this method.
-
-        :param str log_level: Level of logging to output to the REPL.
-            Acceptable options are ``DEBUG``, ``INFO``, ``WARNING``, or
-            ``ERROR``.
-        """
-        print("This method ")
-        if self.logger is None:
-            raise MMQTTException(
-                "No logger attached - did you create it during initialization?"
-            )
-        if log_level == "DEBUG":
-            self.logger.setLevel(logging.DEBUG)
-        elif log_level == "INFO":
-            self.logger.setLevel(logging.INFO)
-        elif log_level == "WARNING":
-            self.logger.setLevel(logging.WARNING)
-        elif log_level == "ERROR":
-            self.logger.setLevel(logging.CRITICIAL)
-        else:
-            raise MMQTTException("Incorrect logging level provided!")
-
-    def attach_logger(self, logger_name="log"):
-        """Initializes and attaches a logger to the MQTTClient.
-        :param str logger_name: Name of the logger instance
-        NOTE: This method is deprecated and will be removed. Use 
-            `enable_logger` as an alternative to this method.
-
-        """
-        self.enable_logger()
