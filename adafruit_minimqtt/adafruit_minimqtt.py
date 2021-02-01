@@ -74,7 +74,7 @@ class MMQTTException(Exception):
 
 # Legacy ESP32SPI Socket API
 def set_socket(sock, iface=None):
-    """Legacy API for setting the socket and network interface, use a `Session` instead.
+    """Legacy API for setting the socket and network interface, use a Session instead.
 
     :param sock: socket object.
     :param iface: internet interface object
@@ -974,9 +974,9 @@ class MQTT:
 
     # Logging
     def enable_logger(self, logger, log_level=20):
-        """Enables library logging provided a `logger` object.
-        :param logging.Logger logger: A python logger pacakge.
-        :param log_level: Numeric value of a logging level, defaults to `logging.INFO`.
+        """Enables library logging provided a logger object.
+        :param logger: A python logger pacakge.
+        :param log_level: Numeric value of a logging level, defaults to INFO.
 
         """
         self.logger = logger.getLogger("log")
