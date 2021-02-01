@@ -516,38 +516,42 @@ class MQTT:
                 return result
 
     def disconnect(self):
-        """Disconnects the MiniMQTT client from the MQTT broker.
-        """
+        """Disconnects the MiniMQTT client from the MQTT broker."""
         self.is_connected()
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Sending DISCONNECT packet to broker")
-        self._sock.send(MQTT_DISCONNECT)
-        if self.logger:
+        try:
+            self._sock.send(MQTT_DISCONNECT)
+        except RuntimeError as e:
+            if self.logger:
+                self.logger.warning("Unable to send DISCONNECT packet: {}".format(e))
+        if self.logger is not None:
             self.logger.debug("Closing socket")
-        self._free_sockets()
+        self._sock.close()
         self._is_connected = False
-        self._subscribed_topics = None
+        self._subscribed_topics = []
         if self.on_disconnect is not None:
-            self.on_disconnect(self, self._user_data, 0)
+            self.on_disconnect(self, self.user_data, 0)
 
     def ping(self):
         """Pings the MQTT Broker to confirm if the broker is alive or if
         there is an active network connection.
+        Returns response codes of any messages received while waiting for PINGRESP.
         """
         self.is_connected()
-        buf = self._rx_buffer
         if self.logger:
             self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
-        if self.logger:
-            self.logger.debug("Checking PINGRESP")
-        while True:
-            op = self._wait_for_msg()
-            if op == 208:
-                self._recv_into(buf, 2)
-                if buf[0] != 0x00:
-                    raise MMQTTException("PINGRESP not returned from broker.")
-            return
+        ping_timeout = self.keep_alive
+        stamp = time.monotonic()
+        rc, rcs = None, []
+        while rc != MQTT_PINGRESP:
+            rc = self._wait_for_msg()
+            if rc:
+                rcs.append(rc)
+            if time.monotonic() - stamp > ping_timeout:
+                raise MMQTTException("PINGRESP not returned from broker.")
+        return rcs
 
     # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
@@ -794,12 +798,12 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op == 176:
-                self._recv_into(buf, 3)
-                assert buf[0] == 0x02
+                rc = self._sock_exact_recv(3)
+                assert rc[0] == 0x02
                 # [MQTT-3.32]
                 assert (
-                    buf[1] == packet_id_bytes[0]
-                    and buf[2] == packet_id_bytes[1]
+                    rc[1] == packet_id_bytes[0]
+                    and rc[2] == packet_id_bytes[1]
                 )
                 for t in topics:
                     if self.on_unsubscribe is not None:
@@ -828,33 +832,36 @@ class MQTT:
                 feed = subscribed_topics.pop()
                 self.subscribe(feed)
 
-    def loop(self, timeout=0.01):
+    def loop(self, timeout=1):
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
-        :param float timeout: Set timeout in seconds for
-                                polling the message queue.
+        Returns response codes of any messages received.
+        :param int timeout: Socket timeout, in seconds.
+
         """
         if self._timestamp == 0:
             self._timestamp = time.monotonic()
         current_time = time.monotonic()
         if current_time - self._timestamp >= self.keep_alive:
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
-            if self.logger:
+            if self.logger is not None:
                 self.logger.debug(
                     "KeepAlive period elapsed - \
                                    requesting a PINGRESP from the server..."
                 )
-            self.ping()
+            rcs = self.ping()
             self._timestamp = 0
-        return self._wait_for_msg(timeout)
+            return rcs
+        self._sock.settimeout(timeout)
+        rc = self._wait_for_msg()
+        return [rc] if rc else None
+
 
     def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
         buf = self._rx_buffer
         res = bytearray(1)
 
-        # Attempt to read
-        self._sock.settimeout(1)
         try:
             self._sock.recv_into(res, 1)
         except OSError as error:
