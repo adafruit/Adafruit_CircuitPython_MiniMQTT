@@ -820,7 +820,6 @@ class MQTT:
             try:
                 res = self._sock_exact_recv(1)
             except self._socket_pool.timeout as error:
-                print("timed out", error)
                 return None
         else:  # socketpool, esp32spi
             try:
