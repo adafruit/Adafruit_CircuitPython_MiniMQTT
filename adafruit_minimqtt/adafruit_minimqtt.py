@@ -81,11 +81,13 @@ CONNACK_ERRORS = {
 _the_interface = None  # pylint: disable=invalid-name
 _the_sock = None  # pylint: disable=invalid-name
 
+
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
 
     # pylint: disable=unnecessary-pass
     # pass
+
 
 # Legacy ESP32SPI Socket API
 def set_socket(sock, iface=None):
