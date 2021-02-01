@@ -67,7 +67,7 @@ def message(client, topic, message):
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker=secrets['broker'],
-    port=secrets['port'],
+    port=1883,
     username=secrets['aio_username'],
     password=secrets['aio_key'],
     socket_pool=socket
