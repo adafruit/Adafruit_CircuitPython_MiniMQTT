@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 Brent Rubell for Adafruit Industries
+#
+# SPDX-License-Identifier: Unlicense
 import socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 

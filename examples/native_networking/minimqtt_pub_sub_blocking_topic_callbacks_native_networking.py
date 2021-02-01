@@ -1,4 +1,6 @@
-import time
+# SPDX-FileCopyrightText: 2020 Brent Rubell, written for Adafruit Industries
+#
+# SPDX-License-Identifier: Unlicense
 import time
 import ssl
 import socketpool

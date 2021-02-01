@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 Brent Rubell, written for Adafruit Industries
+#
+# SPDX-License-Identifier: Unlicense
 # adafruit_minimqtt usage with native networking
 import ssl
 import socketpool

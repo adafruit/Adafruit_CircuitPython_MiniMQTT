@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Tony DiCola for Adafruit Industries
+# SPDX-FileCopyrightText: 2020 Brent Rubell for Adafruit Industries
+#
+# SPDX-License-Identifier: Unlicense
 import time
 import board
 import busio
