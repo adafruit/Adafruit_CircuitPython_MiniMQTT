@@ -115,8 +115,7 @@ class _FakeSSLContext:
 
 
 class MQTT:
-    """MQTT Client for CircuitPython
-
+    """MQTT Client for CircuitPython.
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
@@ -448,7 +447,6 @@ class MQTT:
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
     def connect(self, clean_session=True, host=None, port=None, keep_alive=None):
         """Initiates connection with the MQTT Broker.
-
         :param bool clean_session: Establishes a persistent session.
         :param str host: Hostname or IP address of the remote broker.
         :param int port: Network port of the remote broker.
@@ -727,22 +725,9 @@ class MQTT:
 
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
-
         :param str,list topic: Unique MQTT topic identifier string or a list
             of tuples, where each tuple contains an MQTT topic identier
             string.
-
-        Example of unsubscribing from a topic string.
-
-        .. code-block:: python
-
-            mqtt_client.unsubscribe('topics/ledState')
-
-        Example of unsubscribing from multiple topics.
-
-        .. code-block:: python
-
-            mqtt_client.unsubscribe([('topics/ledState'), ('topics/servoAngle')])
 
         """
         topics = None
@@ -790,8 +775,8 @@ class MQTT:
 
     def reconnect(self, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
-
         :param bool resub_topics: Resubscribe to previously subscribed topics.
+
         """
         if self.logger:
             self.logger.debug("Attempting to reconnect with MQTT broker")
@@ -996,7 +981,6 @@ class MQTT:
     # Logging
     def enable_logger(self, logger, log_level=20):
         """Enables library logging provided a `logger` object.
-
         :param logging.Logger logger: A python logger pacakge.
         :param log_level: Numeric value of a logging level, defaults to `logging.INFO`.
 
