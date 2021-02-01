@@ -1,9 +1,6 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-# Adafruit MiniMQTT Pub/Sub Example
-# Written by Tony DiCola for Adafruit Industries
-# Modified by Brent Rubell for Adafruit Industries
 import time
 import board
 import busio

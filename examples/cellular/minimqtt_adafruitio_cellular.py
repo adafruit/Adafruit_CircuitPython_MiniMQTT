@@ -1,13 +1,6 @@
-<<<<<<< HEAD:examples/cellular/minimqtt_adafruitio_cellular.py
-# SPDX-FileCopyrightText: Tony DiCola for Adafruit Industries
-# SPDX-FileCopyrightText: 2020 Brent Rubell for Adafruit Industries
-#
-# SPDX-License-Identifier: Unlicense
-=======
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
->>>>>>> master:examples/minimqtt_adafruitio_cellular.py
 import time
 import board
 import busio

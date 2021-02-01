@@ -1,8 +1,6 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-# CircuitPython MiniMQTT Library
-# Adafruit IO SSL/TLS Example for WiFi
 import time
 import board
 import busio

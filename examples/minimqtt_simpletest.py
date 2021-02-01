@@ -1,7 +1,6 @@
-# SPDX-FileCopyrightText: 2021 Brent Rubell, written for Adafruit Industries
-#
-# SPDX-License-Identifier: Unlicense
-# adafruit_minimqtt usage with native networking
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
 import ssl
 import socketpool
 import wifi
