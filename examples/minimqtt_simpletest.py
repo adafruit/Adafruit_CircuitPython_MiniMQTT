@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Brent Rubell, written for Adafruit Industries
+# SPDX-FileCopyrightText: 2021 Brent Rubell, written for Adafruit Industries
 #
 # SPDX-License-Identifier: Unlicense
 # adafruit_minimqtt usage with native networking

@@ -1,6 +1,6 @@
-# SPDX-FileCopyrightText: 2020 Brent Rubell for Adafruit Industries
-#
-# SPDX-License-Identifier: Unlicense
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
 import time
 import board
 import busio

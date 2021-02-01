@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
 import time
-from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 import adafruit_pyportal
 
@@ -15,9 +17,6 @@ try:
 except ImportError:
     print("WiFi secrets are kept in secrets.py, please add them there!")
     raise
-
-# pylint: disable=protected-access
-wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(pyportal._esp, secrets, None)
 
 # ------------- MQTT Topic Setup ------------- #
 mqtt_topic = "test/topic"
@@ -48,12 +47,12 @@ def message(client, topic, message):
 
 # Connect to WiFi
 print("Connecting to WiFi...")
-wifi.connect()
+pyportal.network.connect()
 print("Connected!")
 
 # Initialize MQTT interface with the esp interface
 # pylint: disable=protected-access
-MQTT.set_socket(socket, pyportal._esp)
+MQTT.set_socket(socket, pyportal.network._wifi.esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(

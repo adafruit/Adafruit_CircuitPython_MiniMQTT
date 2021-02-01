@@ -1,28 +1,11 @@
-# The MIT License (MIT)
+# SPDX-FileCopyrightText: 2019-2021 Brent Rubell for Adafruit Industries
 #
-# Copyright (c) 2019-2021 Brent Rubell for Adafruit Industries
-#
+# SPDX-License-Identifier: MIT
+
 # Original Work Copyright (c) 2016 Paul Sokolovsky, uMQTT
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
 # Modified Work Copyright (c) 2012-2019 Roger Light and others, Paho MQTT Python
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+
 """
 `adafruit_minimqtt`
 ================================================================================
@@ -326,6 +309,35 @@ class MQTT:
 
     def __exit__(self, exception_type, exception_value, traceback):
         self.deinit()
+
+    def _sock_exact_recv(self, bufsize):
+        """Reads _exact_ number of bytes from the connected socket. Will only return
+        string with the exact number of bytes requested.
+
+        The semantics of native socket receive is that it returns no more than the
+        specified number of bytes (i.e. max size). However, it makes no guarantees in
+        terms of the minimum size of the buffer, which could be 1 byte. This is a
+        wrapper for socket recv() to ensure that no less than the expected number of
+        bytes is returned or trigger a timeout exception.
+
+        :param int bufsize: number of bytes to receive
+        """
+        stamp = time.monotonic()
+        rc = self._sock.recv(bufsize)
+        to_read = bufsize - len(rc)
+        assert to_read >= 0
+        read_timeout = self.keep_alive
+        while to_read > 0:
+            recv = self._sock.recv(to_read)
+            to_read -= len(recv)
+            rc += recv
+            if time.monotonic() - stamp > read_timeout:
+                raise MMQTTException(
+                    "Unable to receive {} bytes within {} seconds.".format(
+                        to_read, read_timeout
+                    )
+                )
+        return rc
 
     def deinit(self):
         """De-initializes the MQTT client and disconnects from the mqtt broker."""
@@ -842,11 +854,17 @@ class MQTT:
         # Block while we parse the rest of the response
         self._sock.settimeout(timeout)
         if res in [None, b""]:
+            # If we get here, it means that there is nothing to be received
             return None
-        if res == MQTT_PINGRESP:
-            sz = self._sock.recv(1)[0]
-            assert sz == 0
-            return None
+        if res[0] == MQTT_PINGRESP:
+            if self.logger:
+                self.logger.debug("Checking PINGRESP")
+            sz = self._sock_exact_recv(1)[0]
+            if sz != 0x00:
+                raise MMQTTException(
+                    "Unexpected PINGRESP returned from broker: {}.".format(sz)
+                )
+            return MQTT_PINGRESP
         if res[0] & 0xF0 != 0x30:
             return res[0]
         sz = self._recv_len()
