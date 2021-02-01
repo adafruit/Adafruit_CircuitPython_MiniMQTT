@@ -664,14 +664,13 @@ class MQTT:
         This method can subscribe to one topics or multiple topics.
 
         :param str,tuple,list topic: Unique MQTT topic identifier string. If
-          this is a `tuple`, then the tuple should contain topic identifier
-          string and qos level integer. If this is a `list`, then each list
-          element should be a tuple containing a topic identifier string and
-          qos level integer.
+                                     this is a `tuple`, then the tuple should contain topic identifier
+                                     string and qos level integer. If this is a `list`, then each list
+                                     element should be a tuple containing a topic identifier string and
+                                     qos level integer.
         :param int qos: Quality of Service level for the topic, defaults to
-          zero. Conventional options are ``0`` (send at most once), ``1``
-          (send at least once), or ``2`` (send exactly once).
-          .. note:: Only options ``1`` or ``0`` are QoS levels supported by this library.
+                        zero. Conventional options are ``0`` (send at most once), ``1``
+                        (send at least once), or ``2`` (send exactly once).
 
         """
         self.is_connected()
@@ -723,7 +722,7 @@ class MQTT:
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
         :param str,list topic: Unique MQTT topic identifier string or a list
-          of tuples, where each tuple contains an MQTT topic identier string.
+                               of tuples, where each tuple contains an MQTT topic identier string.
 
         """
         topics = None
