@@ -578,7 +578,6 @@ class MQTT:
         :param int qos: Quality of Service level for the message, defaults to
             zero. Conventional options are ``0`` (send at most once), ``1``
             (send at least once), or ``2`` (send exactly once).
-
         """
         self.is_connected()
         self._valid_topic(topic)
