@@ -890,6 +890,7 @@ class MQTT:
         self._recv_into(topic, topic_len)
         topic = str(topic, "utf-8")
         sz -= topic_len + 2
+        pid = 0
         if res[0] & 0x06:
             pid = bytearray(2)
             self._recv_into(pid, 2)
@@ -918,13 +919,14 @@ class MQTT:
 
 
     def _recv_len(self):
+        """Unpack MQTT message length."""
         n = 0
         sh = 0
         b = bytearray(1)
         while True:
-            self._recv_into(b, 1)
-            n |= (b[0] & 0x7F) << sh
-            if not b[0] & 0x80:
+            b = self._sock_exact_recv(1)[0]
+            n |= (b & 0x7F) << sh
+            if not b & 0x80:
                 return n
             sh += 7
 
