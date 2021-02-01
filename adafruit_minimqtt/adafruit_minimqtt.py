@@ -256,6 +256,7 @@ class MQTT:
         for sock in free_sockets:
             self._close_socket(sock)
 
+    # pylint: disable=too-many-branches
     def _get_socket(self, host, port, *, timeout=1):
         key = (host, port)
         if key in self._open_sockets:
@@ -459,7 +460,6 @@ class MQTT:
         # NOTE: Variable header is
         # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
         # because final 4 bytes are 4, 2, 0, 0
-        # Variable Header
         var_header = MQTT_HDR_CONNECT
         var_header[6] = clean_session << 1
 
@@ -542,7 +542,7 @@ class MQTT:
         self._is_connected = False
         self._subscribed_topics = []
         if self.on_disconnect is not None:
-            self.on_disconnect(self, self.user_data, 0)
+            self.on_disconnect(self, self._user_data, 0)
 
     def ping(self):
         """Pings the MQTT Broker to confirm if the broker is alive or if
@@ -864,18 +864,16 @@ class MQTT:
 
     def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
-        res = bytearray(1)
-
         # CPython socket module contains a timeout attribute
         if (hasattr(self._socket_pool, "timeout")):
             try:
-                self._recv_into(res, 1)
+                res = self._sock_exact_recv(1)
             except self._socket_pool.timeout as error:
                 print("timed out", error)
                 return None
         else: # socketpool, esp32spi
             try:
-                self._recv_into(res, 1)
+                res = self._sock_exact_recv(1)
             except OSError as error:
                 if error.errno == errno.ETIMEDOUT:
                     # raised by a socket timeout in socketpool
