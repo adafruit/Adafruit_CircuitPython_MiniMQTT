@@ -62,7 +62,8 @@ CONNACK_ERRORS = {
 }
 
 _default_sock = None  # pylint: disable=invalid-name
-_fake_context = None # pylint: disable=invalid-name
+_fake_context = None  # pylint: disable=invalid-name
+
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
@@ -85,6 +86,7 @@ def set_socket(sock, iface=None):
         _default_sock.set_interface(iface)
         _fake_context = _FakeSSLContext(iface)
 
+
 class _FakeSSLSocket:
     def __init__(self, socket, tls_mode):
         self._socket = socket
@@ -100,6 +102,7 @@ class _FakeSSLSocket:
             return self._socket.connect(address, self._mode)
         except RuntimeError as error:
             raise OSError(errno.ENOMEM) from error
+
 
 class _FakeSSLContext:
     def __init__(self, iface):
@@ -200,12 +203,16 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
-
-    # pylint: disable=too-many-branches
     def _get_socket(self, host, port, *, timeout=1):
+        """Obtains and connects a new socket to a host.
+        :param str host: Desired broker hostname
+        :param int port: Desired broker port
+        :param int timeout: Desired socket timeout
+        """
         # For reconnections - check if we're using a socket already and close it
         if self._sock:
             self._sock.close()
+            self._sock = None
 
         # Legacy API - use a default socket instead of socket pool
         if self._socket_pool is None:
@@ -224,27 +231,21 @@ class MQTT:
             host, port, 0, self._socket_pool.SOCK_STREAM
         )[0]
 
-        retry_count = 0
         sock = None
+        sock = self._socket_pool.socket(addr_info[0], addr_info[1], addr_info[2])
 
-        sock = self._socket_pool.socket(
-            addr_info[0], addr_info[1], addr_info[2]
-        )
-
-        connect_host = addr_info[-1][0]
         if port == 8883:
             sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
-            connect_host = host
-        sock.settimeout(timeout)
 
+        sock.settimeout(timeout)
         try:
-            sock.connect((connect_host, port))
+            sock.connect((addr_info[-1][0], port))
         except MemoryError as err:
             sock.close()
-            raise MemoryError(err)
+            raise MemoryError from err
         except OSError as err:
             sock.close()
-            raise OSError(err)
+            raise OSError from err
 
         self._backwards_compatible_sock = not hasattr(sock, "recv_into")
         return sock
@@ -409,7 +410,7 @@ class MQTT:
         if self.logger:
             self.logger.debug("Attempting to establish MQTT connection...")
 
-        # Attempt to get a new socket
+        # Get a new socket
         self._sock = self._get_socket(self.broker, self.port)
 
         # Fixed Header
