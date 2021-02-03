@@ -61,9 +61,8 @@ CONNACK_ERRORS = {
     const(0x05): "Connection Refused - Unauthorized",
 }
 
-_the_interface = None  # pylint: disable=invalid-name
-_the_sock = None  # pylint: disable=invalid-name
-
+_default_sock = None  # pylint: disable=invalid-name
+_fake_context = None # pylint: disable=invalid-name
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
@@ -74,18 +73,17 @@ class MMQTTException(Exception):
 
 # Legacy ESP32SPI Socket API
 def set_socket(sock, iface=None):
-    """Legacy API for setting the socket and network interface, use a Session instead.
-
+    """Legacy API for setting the socket and network interface.
     :param sock: socket object.
     :param iface: internet interface object
-    """
-    global _the_sock  # pylint: disable=invalid-name, global-statement
-    _the_sock = sock
-    if iface:
-        global _the_interface  # pylint: disable=invalid-name, global-statement
-        _the_interface = iface
-        _the_sock.set_interface(iface)
 
+    """
+    global _default_sock  # pylint: disable=invalid-name, global-statement
+    global _fake_context  # pylint: disable=invalid-name, global-statement
+    _default_sock = sock
+    if iface:
+        _default_sock.set_interface(iface)
+        _fake_context = _FakeSSLContext(iface)
 
 class _FakeSSLSocket:
     def __init__(self, socket, tls_mode):
@@ -102,7 +100,6 @@ class _FakeSSLSocket:
             return self._socket.connect(address, self._mode)
         except RuntimeError as error:
             raise OSError(errno.ENOMEM) from error
-
 
 class _FakeSSLContext:
     def __init__(self, iface):
@@ -144,18 +141,7 @@ class MQTT:
     ):
 
         self._socket_pool = socket_pool
-        # Legacy API - if we do not have a socket pool, use default socket
-        if self._socket_pool is None:
-            self._socket_pool = _the_sock
-
         self._ssl_context = ssl_context
-        # Legacy API - if we do not have SSL context, fake it
-        if self._ssl_context is None:
-            self._ssl_context = _FakeSSLContext(_the_interface)
-
-        # Hang onto open sockets so that we can reuse them
-        self._socket_free = {}
-        self._open_sockets = {}
         self._sock = None
         self._backwards_compatible_sock = False
 
@@ -214,93 +200,53 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
-    # Socket helpers
-    def _free_socket(self, socket):
-        """Frees a socket for re-use."""
-        if socket not in self._open_sockets.values():
-            raise RuntimeError("Socket not from MQTT client.")
-        self._socket_free[socket] = True
-
-    def _close_socket(self, socket):
-        """Closes a slocket."""
-        socket.close()
-        del self._socket_free[socket]
-        key = None
-        for k in self._open_sockets:
-            if self._open_sockets[k] == socket:
-                key = k
-                break
-        if key:
-            del self._open_sockets[key]
-
-    def _free_sockets(self):
-        """Closes all free sockets."""
-        free_sockets = []
-        for sock in self._socket_free:
-            if self._socket_free[sock]:
-                free_sockets.append(sock)
-        for sock in free_sockets:
-            self._close_socket(sock)
 
     # pylint: disable=too-many-branches
     def _get_socket(self, host, port, *, timeout=1):
-        key = (host, port)
-        if key in self._open_sockets:
-            sock = self._open_sockets[key]
-            if self._socket_free[sock]:
-                self._socket_free[sock] = False
-                return sock
-        if port == 8883 and not self._ssl_context:
+        # For reconnections - check if we're using a socket already and close it
+        if self._sock:
+            self._sock.close()
+
+        # Legacy API - use a default socket instead of socket pool
+        if self._socket_pool is None:
+            self._socket_pool = _default_sock
+
+        # Legacy API - fake the ssl context
+        if self._ssl_context is None:
+            self._ssl_context = _fake_context
+
+        if port == 8883 and self._ssl_context is None:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
 
-        # Legacy API - use a default socket instead of socket pool
-        if self._socket_pool is None:
-            self._socket_pool = _the_sock
-
         addr_info = self._socket_pool.getaddrinfo(
             host, port, 0, self._socket_pool.SOCK_STREAM
         )[0]
+
         retry_count = 0
         sock = None
-        while retry_count < 5 and sock is None:
-            if retry_count > 0:
-                if any(self._socket_free.items()):
-                    self._free_sockets()
-                else:
-                    raise RuntimeError("Sending request failed")
-            retry_count += 1
 
-            try:
-                sock = self._socket_pool.socket(
-                    addr_info[0], addr_info[1], addr_info[2]
-                )
-            except OSError:
-                continue
+        sock = self._socket_pool.socket(
+            addr_info[0], addr_info[1], addr_info[2]
+        )
 
-            connect_host = addr_info[-1][0]
-            if port == 8883:
-                sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
-                connect_host = host
-            sock.settimeout(timeout)
+        connect_host = addr_info[-1][0]
+        if port == 8883:
+            sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
+            connect_host = host
+        sock.settimeout(timeout)
 
-            try:
-                sock.connect((connect_host, port))
-            except MemoryError:
-                sock.close()
-                sock = None
-            except OSError:
-                sock.close()
-                sock = None
-
-        if sock is None:
-            raise RuntimeError("Repeated socket failures")
+        try:
+            sock.connect((connect_host, port))
+        except MemoryError as err:
+            sock.close()
+            raise MemoryError(err)
+        except OSError as err:
+            sock.close()
+            raise OSError(err)
 
         self._backwards_compatible_sock = not hasattr(sock, "recv_into")
-
-        self._open_sockets[key] = sock
-        self._socket_free[sock] = False
         return sock
 
     def __enter__(self):
