@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
-
-import ssl
-import socketpool
-import wifi
+import board
+import busio
+from digitalio import DigitalInOut
+from adafruit_esp32spi import adafruit_esp32spi
+import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
@@ -22,9 +23,27 @@ except ImportError:
 aio_username = secrets["aio_username"]
 aio_key = secrets["aio_key"]
 
-print("Connecting to %s" % secrets["ssid"])
-wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!" % secrets["ssid"])
+# If you are using a board with pre-defined ESP32 Pins:
+esp32_cs = DigitalInOut(board.ESP_CS)
+esp32_ready = DigitalInOut(board.ESP_BUSY)
+esp32_reset = DigitalInOut(board.ESP_RESET)
+
+# If you have an externally connected ESP32:
+# esp32_cs = DigitalInOut(board.D9)
+# esp32_ready = DigitalInOut(board.D10)
+# esp32_reset = DigitalInOut(board.D5)
+
+spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
+esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
+
+print("Connecting to AP...")
+while not esp.is_connected:
+    try:
+        esp.connect_AP(secrets["ssid"], secrets["password"])
+    except RuntimeError as e:
+        print("could not connect to AP, retrying: ", e)
+        continue
+print("Connected to", str(esp.ssid, "utf-8"), "\tRSSI:", esp.rssi)
 
 ### Topic Setup ###
 
@@ -37,6 +56,7 @@ mqtt_topic = "test/topic"
 # mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
 
 ### Code ###
+
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connect(mqtt_client, userdata, flags, rc):
@@ -68,21 +88,18 @@ def publish(mqtt_client, userdata, topic, pid):
 
 
 def message(client, topic, message):
-    # Method callled when a client's subscribed feed has a new value.
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-# Create a socket pool
-pool = socketpool.SocketPool(wifi.radio)
+socket.set_interface(esp)
+MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker=secrets["broker"],
     port=secrets["port"],
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
-    socket_pool=pool,
-    ssl_context=ssl.create_default_context(),
+    username=secrets["username"],
+    password=secrets["password"],
 )
 
 # Connect callback handlers to mqtt_client

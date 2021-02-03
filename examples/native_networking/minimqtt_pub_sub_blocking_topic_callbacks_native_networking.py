@@ -2,51 +2,30 @@
 # SPDX-License-Identifier: MIT
 
 import time
-import board
-import busio
-from digitalio import DigitalInOut
-import neopixel
-from adafruit_esp32spi import adafruit_esp32spi
-from adafruit_esp32spi import adafruit_esp32spi_wifimanager
-import adafruit_esp32spi.adafruit_esp32spi_socket as socket
-
+import ssl
+import socketpool
+import wifi
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### WiFi ###
-
-# Get wifi details and more from a secrets.py file
+# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
+# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
+# source control.
+# pylint: disable=no-name-in-module,wrong-import-order
 try:
     from secrets import secrets
 except ImportError:
     print("WiFi secrets are kept in secrets.py, please add them there!")
     raise
 
-# If you are using a board with pre-defined ESP32 Pins:
-esp32_cs = DigitalInOut(board.ESP_CS)
-esp32_ready = DigitalInOut(board.ESP_BUSY)
-esp32_reset = DigitalInOut(board.ESP_RESET)
+# Set your Adafruit IO Username and Key in secrets.py
+# (visit io.adafruit.com if you need to create an account,
+# or if you need your Adafruit IO key.)
+aio_username = secrets["aio_username"]
+aio_key = secrets["aio_key"]
 
-# If you have an externally connected ESP32:
-# esp32_cs = DigitalInOut(board.D9)
-# esp32_ready = DigitalInOut(board.D10)
-# esp32_reset = DigitalInOut(board.D5)
-
-spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
-"""Use below for Most Boards"""
-status_light = neopixel.NeoPixel(
-    board.NEOPIXEL, 1, brightness=0.2
-)  # Uncomment for Most Boards
-"""Uncomment below for ItsyBitsy M4"""
-# status_light = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
-# Uncomment below for an externally defined RGB LED
-# import adafruit_rgbled
-# from adafruit_esp32spi import PWMOut
-# RED_LED = PWMOut.PWMOut(esp, 26)
-# GREEN_LED = PWMOut.PWMOut(esp, 27)
-# BLUE_LED = PWMOut.PWMOut(esp, 25)
-# status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
-wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
+print("Connecting to %s" % secrets["ssid"])
+wifi.radio.connect(secrets["ssid"], secrets["password"])
+print("Connected to %s!" % secrets["ssid"])
 
 ### Code ###
 
@@ -77,7 +56,7 @@ def on_battery_msg(client, topic, message):
     # Method called when device/batteryLife has a new value
     print("Battery level: {}v".format(message))
 
-    # client.remove_topic_callback("device/batteryLevel")
+    # client.remove_topic_callback(secrets["aio_username"] + "/feeds/device.batterylevel")
 
 
 def on_message(client, topic, message):
@@ -85,15 +64,18 @@ def on_message(client, topic, message):
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-# Connect to WiFi
-print("Connecting to WiFi...")
-wifi.connect()
-print("Connected!")
-
-MQTT.set_socket(socket, esp)
+# Create a socket pool
+pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
-client = MQTT.MQTT(broker=secrets["broker"], port=secrets["broker_port"])
+client = MQTT.MQTT(
+    broker=secrets["broker"],
+    port=secrets["port"],
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
+    socket_pool=pool,
+    ssl_context=ssl.create_default_context(),
+)
 
 # Setup the callback methods above
 client.on_connect = connected
@@ -101,14 +83,16 @@ client.on_disconnect = disconnected
 client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_message = on_message
-client.add_topic_callback("device/batteryLevel", on_battery_msg)
+client.add_topic_callback(
+    secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg
+)
 
 # Connect the client to the MQTT broker.
 print("Connecting to MQTT broker...")
 client.connect()
 
-# Subscribe to all notifications on the device/ topic
-client.subscribe("device/#", 1)
+# Subscribe to all notifications on the device group
+client.subscribe(secrets["aio_username"] + "/groups/device", 1)
 
 # Start a blocking message loop...
 # NOTE: NO code below this loop will execute

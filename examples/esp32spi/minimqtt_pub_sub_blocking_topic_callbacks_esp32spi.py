@@ -1,9 +1,6 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-# Adafruit MiniMQTT Pub/Sub Example
-# Written by Tony DiCola for Adafruit Industries
-# Modified by Brent Rubell for Adafruit Industries
 import time
 import board
 import busio
@@ -51,14 +48,6 @@ status_light = neopixel.NeoPixel(
 # status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
 wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
 
-### Feeds ###
-
-# Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = secrets["aio_username"] + "/feeds/photocell"
-
-# Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = secrets["aio_username"] + "/feeds/onoff"
-
 ### Code ###
 
 # Define callback methods which are called when events occur
@@ -66,19 +55,33 @@ onoff_feed = secrets["aio_username"] + "/feeds/onoff"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to Adafruit IO! Listening for topic changes on %s" % onoff_feed)
-    # Subscribe to all changes on the onoff_feed.
-    client.subscribe(onoff_feed)
+    print("Connected to MQTT Broker!")
 
 
 def disconnected(client, userdata, rc):
     # This method is called when the client is disconnected
-    print("Disconnected from Adafruit IO!")
+    print("Disconnected from MQTT Broker!")
 
 
-def message(client, topic, message):
-    # This method is called when a topic the client is subscribed to
-    # has a new message.
+def subscribe(client, userdata, topic, granted_qos):
+    # This method is called when the client subscribes to a new feed.
+    print("Subscribed to {0} with QOS level {1}".format(topic, granted_qos))
+
+
+def unsubscribe(client, userdata, topic, pid):
+    # This method is called when the client unsubscribes from a feed.
+    print("Unsubscribed from {0} with PID {1}".format(topic, pid))
+
+
+def on_battery_msg(client, topic, message):
+    # Method called when device/batteryLife has a new value
+    print("Battery level: {}v".format(message))
+
+    # client.remove_topic_callback(secrets["aio_username"] + "/feeds/device.batterylevel")
+
+
+def on_message(client, topic, message):
+    # Method callled when a client's subscribed feed has a new value.
     print("New message on topic {0}: {1}".format(topic, message))
 
 
@@ -87,33 +90,36 @@ print("Connecting to WiFi...")
 wifi.connect()
 print("Connected!")
 
-# Initialize MQTT interface with the esp interface
 MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT.MQTT(
-    broker="io.adafruit.com",
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
-)
+client = MQTT.MQTT(broker=secrets["broker"], port=secrets["broker_port"])
 
 # Setup the callback methods above
-mqtt_client.on_connect = connected
-mqtt_client.on_disconnect = disconnected
-mqtt_client.on_message = message
+client.on_connect = connected
+client.on_disconnect = disconnected
+client.on_subscribe = subscribe
+client.on_unsubscribe = unsubscribe
+client.on_message = on_message
+client.add_topic_callback(
+    secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg
+)
 
 # Connect the client to the MQTT broker.
-print("Connecting to Adafruit IO...")
-mqtt_client.connect()
+print("Connecting to MQTT broker...")
+client.connect()
 
-photocell_val = 0
+# Subscribe to all notifications on the device group
+client.subscribe(secrets["aio_username"] + "/groups/device", 1)
+
+# Start a blocking message loop...
+# NOTE: NO code below this loop will execute
 while True:
-    # Poll the message queue
-    mqtt_client.loop()
-
-    # Send a new message
-    print("Sending photocell value: %d..." % photocell_val)
-    mqtt_client.publish(photocell_feed, photocell_val)
-    print("Sent!")
-    photocell_val += 1
-    time.sleep(5)
+    try:
+        client.loop()
+    except (ValueError, RuntimeError) as e:
+        print("Failed to get data, retrying\n", e)
+        wifi.reset()
+        client.reconnect()
+        continue
+    time.sleep(1)
