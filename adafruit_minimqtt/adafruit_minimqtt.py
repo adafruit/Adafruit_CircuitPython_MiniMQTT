@@ -232,20 +232,34 @@ class MQTT:
         )[0]
 
         sock = None
-        sock = self._socket_pool.socket(addr_info[0], addr_info[1], addr_info[2])
+        retry_count = 0
+        while retry_count < 5 and sock is None:
+            retry_count += 1
 
-        if port == 8883:
-            sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
+            try:
+                sock = self._socket_pool.socket(
+                    addr_info[0], addr_info[1], addr_info[2]
+                )
+            except OSError:
+                continue
 
-        sock.settimeout(timeout)
-        try:
-            sock.connect((addr_info[-1][0], port))
-        except MemoryError as err:
-            sock.close()
-            raise MemoryError from err
-        except OSError as err:
-            sock.close()
-            raise OSError from err
+            connect_host = addr_info[-1][0]
+            if port == 8883:
+                sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
+                connect_host = host
+            sock.settimeout(timeout)
+
+            try:
+                sock.connect((connect_host, port))
+            except MemoryError:
+                sock.close()
+                sock = None
+            except OSError:
+                sock.close()
+                sock = None
+
+        if sock is None:
+            raise RuntimeError("Repeated socket failures")
 
         self._backwards_compatible_sock = not hasattr(sock, "recv_into")
         return sock
