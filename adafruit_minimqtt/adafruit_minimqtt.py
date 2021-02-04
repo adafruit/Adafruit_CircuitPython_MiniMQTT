@@ -203,8 +203,8 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
-    def _get_socket(self, host, port, *, timeout=1):
-        """Obtains and connects a new socket to a host.
+    def _get_connect_socket(self, host, port, *, timeout=1):
+        """Obtains a new socket and connects to a broker.
         :param str host: Desired broker hostname
         :param int port: Desired broker port
         :param int timeout: Desired socket timeout
@@ -214,7 +214,7 @@ class MQTT:
             self._sock.close()
             self._sock = None
 
-        # Legacy API - use a default socket instead of socket pool
+        # Legacy API - use the interface's socket instead of a passed socket pool
         if self._socket_pool is None:
             self._socket_pool = _default_sock
 
@@ -222,7 +222,7 @@ class MQTT:
         if self._ssl_context is None:
             self._ssl_context = _fake_context
 
-        if port == 8883 and self._ssl_context is None:
+        if port == 8883 and not self._ssl_context:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
@@ -425,7 +425,7 @@ class MQTT:
             self.logger.debug("Attempting to establish MQTT connection...")
 
         # Get a new socket
-        self._sock = self._get_socket(self.broker, self.port)
+        self._sock = self._get_connect_socket(self.broker, self.port)
 
         # Fixed Header
         fixed_header = bytearray([0x10])
