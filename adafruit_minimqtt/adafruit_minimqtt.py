@@ -909,12 +909,16 @@ class MQTT:
         else:  # ESP32SPI Impl.
             stamp = time.monotonic()
             read_timeout = self.keep_alive
-            rc = self._sock.recv(bufsize) # This will timeout with socket timeout (not keepalive timeout)
+            # This will timeout with socket timeout (not keepalive timeout)
+            rc = self._sock.recv(bufsize)
             if(not rc):
                 if self.logger:
                     self.logger.debug("_sock_exact_recv timeout")
-                raise OSError(errno.ETIMEDOUT) # If no bytes waiting, raise same exception as socketpool
-            to_read = bufsize - len(rc) # If any bytes waiting, try to read them all
+                # If no bytes waiting, raise same exception as socketpool
+                raise OSError(errno.ETIMEDOUT)
+            # If any bytes waiting, try to read them all,
+            # or raise exception if wait longer than read_timeout
+            to_read = bufsize - len(rc)
             assert to_read >= 0
             read_timeout = self.keep_alive
             while to_read > 0:
