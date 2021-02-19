@@ -510,7 +510,7 @@ class MQTT:
         if self.logger:
             self.logger.debug("Sending CONNECT to broker...")
             self.logger.debug(
-                "Fixed Header: %x\nVariable Header: %x", fixed_header, var_header
+                "Fixed Header: %s\nVariable Header: %s", fixed_header, var_header
             )
         self._sock.send(fixed_header)
         self._sock.send(var_header)
@@ -634,7 +634,7 @@ class MQTT:
 
         if self.logger:
             self.logger.debug(
-                "Sending PUBLISH\nTopic: %s\nMsg: %x\
+                "Sending PUBLISH\nTopic: %s\nMsg: %s\
                                 \nQoS: %d\nRetain? %r",
                 topic,
                 msg,
@@ -803,8 +803,7 @@ class MQTT:
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
             if self.logger is not None:
                 self.logger.debug(
-                    "KeepAlive period elapsed - \
-                                   requesting a PINGRESP from the server..."
+                    "KeepAlive period elapsed - requesting a PINGRESP from the server..."
                 )
             rcs = self.ping()
             self._timestamp = 0
@@ -826,7 +825,7 @@ class MQTT:
                 res = self._sock_exact_recv(1)
             except OSError as error:
                 if error.errno == errno.ETIMEDOUT:
-                    # raised by a socket timeout in socketpool
+                    # raised by a socket timeout if 0 bytes were present
                     return None
                 raise MMQTTException from error
 
@@ -837,7 +836,7 @@ class MQTT:
             return None
         if res[0] == MQTT_PINGRESP:
             if self.logger:
-                self.logger.debug("Checking PINGRESP")
+                self.logger.debug("Got PINGRESP")
             sz = self._sock_exact_recv(1)[0]
             if sz != 0x00:
                 raise MMQTTException(
@@ -910,7 +909,15 @@ class MQTT:
         else:  # ESP32SPI Impl.
             stamp = time.monotonic()
             read_timeout = self.keep_alive
+            # This will timeout with socket timeout (not keepalive timeout)
             rc = self._sock.recv(bufsize)
+            if not rc:
+                if self.logger:
+                    self.logger.debug("_sock_exact_recv timeout")
+                # If no bytes waiting, raise same exception as socketpool
+                raise OSError(errno.ETIMEDOUT)
+            # If any bytes waiting, try to read them all,
+            # or raise exception if wait longer than read_timeout
             to_read = bufsize - len(rc)
             assert to_read >= 0
             read_timeout = self.keep_alive
