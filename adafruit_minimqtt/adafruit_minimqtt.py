@@ -911,7 +911,7 @@ class MQTT:
             read_timeout = self.keep_alive
             # This will timeout with socket timeout (not keepalive timeout)
             rc = self._sock.recv(bufsize)
-            if(not rc):
+            if not rc:
                 if self.logger:
                     self.logger.debug("_sock_exact_recv timeout")
                 # If no bytes waiting, raise same exception as socketpool
