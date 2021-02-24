@@ -1,32 +1,31 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import ssl
 import socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### Secrets File Setup ###
-
+# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
+# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
+# source control.
+# pylint: disable=no-name-in-module,wrong-import-order
 try:
     from secrets import secrets
 except ImportError:
-    print("Connection secrets are kept in secrets.py, please add them there!")
+    print("WiFi secrets are kept in secrets.py, please add them there!")
     raise
 
 ### Topic Setup ###
 
 # MQTT Topic
 # Use this topic if you'd like to connect to a standard MQTT broker
-# mqtt_topic = "test/topic"
+mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-mqtt_topic = secrets["aio_username"] + "/feeds/temperature"
+# mqtt_topic = secrets["aio_username"] + "/feeds/temperature"
 
 ### Code ###
-
-# Keep track of client connection state
-disconnect_client = False
-
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connect(mqtt_client, userdata, flags, rc):
@@ -65,10 +64,10 @@ def message(client, topic, message):
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker=secrets["broker"],
-    port=1883,
     username=secrets["aio_username"],
     password=secrets["aio_key"],
     socket_pool=socket,
+    ssl_context=ssl.create_default_context(),
 )
 
 # Connect callback handlers to mqtt_client

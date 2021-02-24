@@ -61,8 +61,8 @@ CONNACK_ERRORS = {
     const(0x05): "Connection Refused - Unauthorized",
 }
 
-_the_interface = None  # pylint: disable=invalid-name
-_the_sock = None  # pylint: disable=invalid-name
+_default_sock = None  # pylint: disable=invalid-name
+_fake_context = None  # pylint: disable=invalid-name
 
 
 class MMQTTException(Exception):
@@ -74,17 +74,17 @@ class MMQTTException(Exception):
 
 # Legacy ESP32SPI Socket API
 def set_socket(sock, iface=None):
-    """Legacy API for setting the socket and network interface, use a Session instead.
-
+    """Legacy API for setting the socket and network interface.
     :param sock: socket object.
     :param iface: internet interface object
+
     """
-    global _the_sock  # pylint: disable=invalid-name, global-statement
-    _the_sock = sock
+    global _default_sock  # pylint: disable=invalid-name, global-statement
+    global _fake_context  # pylint: disable=invalid-name, global-statement
+    _default_sock = sock
     if iface:
-        global _the_interface  # pylint: disable=invalid-name, global-statement
-        _the_interface = iface
-        _the_sock.set_interface(iface)
+        _default_sock.set_interface(iface)
+        _fake_context = _FakeSSLContext(iface)
 
 
 class _FakeSSLSocket:
@@ -144,18 +144,7 @@ class MQTT:
     ):
 
         self._socket_pool = socket_pool
-        # Legacy API - if we do not have a socket pool, use default socket
-        if self._socket_pool is None:
-            self._socket_pool = _the_sock
-
         self._ssl_context = ssl_context
-        # Legacy API - if we do not have SSL context, fake it
-        if self._ssl_context is None:
-            self._ssl_context = _FakeSSLContext(_the_interface)
-
-        # Hang onto open sockets so that we can reuse them
-        self._socket_free = {}
-        self._open_sockets = {}
         self._sock = None
         self._backwards_compatible_sock = False
 
@@ -214,62 +203,37 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
-    # Socket helpers
-    def _free_socket(self, socket):
-        """Frees a socket for re-use."""
-        if socket not in self._open_sockets.values():
-            raise RuntimeError("Socket not from MQTT client.")
-        self._socket_free[socket] = True
+    def _get_connect_socket(self, host, port, *, timeout=1):
+        """Obtains a new socket and connects to a broker.
+        :param str host: Desired broker hostname
+        :param int port: Desired broker port
+        :param int timeout: Desired socket timeout
+        """
+        # For reconnections - check if we're using a socket already and close it
+        if self._sock:
+            self._sock.close()
+            self._sock = None
 
-    def _close_socket(self, socket):
-        """Closes a slocket."""
-        socket.close()
-        del self._socket_free[socket]
-        key = None
-        for k in self._open_sockets:
-            if self._open_sockets[k] == socket:
-                key = k
-                break
-        if key:
-            del self._open_sockets[key]
+        # Legacy API - use the interface's socket instead of a passed socket pool
+        if self._socket_pool is None:
+            self._socket_pool = _default_sock
 
-    def _free_sockets(self):
-        """Closes all free sockets."""
-        free_sockets = []
-        for sock in self._socket_free:
-            if self._socket_free[sock]:
-                free_sockets.append(sock)
-        for sock in free_sockets:
-            self._close_socket(sock)
+        # Legacy API - fake the ssl context
+        if self._ssl_context is None:
+            self._ssl_context = _fake_context
 
-    # pylint: disable=too-many-branches
-    def _get_socket(self, host, port, *, timeout=1):
-        key = (host, port)
-        if key in self._open_sockets:
-            sock = self._open_sockets[key]
-            if self._socket_free[sock]:
-                self._socket_free[sock] = False
-                return sock
         if port == 8883 and not self._ssl_context:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
 
-        # Legacy API - use a default socket instead of socket pool
-        if self._socket_pool is None:
-            self._socket_pool = _the_sock
-
         addr_info = self._socket_pool.getaddrinfo(
             host, port, 0, self._socket_pool.SOCK_STREAM
         )[0]
-        retry_count = 0
+
         sock = None
+        retry_count = 0
         while retry_count < 5 and sock is None:
-            if retry_count > 0:
-                if any(self._socket_free.items()):
-                    self._free_sockets()
-                else:
-                    raise RuntimeError("Sending request failed")
             retry_count += 1
 
             try:
@@ -298,9 +262,6 @@ class MQTT:
             raise RuntimeError("Repeated socket failures")
 
         self._backwards_compatible_sock = not hasattr(sock, "recv_into")
-
-        self._open_sockets[key] = sock
-        self._socket_free[sock] = False
         return sock
 
     def __enter__(self):
@@ -463,8 +424,8 @@ class MQTT:
         if self.logger:
             self.logger.debug("Attempting to establish MQTT connection...")
 
-        # Attempt to get a new socket
-        self._sock = self._get_socket(self.broker, self.port)
+        # Get a new socket
+        self._sock = self._get_connect_socket(self.broker, self.port)
 
         # Fixed Header
         fixed_header = bytearray([0x10])
