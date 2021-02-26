@@ -227,6 +227,15 @@ class MQTT:
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
 
+        if self.logger and port == MQTT_TLS_PORT:
+            self.logger.info(
+                "Establishing a SECURE SSL connection to {0}:{1}".format(host, port)
+            )
+        else:
+            self.logger.info(
+                "Establishing an INSECURE connection to {0}:{1}".format(host, port)
+            )
+
         addr_info = self._socket_pool.getaddrinfo(
             host, port, 0, self._socket_pool.SOCK_STREAM
         )[0]
