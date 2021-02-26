@@ -50,11 +50,6 @@ jobs:
     - name: Pre-commit hooks
       run: |
         pre-commit run --all-files
-    - name: PyLint
-      run: |
-        pylint $( find . -path './adafruit*.py' )
-        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*.py" ))
-        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*/*.py" ))
     - name: Build assets
       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
     - name: Archive bundles
@@ -62,7 +57,12 @@ jobs:
       with:
         name: bundles
         path: ${{ github.workspace }}/bundles/
+    - name: Check For docs folder
+      id: need-docs
+      run: |
+        echo ::set-output name=docs::$( find . -wholename './docs' )
     - name: Build docs
+      if: contains(steps.need-docs.outputs.docs, 'docs')
       working-directory: docs
       run: sphinx-build -E -W -b html . _build/html
     - name: Check For setup.py
