@@ -231,7 +231,7 @@ class MQTT:
             self.logger.info(
                 "Establishing a SECURE SSL connection to {0}:{1}".format(host, port)
             )
-        else:
+        elif self.logger:
             self.logger.info(
                 "Establishing an INSECURE connection to {0}:{1}".format(host, port)
             )
