@@ -203,6 +203,7 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
+    # pylint: disable=too-many-branches
     def _get_connect_socket(self, host, port, *, timeout=1):
         """Obtains a new socket and connects to a broker.
         :param str host: Desired broker hostname
@@ -221,6 +222,9 @@ class MQTT:
         # Legacy API - fake the ssl context
         if self._ssl_context is None:
             self._ssl_context = _fake_context
+
+        if not isinstance(port, int):
+            raise RuntimeError("Port must be an integer")
 
         if port == 8883 and not self._ssl_context:
             raise RuntimeError(
