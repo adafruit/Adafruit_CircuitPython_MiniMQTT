@@ -591,9 +591,9 @@ class MQTT:
         if qos > 0:
             # packet identifier where QoS level is 1 or 2. [3.3.2.2]
             remaining_length += 2
-            pub_hdr_var.append(0x00)
-            pub_hdr_var.append(self._pid)
-            self._pid += 1
+            self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
+            pub_hdr_var.append(self._pid >> 8)
+            pub_hdr_var.append(self._pid & 0xFF)
 
         # Calculate remaining length [2.2.3]
         if remaining_length > 0x7F:
@@ -668,7 +668,7 @@ class MQTT:
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic) for topic, qos in topics)
         packet_length_byte = packet_length.to_bytes(1, "big")
-        self._pid += 1
+        self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
         packet_id_bytes = self._pid.to_bytes(2, "big")
         # Packet with variable and fixed headers
         packet = MQTT_SUB + packet_length_byte + packet_id_bytes
@@ -717,7 +717,7 @@ class MQTT:
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic) for topic in topics)
         packet_length_byte = packet_length.to_bytes(1, "big")
-        self._pid += 1
+        self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
         packet_id_bytes = self._pid.to_bytes(2, "big")
         packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
         for t in topics:
