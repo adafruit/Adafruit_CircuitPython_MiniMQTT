@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import time
 import ssl
 import socketpool
 import wifi
@@ -26,48 +27,39 @@ print("Connecting to %s" % secrets["ssid"])
 wifi.radio.connect(secrets["ssid"], secrets["password"])
 print("Connected to %s!" % secrets["ssid"])
 
-### Topic Setup ###
-
-# MQTT Topic
-# Use this topic if you'd like to connect to a standard MQTT broker
-mqtt_topic = "test/topic"
-
-# Adafruit IO-style Topic
-# Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
-
 ### Code ###
+
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
-def connect(mqtt_client, userdata, flags, rc):
-    # This function will be called when the mqtt_client is connected
+def connected(client, userdata, flags, rc):
+    # This function will be called when the client is connected
     # successfully to the broker.
     print("Connected to MQTT Broker!")
-    print("Flags: {0}\n RC: {1}".format(flags, rc))
 
 
-def disconnect(mqtt_client, userdata, rc):
-    # This method is called when the mqtt_client disconnects
-    # from the broker.
+def disconnected(client, userdata, rc):
+    # This method is called when the client is disconnected
     print("Disconnected from MQTT Broker!")
 
 
-def subscribe(mqtt_client, userdata, topic, granted_qos):
-    # This method is called when the mqtt_client subscribes to a new feed.
+def subscribe(client, userdata, topic, granted_qos):
+    # This method is called when the client subscribes to a new feed.
     print("Subscribed to {0} with QOS level {1}".format(topic, granted_qos))
 
 
-def unsubscribe(mqtt_client, userdata, topic, pid):
-    # This method is called when the mqtt_client unsubscribes from a feed.
+def unsubscribe(client, userdata, topic, pid):
+    # This method is called when the client unsubscribes from a feed.
     print("Unsubscribed from {0} with PID {1}".format(topic, pid))
 
 
-def publish(mqtt_client, userdata, topic, pid):
-    # This method is called when the mqtt_client publishes data to a feed.
-    print("Published to {0} with PID {1}".format(topic, pid))
+def on_battery_msg(client, topic, message):
+    # Method called when device/batteryLife has a new value
+    print("Battery level: {}v".format(message))
+
+    # client.remove_topic_callback(secrets["aio_username"] + "/feeds/device.batterylevel")
 
 
-def message(client, topic, message):
+def on_message(client, topic, message):
     # Method callled when a client's subscribed feed has a new value.
     print("New message on topic {0}: {1}".format(topic, message))
 
@@ -76,7 +68,7 @@ def message(client, topic, message):
 pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT.MQTT(
+client = MQTT.MQTT(
     broker=secrets["broker"],
     port=secrets["port"],
     username=secrets["aio_username"],
@@ -85,25 +77,31 @@ mqtt_client = MQTT.MQTT(
     ssl_context=ssl.create_default_context(),
 )
 
-# Connect callback handlers to mqtt_client
-mqtt_client.on_connect = connect
-mqtt_client.on_disconnect = disconnect
-mqtt_client.on_subscribe = subscribe
-mqtt_client.on_unsubscribe = unsubscribe
-mqtt_client.on_publish = publish
-mqtt_client.on_message = message
+# Setup the callback methods above
+client.on_connect = connected
+client.on_disconnect = disconnected
+client.on_subscribe = subscribe
+client.on_unsubscribe = unsubscribe
+client.on_message = on_message
+client.add_topic_callback(
+    secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg
+)
 
-print("Attempting to connect to %s" % mqtt_client.broker)
-mqtt_client.connect()
+# Connect the client to the MQTT broker.
+print("Connecting to MQTT broker...")
+client.connect()
 
-print("Subscribing to %s" % mqtt_topic)
-mqtt_client.subscribe(mqtt_topic)
+# Subscribe to all notifications on the device group
+client.subscribe(secrets["aio_username"] + "/groups/device", 1)
 
-print("Publishing to %s" % mqtt_topic)
-mqtt_client.publish(mqtt_topic, "Hello Broker!")
-
-print("Unsubscribing from %s" % mqtt_topic)
-mqtt_client.unsubscribe(mqtt_topic)
-
-print("Disconnecting from %s" % mqtt_client.broker)
-mqtt_client.disconnect()
+# Start a blocking message loop...
+# NOTE: NO code below this loop will execute
+while True:
+    try:
+        client.loop()
+    except (ValueError, RuntimeError) as e:
+        print("Failed to get data, retrying\n", e)
+        wifi.reset()
+        client.reconnect()
+        continue
+    time.sleep(1)

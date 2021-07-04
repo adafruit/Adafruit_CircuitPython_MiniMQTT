@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import ssl
-import socketpool
-import wifi
+import socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
@@ -16,16 +15,6 @@ except ImportError:
     print("WiFi secrets are kept in secrets.py, please add them there!")
     raise
 
-# Set your Adafruit IO Username and Key in secrets.py
-# (visit io.adafruit.com if you need to create an account,
-# or if you need your Adafruit IO key.)
-aio_username = secrets["aio_username"]
-aio_key = secrets["aio_key"]
-
-print("Connecting to %s" % secrets["ssid"])
-wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!" % secrets["ssid"])
-
 ### Topic Setup ###
 
 # MQTT Topic
@@ -34,7 +23,7 @@ mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
+# mqtt_topic = secrets["aio_username"] + "/feeds/temperature"
 
 ### Code ###
 # Define callback methods which are called when events occur
@@ -72,16 +61,12 @@ def message(client, topic, message):
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-# Create a socket pool
-pool = socketpool.SocketPool(wifi.radio)
-
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker=secrets["broker"],
-    port=secrets["port"],
     username=secrets["aio_username"],
     password=secrets["aio_key"],
-    socket_pool=pool,
+    socket_pool=socket,
     ssl_context=ssl.create_default_context(),
 )
 

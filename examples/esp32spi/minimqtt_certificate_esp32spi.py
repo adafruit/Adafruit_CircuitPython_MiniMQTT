@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
 import board
 import busio
 from digitalio import DigitalInOut
@@ -6,7 +9,7 @@ from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
-import adafruit_minimqtt as MQTT
+import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 ### WiFi ###
 
@@ -110,9 +113,9 @@ print("Connected!")
 MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-client =  MQTT.MQTT(broker = secrets['broker'],
-                    username = secrets['user'],
-                    password = secrets['pass'])
+client = MQTT.MQTT(
+    broker=secrets["broker"], username=secrets["user"], password=secrets["pass"]
+)
 
 # Connect callback handlers to client
 client.on_connect = connect

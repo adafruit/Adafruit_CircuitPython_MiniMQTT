@@ -6,7 +6,7 @@ Introduction
     :alt: Documentation Status
 
 .. image:: https://img.shields.io/discord/327254708534116352.svg
-    :target: https://discord.gg/nBQh6qu
+    :target: https://adafru.it/discord
     :alt: Discord
 
 .. image:: https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT/workflows/Build%20CI/badge.svg
@@ -52,14 +52,14 @@ To install in a virtual environment in your current project:
 Usage Example
 =============
 
-Please check the `examples folder <https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT/tree/master/examples>`_
+Please check the `examples folder <https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT/tree/main/examples>`_
 for usage examples for this library.
 
 Contributing
 ============
 
 Contributions are welcome! Please read our `Code of Conduct
-<https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT/blob/master/CODE_OF_CONDUCT.md>`_
+<https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT/blob/main/CODE_OF_CONDUCT.md>`_
 before contributing to help this project stay welcoming.
 
 Documentation

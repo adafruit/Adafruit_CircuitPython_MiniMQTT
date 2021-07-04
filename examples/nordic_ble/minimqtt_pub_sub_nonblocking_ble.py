@@ -1,9 +1,13 @@
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
 import time
 from adafruit_ble import BLERadio
 from adafruit_ble.advertising.standard import ProvideServicesAdvertisement
 from adafruit_ble.services.nordic import UARTService
 import adafruit_ble_socket as socket
-import adafruit_minimqtt as MQTT
+
+import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Get mqtt details and more from a secrets.py file
 try:
@@ -52,7 +56,7 @@ MQTT.set_socket(socket, uart)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(broker = secrets['broker'],
-                        port = MQTT.MQTT_WSS_PORT,
+                        port = 443,
                         username = secrets['user'],
                         password = secrets['pass'])
 
@@ -74,11 +78,11 @@ while True:
         mqtt_client.connect()
     while ble.connected:
         # Poll the message queue
-        mqtt_client.loop()
-        mqtt_client.loop()
+        while mqtt_client.loop() != None:
+            pass
 
         # Send a new message
         print('Sending photocell value: %d'%photocell_val)
         mqtt_client.publish(default_topic, photocell_val)
         photocell_val += 1
-        time.sleep(5)
+        time.sleep(2)

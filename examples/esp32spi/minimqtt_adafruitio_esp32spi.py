@@ -1,5 +1,6 @@
-# CircuitPython MiniMQTT Library
-# Adafruit IO SSL/TLS Example for WiFi
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
 import time
 import board
 import busio
@@ -8,7 +9,8 @@ import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
-import adafruit_minimqtt as MQTT
+
+import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 ### WiFi ###
 
@@ -46,10 +48,13 @@ status_light = neopixel.NeoPixel(
 # status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
 wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
 
-### Adafruit IO Setup ###
+### Feeds ###
 
-# Setup a feed named `testfeed` for publishing.
-default_topic = secrets["user"] + "/feeds/testfeed"
+# Setup a feed named 'photocell' for publishing to a feed
+photocell_feed = secrets["aio_username"] + "/feeds/photocell"
+
+# Setup a feed named 'onoff' for subscribing to changes
+onoff_feed = secrets["aio_username"] + "/feeds/onoff"
 
 ### Code ###
 
@@ -58,22 +63,19 @@ default_topic = secrets["user"] + "/feeds/testfeed"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to MQTT broker! Listening for topic changes on %s" % default_topic)
-    # Subscribe to all changes on the default_topic feed.
-    client.subscribe(default_topic)
+    print("Connected to Adafruit IO! Listening for topic changes on %s" % onoff_feed)
+    # Subscribe to all changes on the onoff_feed.
+    client.subscribe(onoff_feed)
 
 
 def disconnected(client, userdata, rc):
     # This method is called when the client is disconnected
-    print("Disconnected from MQTT Broker!")
+    print("Disconnected from Adafruit IO!")
 
 
 def message(client, topic, message):
-    """Method callled when a client's subscribed feed has a new
-    value.
-    :param str topic: The topic of the feed with a new value.
-    :param str message: The new value
-    """
+    # This method is called when a topic the client is subscribed to
+    # has a new message.
     print("New message on topic {0}: {1}".format(topic, message))
 
 
@@ -86,9 +88,11 @@ print("Connected!")
 MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
-mqtt_client = MQTT.MQTT(broker = secrets['broker'],
-                        username = secrets['user'],
-                        password = secrets['pass'])
+mqtt_client = MQTT.MQTT(
+    broker="io.adafruit.com",
+    username=secrets["aio_username"],
+    password=secrets["aio_key"],
+)
 
 # Setup the callback methods above
 mqtt_client.on_connect = connected
@@ -96,18 +100,17 @@ mqtt_client.on_disconnect = disconnected
 mqtt_client.on_message = message
 
 # Connect the client to the MQTT broker.
-print('Connecting to MQTT broker...')
+print("Connecting to Adafruit IO...")
 mqtt_client.connect()
 
-# Start a blocking message loop...
-# NOTE: NO code below this loop will execute
-# NOTE: Network reconnection is handled within this loop
+photocell_val = 0
 while True:
-    try:
-        mqtt_client.loop()
-    except (ValueError, RuntimeError) as e:
-        print("Failed to get data, retrying\n", e)
-        wifi.reset()
-        mqtt_client.reconnect()
-        continue
-    time.sleep(1)
+    # Poll the message queue
+    mqtt_client.loop()
+
+    # Send a new message
+    print("Sending photocell value: %d..." % photocell_val)
+    mqtt_client.publish(photocell_feed, photocell_val)
+    print("Sent!")
+    photocell_val += 1
+    time.sleep(5)
