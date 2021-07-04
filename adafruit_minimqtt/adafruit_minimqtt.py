@@ -256,7 +256,7 @@ class MQTT:
                 continue
 
             connect_host = addr_info[-1][0]
-            if port == 8883:
+            if port == MQTT_TLS_PORT:
                 sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
                 connect_host = host
             sock.settimeout(timeout)
