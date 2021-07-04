@@ -120,7 +120,6 @@ class MQTT:
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
-    :param network_manager: NetworkManager object, such as WiFiManager from ESPSPI_WiFiManager.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
@@ -226,7 +225,7 @@ class MQTT:
         if not isinstance(port, int):
             raise RuntimeError("Port must be an integer")
 
-        if port == 8883 and not self._ssl_context:
+        if port == MQTT_TLS_PORT and not self._ssl_context:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
