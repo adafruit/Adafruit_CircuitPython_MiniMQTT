@@ -572,7 +572,9 @@ class MQTT:
             msg = str(msg).encode("ascii")
         elif isinstance(msg, str):
             msg = str(msg).encode("utf-8")
-        elif not isinstance(msg, bytes):
+        elif isinstance(msg, bytes):
+            pass
+        else:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
