@@ -556,7 +556,7 @@ class MQTT:
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to a topic provided.
         :param str topic: Unique topic identifier.
-        :param str,int,float msg: Data to send to the broker.
+        :param str,int,float,bytes msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message, defaults to zero.
 
@@ -572,6 +572,8 @@ class MQTT:
             msg = str(msg).encode("ascii")
         elif isinstance(msg, str):
             msg = str(msg).encode("utf-8")
+        elif isinstance(msg, bytes):
+            pass
         else:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
