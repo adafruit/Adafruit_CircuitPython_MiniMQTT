@@ -776,13 +776,13 @@ class MQTT:
             self._timestamp = time.monotonic()
         current_time = time.monotonic()
         if current_time - self._timestamp >= self.keep_alive:
+            self._timestamp = 0
             # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
             if self.logger is not None:
                 self.logger.debug(
                     "KeepAlive period elapsed - requesting a PINGRESP from the server..."
                 )
             rcs = self.ping()
-            self._timestamp = 0
             return rcs
         self._sock.settimeout(timeout)
         rc = self._wait_for_msg()
