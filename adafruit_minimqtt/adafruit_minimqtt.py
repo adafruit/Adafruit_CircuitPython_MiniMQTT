@@ -364,7 +364,7 @@ class MQTT:
         """Registers a callback_method for a specific MQTT topic.
 
         :param str mqtt_topic: MQTT topic identifier.
-        :param str callback_method: Name of callback method.
+        :param function callback_method: Name of callback method.
         """
         if mqtt_topic is None or callback_method is None:
             raise ValueError("MQTT topic and callback method must both be defined.")
