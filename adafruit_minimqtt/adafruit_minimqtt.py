@@ -64,6 +64,13 @@ CONNACK_ERRORS = {
 _default_sock = None  # pylint: disable=invalid-name
 _fake_context = None  # pylint: disable=invalid-name
 
+# Override default len() method
+len_overrided = len
+def len(object):
+    if isinstance(object, str):
+        return len_overrided(object.encode('utf-8'))
+    else:
+        return len_overrided(object)
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
