@@ -576,7 +576,7 @@ class MQTT:
             pass
         else:
             raise MMQTTException("Invalid message data type.")
-        if len(msg.encode("utf-8")) > MQTT_MSG_MAX_SZ:
+        if len(msg) > MQTT_MSG_MAX_SZ:
             raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
         assert (
             0 <= qos <= 1
@@ -589,7 +589,7 @@ class MQTT:
         pub_hdr_var = bytearray(struct.pack(">H", len(topic.encode("utf-8"))))
         pub_hdr_var.extend(topic.encode("utf-8"))  # Topic name
 
-        remaining_length = 2 + len(msg.encode("utf-8")) + len(topic.encode("utf-8"))
+        remaining_length = 2 + len(msg) + len(topic.encode("utf-8"))
         if qos > 0:
             # packet identifier where QoS level is 1 or 2. [3.3.2.2]
             remaining_length += 2
