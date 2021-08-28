@@ -459,7 +459,7 @@ class MQTT:
             var_header[7] |= self.keep_alive >> 8
             var_header[8] |= self.keep_alive & 0x00FF
         if self._lw_topic:
-            remaining_length += 2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg.encode("utf-8"))
+            remaining_length += 2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg)
             var_header[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
             var_header[6] |= self._lw_retain << 5
 
@@ -914,10 +914,11 @@ class MQTT:
         :param str string: String to write to the socket.
 
         """
-        self._sock.send(struct.pack("!H", len(string.encode("utf-8"))))
         if isinstance(string, str):
+            self._sock.send(struct.pack("!H", len(string.encode("utf-8"))))
             self._sock.send(str.encode(string, "utf-8"))
         else:
+            self._sock.send(struct.pack("!H", len(string)))
             self._sock.send(string)
 
     @staticmethod
