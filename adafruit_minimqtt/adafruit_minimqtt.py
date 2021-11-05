@@ -792,7 +792,7 @@ class MQTT:
         if hasattr(self._socket_pool, "timeout"):
             try:
                 res = self._sock_exact_recv(1)
-            except self._socket_pool.timeout as error:
+            except self._socket_pool.timeout:
                 return None
         else:  # socketpool, esp32spi
             try:
