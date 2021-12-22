@@ -450,14 +450,21 @@ class MQTT:
         # Set up variable header and remaining_length
         remaining_length = 12 + len(self.client_id.encode("utf-8"))
         if self._username:
-            remaining_length += 2 + len(self._username.encode("utf-8")) + 2 + len(self._password.encode("utf-8"))
+            remaining_length += (
+                2
+                + len(self._username.encode("utf-8"))
+                + 2
+                + len(self._password.encode("utf-8"))
+            )
             var_header[6] |= 0xC0
         if self.keep_alive:
             assert self.keep_alive < MQTT_TOPIC_LENGTH_LIMIT
             var_header[7] |= self.keep_alive >> 8
             var_header[8] |= self.keep_alive & 0x00FF
         if self._lw_topic:
-            remaining_length += 2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg)
+            remaining_length += (
+                2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg)
+            )
             var_header[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
             var_header[6] |= self._lw_retain << 5
 
