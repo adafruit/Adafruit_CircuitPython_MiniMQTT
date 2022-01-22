@@ -75,6 +75,7 @@ class MMQTTException(Exception):
 # Legacy ESP32SPI Socket API
 def set_socket(sock, iface=None):
     """Legacy API for setting the socket and network interface.
+
     :param sock: socket object.
     :param iface: internet interface object
 
@@ -116,6 +117,7 @@ class _FakeSSLContext:
 
 class MQTT:
     """MQTT Client for CircuitPython.
+
     :param str broker: MQTT Broker URL or IP Address.
     :param int port: Optional port definition, defaults to 8883.
     :param str username: Username for broker authentication.
@@ -209,6 +211,7 @@ class MQTT:
     # pylint: disable=too-many-branches
     def _get_connect_socket(self, host, port, *, timeout=1):
         """Obtains a new socket and connects to a broker.
+
         :param str host: Desired broker hostname
         :param int port: Desired broker port
         :param int timeout: Desired socket timeout
@@ -409,6 +412,7 @@ class MQTT:
 
     def username_pw_set(self, username, password=None):
         """Set client's username and an optional password.
+
         :param str username: Username to use with your MQTT broker.
         :param str password: Password to use with your MQTT broker.
 
@@ -422,6 +426,7 @@ class MQTT:
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
     def connect(self, clean_session=True, host=None, port=None, keep_alive=None):
         """Initiates connection with the MQTT Broker.
+
         :param bool clean_session: Establishes a persistent session.
         :param str host: Hostname or IP address of the remote broker.
         :param int port: Network port of the remote broker.
@@ -563,6 +568,7 @@ class MQTT:
     # pylint: disable=too-many-branches, too-many-statements
     def publish(self, topic, msg, retain=False, qos=0):
         """Publishes a message to a topic provided.
+
         :param str topic: Unique topic identifier.
         :param str,int,float,bytes msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
@@ -706,6 +712,7 @@ class MQTT:
 
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
+
         :param str,list topic: Unique MQTT topic identifier string or list.
 
         """
@@ -754,6 +761,7 @@ class MQTT:
 
     def reconnect(self, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
+
         :param bool resub_topics: Resubscribe to previously subscribed topics.
 
         """
@@ -777,6 +785,7 @@ class MQTT:
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
         Returns response codes of any messages received.
+
         :param int timeout: Socket timeout, in seconds.
 
         """
@@ -884,6 +893,7 @@ class MQTT:
         terms of the minimum size of the buffer, which could be 1 byte. This is a
         wrapper for socket recv() to ensure that no less than the expected number of
         bytes is returned or trigger a timeout exception.
+
         :param int bufsize: number of bytes to receive
 
         """
@@ -920,6 +930,7 @@ class MQTT:
 
     def _send_str(self, string):
         """Encodes a string and sends it to a socket.
+
         :param str string: String to write to the socket.
 
         """
@@ -933,6 +944,7 @@ class MQTT:
     @staticmethod
     def _valid_topic(topic):
         """Validates if topic provided is proper MQTT topic format.
+
         :param str topic: Topic identifier
 
         """
@@ -948,6 +960,7 @@ class MQTT:
     @staticmethod
     def _valid_qos(qos_level):
         """Validates if the QoS level is supported by this library
+
         :param int qos_level: Desired QoS level.
 
         """
@@ -968,6 +981,7 @@ class MQTT:
     # Logging
     def enable_logger(self, logger, log_level=20):
         """Enables library logging provided a logger object.
+
         :param logger: A python logger pacakge.
         :param log_level: Numeric value of a logging level, defaults to INFO.
 
