@@ -68,7 +68,7 @@ def publish(mqtt_client, userdata, topic, pid):
 
 
 def message(client, topic, message):
-    # Method callled when a client's subscribed feed has a new value.
+    # Method called when a client's subscribed feed has a new value.
     print("New message on topic {0}: {1}".format(topic, message))
 
 
