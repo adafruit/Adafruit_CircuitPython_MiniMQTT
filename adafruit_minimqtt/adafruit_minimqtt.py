@@ -338,7 +338,7 @@ class MQTT:
         """Sets the last will and testament properties. MUST be called before `connect()`.
 
         :param str topic: MQTT Broker topic.
-        :param int,float,str payload: Last will disconnection payload.
+        :param int|float|str payload: Last will disconnection payload.
             payloads of type int & float are converted to a string.
         :param int qos: Quality of Service level, defaults to
             zero. Conventional options are ``0`` (send at most once), ``1``
@@ -368,7 +368,7 @@ class MQTT:
         """Registers a callback_method for a specific MQTT topic.
 
         :param str mqtt_topic: MQTT topic identifier.
-        :param function callback_method: Name of callback method.
+        :param function callback_method: The callback method.
         """
         if mqtt_topic is None or callback_method is None:
             raise ValueError("MQTT topic and callback method must both be defined.")
@@ -570,7 +570,7 @@ class MQTT:
         """Publishes a message to a topic provided.
 
         :param str topic: Unique topic identifier.
-        :param str,int,float,bytes msg: Data to send to the broker.
+        :param str|int|float|bytes msg: Data to send to the broker.
         :param bool retain: Whether the message is saved by the broker.
         :param int qos: Quality of Service level for the message, defaults to zero.
 
@@ -653,7 +653,7 @@ class MQTT:
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topics or multiple topics.
 
-        :param str,tuple,list topic: Unique MQTT topic identifier string. If
+        :param str|tuple|list topic: Unique MQTT topic identifier string. If
                                      this is a `tuple`, then the tuple should
                                      contain topic identifier string and qos
                                      level integer. If this is a `list`, then
@@ -713,7 +713,7 @@ class MQTT:
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
 
-        :param str,list topic: Unique MQTT topic identifier string or list.
+        :param str|list topic: Unique MQTT topic identifier string or list.
 
         """
         topics = None
