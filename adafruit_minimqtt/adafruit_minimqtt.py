@@ -853,6 +853,10 @@ class MQTT:
         # read message contents
         raw_msg = self._sock_exact_recv(sz)
         msg = raw_msg if self._use_binary_mode else str(raw_msg, "utf-8")
+        if self.logger:
+            self.logger.debug(
+                "Receiving SUBSCRIBE \nTopic: %s\nMsg: %s\n", topic, raw_msg
+            )
         self._handle_on_message(self, topic, msg)
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
