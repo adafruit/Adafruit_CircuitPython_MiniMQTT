@@ -237,11 +237,11 @@ class MQTT:
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
 
-        if self.logger and port == MQTT_TLS_PORT:
+        if self.logger is not None and port == MQTT_TLS_PORT:
             self.logger.info(
                 "Establishing a SECURE SSL connection to {0}:{1}".format(host, port)
             )
-        elif self.logger:
+        elif self.logger is not None:
             self.logger.info(
                 "Establishing an INSECURE connection to {0}:{1}".format(host, port)
             )
@@ -348,7 +348,7 @@ class MQTT:
         :param bool retain: Specifies if the payload is to be retained when
             it is published.
         """
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Setting last will properties")
         self._valid_qos(qos)
         if self._is_connected:
@@ -440,7 +440,7 @@ class MQTT:
         if keep_alive:
             self.keep_alive = keep_alive
 
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Attempting to establish MQTT connection...")
 
         # Get a new socket
@@ -494,7 +494,7 @@ class MQTT:
             fixed_header.append(remaining_length)
             fixed_header.append(0x00)
 
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Sending CONNECT to broker...")
             self.logger.debug(
                 "Fixed Header: %s\nVariable Header: %s", fixed_header, var_header
@@ -512,7 +512,7 @@ class MQTT:
         else:
             self._send_str(self._username)
             self._send_str(self._password)
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Receiving CONNACK packet from broker")
         while True:
             op = self._wait_for_msg()
@@ -535,7 +535,7 @@ class MQTT:
         try:
             self._sock.send(MQTT_DISCONNECT)
         except RuntimeError as e:
-            if self.logger:
+            if self.logger is not None:
                 self.logger.warning("Unable to send DISCONNECT packet: {}".format(e))
         if self.logger is not None:
             self.logger.debug("Closing socket")
@@ -551,7 +551,7 @@ class MQTT:
         Returns response codes of any messages received while waiting for PINGRESP.
         """
         self.is_connected()
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
         ping_timeout = self.keep_alive
@@ -622,7 +622,7 @@ class MQTT:
         else:
             pub_hdr_fixed.append(remaining_length)
 
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug(
                 "Sending PUBLISH\nTopic: %s\nMsg: %s\
                                 \nQoS: %d\nRetain? %r",
@@ -693,7 +693,7 @@ class MQTT:
             topic_size = len(t.encode("utf-8")).to_bytes(2, "big")
             qos_byte = q.to_bytes(1, "big")
             packet += topic_size + t.encode() + qos_byte
-        if self.logger:
+        if self.logger is not None:
             for t, q in topics:
                 self.logger.debug("SUBSCRIBING to topic %s with QoS %d", t, q)
         self._sock.send(packet)
@@ -740,11 +740,11 @@ class MQTT:
         for t in topics:
             topic_size = len(t.encode("utf-8")).to_bytes(2, "big")
             packet += topic_size + t.encode()
-        if self.logger:
+        if self.logger is not None:
             for t in topics:
                 self.logger.debug("UNSUBSCRIBING from topic %s", t)
         self._sock.send(packet)
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Waiting for UNSUBACK...")
         while True:
             op = self._wait_for_msg()
@@ -765,13 +765,13 @@ class MQTT:
         :param bool resub_topics: Resubscribe to previously subscribed topics.
 
         """
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Attempting to reconnect with MQTT broker")
         self.connect()
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug("Reconnected with broker")
         if resub_topics:
-            if self.logger:
+            if self.logger is not None:
                 self.logger.debug(
                     "Attempting to resubscribe to previously subscribed topics."
                 )
@@ -828,7 +828,7 @@ class MQTT:
             # If we get here, it means that there is nothing to be received
             return None
         if res[0] == MQTT_PINGRESP:
-            if self.logger:
+            if self.logger is not None:
                 self.logger.debug("Got PINGRESP")
             sz = self._sock_exact_recv(1)[0]
             if sz != 0x00:
@@ -853,7 +853,7 @@ class MQTT:
         # read message contents
         raw_msg = self._sock_exact_recv(sz)
         msg = raw_msg if self._use_binary_mode else str(raw_msg, "utf-8")
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug(
                 "Receiving SUBSCRIBE \nTopic: %s\nMsg: %s\n", topic, raw_msg
             )
@@ -911,7 +911,7 @@ class MQTT:
             # This will timeout with socket timeout (not keepalive timeout)
             rc = self._sock.recv(bufsize)
             if not rc:
-                if self.logger:
+                if self.logger is not None:
                     self.logger.debug("_sock_exact_recv timeout")
                 # If no bytes waiting, raise same exception as socketpool
                 raise OSError(errno.ETIMEDOUT)
