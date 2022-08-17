@@ -6,6 +6,8 @@
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
 # Modified Work Copyright (c) 2012-2019 Roger Light and others, Paho MQTT Python
 
+# pylint: disable=too-many-lines
+
 """
 `adafruit_minimqtt`
 ================================================================================
