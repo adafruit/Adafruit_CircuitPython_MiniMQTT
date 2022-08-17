@@ -128,6 +128,7 @@ class MQTT:
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
+    :param int recv_timeout: receive timeout, in seconds.
     :param socket socket_pool: A pool of socket resources available for the given radio.
     :param ssl_context: SSL context for long-lived SSL connections.
     :param bool use_binary_mode: Messages are passed as bytearray instead of string to callbacks.
@@ -146,6 +147,7 @@ class MQTT:
         client_id=None,
         is_ssl=True,
         keep_alive=60,
+        recv_timeout=10,
         socket_pool=None,
         ssl_context=None,
         use_binary_mode=False,
@@ -160,6 +162,7 @@ class MQTT:
         self._socket_timeout = socket_timeout
 
         self.keep_alive = keep_alive
+        self._recv_timeout = recv_timeout
         self._user_data = None
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
@@ -522,6 +525,7 @@ class MQTT:
             self._send_str(self._password)
         if self.logger is not None:
             self.logger.debug("Receiving CONNACK packet from broker")
+        stamp = time.monotonic()
         while True:
             op = self._wait_for_msg()
             if op == 32:
@@ -534,6 +538,12 @@ class MQTT:
                 if self.on_connect is not None:
                     self.on_connect(self, self._user_data, result, rc[2])
                 return result
+
+            if op is None:
+                if time.monotonic() - stamp > self._recv_timeout:
+                    raise MMQTTException(
+                        f"No data received from broker for {self._recv_timeout} seconds."
+                    )
 
     def disconnect(self):
         """Disconnects the MiniMQTT client from the MQTT broker."""
@@ -645,6 +655,7 @@ class MQTT:
         if qos == 0 and self.on_publish is not None:
             self.on_publish(self, self._user_data, topic, self._pid)
         if qos == 1:
+            stamp = time.monotonic()
             while True:
                 op = self._wait_for_msg()
                 if op == 0x40:
@@ -656,6 +667,12 @@ class MQTT:
                         if self.on_publish is not None:
                             self.on_publish(self, self._user_data, topic, rcv_pid)
                         return
+
+                if op is None:
+                    if time.monotonic() - stamp > self._recv_timeout:
+                        raise MMQTTException(
+                            f"No data received from broker for {self._recv_timeout} seconds."
+                        )
 
     def subscribe(self, topic, qos=0):
         """Subscribes to a topic on the MQTT Broker.
@@ -705,6 +722,7 @@ class MQTT:
             for t, q in topics:
                 self.logger.debug("SUBSCRIBING to topic %s with QoS %d", t, q)
         self._sock.send(packet)
+        stamp = time.monotonic()
         while True:
             op = self._wait_for_msg()
             if op == 0x90:
@@ -717,6 +735,12 @@ class MQTT:
                         self.on_subscribe(self, self._user_data, t, q)
                     self._subscribed_topics.append(t)
                 return
+
+            if op is None:
+                if time.monotonic() - stamp > self._recv_timeout:
+                    raise MMQTTException(
+                        f"No data received from broker for {self._recv_timeout} seconds."
+                    )
 
     def unsubscribe(self, topic):
         """Unsubscribes from a MQTT topic.
@@ -755,6 +779,7 @@ class MQTT:
         if self.logger is not None:
             self.logger.debug("Waiting for UNSUBACK...")
         while True:
+            stamp = time.monotonic()
             op = self._wait_for_msg()
             if op == 176:
                 rc = self._sock_exact_recv(3)
@@ -766,6 +791,12 @@ class MQTT:
                         self.on_unsubscribe(self, self._user_data, t, self._pid)
                     self._subscribed_topics.remove(t)
                 return
+
+            if op is None:
+                if time.monotonic() - stamp > self._recv_timeout:
+                    raise MMQTTException(
+                        f"No data received from broker for {self._recv_timeout} seconds."
+                    )
 
     def reconnect(self, resub_topics=True):
         """Attempts to reconnect to the MQTT broker.
