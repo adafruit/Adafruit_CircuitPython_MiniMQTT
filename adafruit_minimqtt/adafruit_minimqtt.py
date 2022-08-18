@@ -161,7 +161,9 @@ class MQTT:
         self._use_binary_mode = use_binary_mode
 
         if recv_timeout <= socket_timeout:
-            raise MMQTTException("recv_timeout must be strictly greater than socket_timeout")
+            raise MMQTTException(
+                "recv_timeout must be strictly greater than socket_timeout"
+            )
         self._socket_timeout = socket_timeout
         self._recv_timeout = recv_timeout
 
