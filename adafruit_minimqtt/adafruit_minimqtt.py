@@ -131,7 +131,7 @@ class MQTT:
     :param socket socket_pool: A pool of socket resources available for the given radio.
     :param ssl_context: SSL context for long-lived SSL connections.
     :param bool use_binary_mode: Messages are passed as bytearray instead of string to callbacks.
-    :param int socket_timeout: socket timeout, in seconds
+    :param int socket_timeout: How often to check socket state for read/write/connect operations, in seconds.
 
     """
 
