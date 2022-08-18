@@ -6,6 +6,8 @@
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
 # Modified Work Copyright (c) 2012-2019 Roger Light and others, Paho MQTT Python
 
+# pylint: disable=too-many-lines
+
 """
 `adafruit_minimqtt`
 ================================================================================
@@ -129,6 +131,8 @@ class MQTT:
     :param socket socket_pool: A pool of socket resources available for the given radio.
     :param ssl_context: SSL context for long-lived SSL connections.
     :param bool use_binary_mode: Messages are passed as bytearray instead of string to callbacks.
+    :param int socket_timeout: How often to check socket state for read/write/connect operations,
+        in seconds.
 
     """
 
@@ -145,6 +149,7 @@ class MQTT:
         socket_pool=None,
         ssl_context=None,
         use_binary_mode=False,
+        socket_timeout=1,
     ):
 
         self._socket_pool = socket_pool
@@ -152,6 +157,7 @@ class MQTT:
         self._sock = None
         self._backwards_compatible_sock = False
         self._use_binary_mode = use_binary_mode
+        self._socket_timeout = socket_timeout
 
         self.keep_alive = keep_alive
         self._user_data = None
@@ -214,7 +220,7 @@ class MQTT:
 
         :param str host: Desired broker hostname
         :param int port: Desired broker port
-        :param int timeout: Desired socket timeout
+        :param int timeout: Desired socket timeout, in seconds
         """
         # For reconnections - check if we're using a socket already and close it
         if self._sock:
@@ -444,7 +450,9 @@ class MQTT:
             self.logger.debug("Attempting to establish MQTT connection...")
 
         # Get a new socket
-        self._sock = self._get_connect_socket(self.broker, self.port)
+        self._sock = self._get_connect_socket(
+            self.broker, self.port, timeout=self._socket_timeout
+        )
 
         # Fixed Header
         fixed_header = bytearray([0x10])
