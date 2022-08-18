@@ -287,8 +287,8 @@ class MQTT:
         if sock is None:
             if last_exception:
                 raise RuntimeError("Repeated socket failures") from last_exception
-            else:
-                raise RuntimeError("Repeated socket failures")
+
+            raise RuntimeError("Repeated socket failures")
 
         self._backwards_compatible_sock = not hasattr(sock, "recv_into")
         return sock
