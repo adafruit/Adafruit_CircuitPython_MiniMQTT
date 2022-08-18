@@ -214,12 +214,12 @@ class MQTT:
         self.on_unsubscribe = None
 
     # pylint: disable=too-many-branches
-    def _get_connect_socket(self, host, port, *, timeout):
+    def _get_connect_socket(self, host, port, *, timeout=1):
         """Obtains a new socket and connects to a broker.
 
         :param str host: Desired broker hostname
         :param int port: Desired broker port
-        :param int timeout: Desired socket timeout in seconds
+        :param int timeout: Desired socket timeout, in seconds
         """
         # For reconnections - check if we're using a socket already and close it
         if self._sock:
