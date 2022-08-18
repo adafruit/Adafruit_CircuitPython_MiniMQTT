@@ -159,10 +159,13 @@ class MQTT:
         self._sock = None
         self._backwards_compatible_sock = False
         self._use_binary_mode = use_binary_mode
+
+        if recv_timeout <= socket_timeout:
+            raise MMQTTException("recv_timeout must be strictly greater than socket_timeout")
         self._socket_timeout = socket_timeout
+        self._recv_timeout = recv_timeout
 
         self.keep_alive = keep_alive
-        self._recv_timeout = recv_timeout
         self._user_data = None
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
