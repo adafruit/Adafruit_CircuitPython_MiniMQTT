@@ -266,6 +266,7 @@ class MQTT:
 
         sock = None
         retry_count = 0
+        last_exception = None
         while retry_count < 5 and sock is None:
             retry_count += 1
 
@@ -282,14 +283,19 @@ class MQTT:
 
             try:
                 sock.connect((connect_host, port))
-            except MemoryError:
+            except MemoryError as exc:
                 sock.close()
                 sock = None
-            except OSError:
+                last_exception = exc
+            except OSError as exc:
                 sock.close()
                 sock = None
+                last_exception = exc
 
         if sock is None:
+            if last_exception:
+                raise RuntimeError("Repeated socket failures") from last_exception
+
             raise RuntimeError("Repeated socket failures")
 
         self._backwards_compatible_sock = not hasattr(sock, "recv_into")
