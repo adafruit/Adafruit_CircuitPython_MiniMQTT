@@ -134,6 +134,7 @@ class MQTT:
     :param bool use_binary_mode: Messages are passed as bytearray instead of string to callbacks.
     :param int socket_timeout: How often to check socket state for read/write/connect operations,
         in seconds.
+    :param int connect_retries: How many times to try to connect to broker before giving up.
 
     """
 
