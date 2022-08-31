@@ -141,6 +141,7 @@ class MQTT:
     # pylint: disable=too-many-arguments,too-many-instance-attributes, not-callable, invalid-name, no-member
     def __init__(
         self,
+        *,
         broker,
         port=None,
         username=None,
