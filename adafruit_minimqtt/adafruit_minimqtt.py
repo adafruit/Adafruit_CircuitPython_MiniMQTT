@@ -134,6 +134,7 @@ class MQTT:
     :param bool use_binary_mode: Messages are passed as bytearray instead of string to callbacks.
     :param int socket_timeout: How often to check socket state for read/write/connect operations,
         in seconds.
+    :param int connect_retries: How many times to try to connect to broker before giving up.
 
     """
 
@@ -152,6 +153,7 @@ class MQTT:
         ssl_context=None,
         use_binary_mode=False,
         socket_timeout=1,
+        connect_retries=5,
     ):
 
         self._socket_pool = socket_pool
@@ -166,6 +168,7 @@ class MQTT:
             )
         self._socket_timeout = socket_timeout
         self._recv_timeout = recv_timeout
+        self._connect_retries = connect_retries
 
         self.keep_alive = keep_alive
         self._user_data = None
@@ -267,7 +270,7 @@ class MQTT:
         sock = None
         retry_count = 0
         last_exception = None
-        while retry_count < 5 and sock is None:
+        while retry_count < self._connect_retries and sock is None:
             retry_count += 1
 
             try:
