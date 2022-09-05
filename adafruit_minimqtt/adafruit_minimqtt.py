@@ -834,7 +834,7 @@ class MQTT:
                 feed = subscribed_topics.pop()
                 self.subscribe(feed)
 
-    def loop(self, timeout=1):
+    def loop(self, timeout=0):
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
         Returns response codes of any messages received.
