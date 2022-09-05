@@ -854,17 +854,24 @@ class MQTT:
                 )
             rcs = self.ping()
             return rcs
-        self._sock.settimeout(timeout)
 
-        responses = [] 
+        stamp = time.monotonic()
+        self._sock.settimeout(timeout)
+        rcs = []
         while True:
             rc = self._wait_for_msg()
             if rc == None: 
                 break
+            if time.monotonic() - stamp > self._recv_timeout:
+                if self.logger is not None:
+                    self.logger.debug(
+                        f"Loop timed out, message queue not empty after {self._recv_timeout}s"
+                        )
+                break
             else:
-                responses.append(rc)
+                rcs.append(rc)
 
-        return responses if responses else None
+        return rcs if rcs else None
 
 
     def _wait_for_msg(self, timeout=0.1):
