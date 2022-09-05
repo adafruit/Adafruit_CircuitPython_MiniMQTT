@@ -869,7 +869,7 @@ class MQTT:
                 if self.logger is not None:
                     self.logger.debug(
                         f"Loop timed out, message queue not empty after {self._recv_timeout}s"
-                        )
+                    )
                 break
             rcs.append(rc)
 
