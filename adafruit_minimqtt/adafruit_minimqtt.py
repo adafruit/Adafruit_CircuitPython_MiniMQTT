@@ -835,6 +835,7 @@ class MQTT:
                 self.subscribe(feed)
 
     def loop(self, timeout=0):
+        # pylint: disable = too-many-return-statements
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
         Returns response codes of any messages received.
@@ -842,6 +843,7 @@ class MQTT:
         :param int timeout: Socket timeout, in seconds.
 
         """
+
         if self._timestamp == 0:
             self._timestamp = time.monotonic()
         current_time = time.monotonic()
@@ -857,10 +859,11 @@ class MQTT:
 
         stamp = time.monotonic()
         self._sock.settimeout(timeout)
-        responses = []
+        rcs = []
+
         while True:
             rc = self._wait_for_msg()
-            if rc is None: 
+            if rc is None:
                 break
             if time.monotonic() - stamp > self._recv_timeout:
                 if self.logger is not None:
@@ -868,11 +871,13 @@ class MQTT:
                         f"Loop timed out, message queue not empty after {self._recv_timeout}s"
                         )
                 break
-            responses.append(rc)
+            rcs.append(rc)
 
-        return responses if responses else None
+        return rcs if rcs else None
 
     def _wait_for_msg(self, timeout=0.1):
+        # pylint: disable = too-many-return-statements
+
         """Reads and processes network events."""
         # CPython socket module contains a timeout attribute
         if hasattr(self._socket_pool, "timeout"):
