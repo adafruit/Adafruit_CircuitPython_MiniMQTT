@@ -857,10 +857,10 @@ class MQTT:
 
         stamp = time.monotonic()
         self._sock.settimeout(timeout)
-        rcs = []
+        responses = []
         while True:
             rc = self._wait_for_msg()
-            if rc == None: 
+            if rc is None: 
                 break
             if time.monotonic() - stamp > self._recv_timeout:
                 if self.logger is not None:
@@ -868,11 +868,9 @@ class MQTT:
                         f"Loop timed out, message queue not empty after {self._recv_timeout}s"
                         )
                 break
-            else:
-                rcs.append(rc)
+            responses.append(rc)
 
-        return rcs if rcs else None
-
+        return responses if responses else None
 
     def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
