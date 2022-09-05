@@ -855,8 +855,17 @@ class MQTT:
             rcs = self.ping()
             return rcs
         self._sock.settimeout(timeout)
-        rc = self._wait_for_msg()
-        return [rc] if rc else None
+
+        responses = [] 
+        while True:
+            rc = self._wait_for_msg()
+            if rc == None: 
+                break
+            else:
+                responses.append(rc)
+
+        return responses if responses else None
+
 
     def _wait_for_msg(self, timeout=0.1):
         """Reads and processes network events."""
