@@ -882,6 +882,9 @@ class MQTT:
                 if error.errno == errno.ETIMEDOUT:
                     # raised by a socket timeout if 0 bytes were present
                     return None
+                if error.errno == errno.EAGAIN:
+                    # there is no data available right now, try again later
+                    return None
                 raise MMQTTException from error
 
         # Block while we parse the rest of the response
