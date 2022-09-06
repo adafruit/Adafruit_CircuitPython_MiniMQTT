@@ -862,7 +862,7 @@ class MQTT:
         rcs = []
 
         while True:
-            rc = self._wait_for_msg()
+            rc = self._wait_for_msg(timeout)
             if rc is None:
                 break
             if time.monotonic() - stamp > self._recv_timeout:
