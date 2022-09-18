@@ -870,7 +870,7 @@ class MQTT:
             try:
                 res = self._sock_exact_recv(1)
             except OSError as error:
-                if error.errno == errno.ETIMEDOUT:
+                if error.errno in (errno.ETIMEDOUT, errno.EAGAIN):
                     # raised by a socket timeout if 0 bytes were present
                     return None
                 raise MMQTTException from error
