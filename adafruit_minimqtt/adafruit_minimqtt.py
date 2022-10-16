@@ -561,7 +561,7 @@ class MQTT:
 
     def disconnect(self):
         """Disconnects the MiniMQTT client from the MQTT broker."""
-        self.is_connected()
+        self._connected()
         if self.logger is not None:
             self.logger.debug("Sending DISCONNECT packet to broker")
         try:
@@ -582,7 +582,7 @@ class MQTT:
         there is an active network connection.
         Returns response codes of any messages received while waiting for PINGRESP.
         """
-        self.is_connected()
+        self._connected()
         if self.logger is not None:
             self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
@@ -607,7 +607,7 @@ class MQTT:
         :param int qos: Quality of Service level for the message, defaults to zero.
 
         """
-        self.is_connected()
+        self._connected()
         self._valid_topic(topic)
         if "+" in topic or "#" in topic:
             raise MMQTTException("Publish topic can not contain wildcards.")
@@ -703,7 +703,7 @@ class MQTT:
                         (send at least once), or ``2`` (send exactly once).
 
         """
-        self.is_connected()
+        self._connected()
         topics = None
         if isinstance(topic, tuple):
             topic, qos = topic
@@ -1046,13 +1046,22 @@ class MQTT:
         else:
             raise MMQTTException("QoS must be an integer.")
 
-    def is_connected(self):
+    def _connected(self):
         """Returns MQTT client session status as True if connected, raises
         a `MMQTTException` if `False`.
         """
         if self._sock is None or self._is_connected is False:
             raise MMQTTException("MiniMQTT is not connected.")
         return self._is_connected
+
+    def is_connected(self):
+        """Returns MQTT client session status as True if connected, False
+        if not.
+        """
+        try:
+            return self._connected()
+        except MMQTTException:
+            return False
 
     # Logging
     def enable_logger(self, logger, log_level=20):
