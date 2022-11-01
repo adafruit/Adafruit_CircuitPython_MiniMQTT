@@ -1050,18 +1050,14 @@ class MQTT:
         """Returns MQTT client session status as True if connected, raises
         a `MMQTTException` if `False`.
         """
-        if self._sock is None or self._is_connected is False:
-            raise MMQTTException("MiniMQTT is not connected.")
-        return self._is_connected
+        if not self.is_connected():
+            raise MQTTException("MiniMQTT is not connected")
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, False
         if not.
         """
-        try:
-            return self._connected()
-        except MMQTTException:
-            return False
+        return self._is_connected and self._sock is not None
 
     # Logging
     def enable_logger(self, logger, log_level=20):
