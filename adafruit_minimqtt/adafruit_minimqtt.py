@@ -1051,7 +1051,7 @@ class MQTT:
         a `MMQTTException` if `False`.
         """
         if not self.is_connected():
-            raise MQTTException("MiniMQTT is not connected")
+            raise MMQTTException("MiniMQTT is not connected")
 
     def is_connected(self):
         """Returns MQTT client session status as True if connected, False
