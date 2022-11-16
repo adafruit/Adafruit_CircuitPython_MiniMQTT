@@ -896,7 +896,7 @@ class MQTT:
 
         # Block while we parse the rest of the response
         self._sock.settimeout(timeout)
-        if res in [None, b"", bytearray(b'\x00')]:
+        if res in [None, b"", b"\x00"]:
             # If we get here, it means that there is nothing to be received
             return None
         if res[0] == MQTT_PINGRESP:
