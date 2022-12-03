@@ -903,7 +903,7 @@ class MQTT:
         if res in [None, b"", b"\x00"]:
             # If we get here, it means that there is nothing to be received
             return None
-        if res[0] == MQTT_PINGRESP:
+        if res[0] & 0xF0 == MQTT_PINGRESP:
             if self.logger is not None:
                 self.logger.debug("Got PINGRESP")
             sz = self._sock_exact_recv(1)[0]
