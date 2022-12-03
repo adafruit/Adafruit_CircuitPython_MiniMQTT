@@ -921,6 +921,12 @@ class MQTT:
         # topic length MSB & LSB
         topic_len = self._sock_exact_recv(2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
+
+        if topic_len > sz - 2:
+            raise MMQTTException(
+                f"Topic length {topic_len} in PUBLISH packet exceeds remaining length {sz} - 2"
+            )
+
         topic = self._sock_exact_recv(topic_len)
         topic = str(topic, "utf-8")
         sz -= topic_len + 2
