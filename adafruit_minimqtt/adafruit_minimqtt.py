@@ -47,6 +47,7 @@ MQTT_TLS_PORT = const(8883)
 # MQTT Commands
 MQTT_PINGREQ = b"\xc0\0"
 MQTT_PINGRESP = const(0xD0)
+MQTT_PUBLISH = const(0x30)
 MQTT_SUB = b"\x82"
 MQTT_UNSUB = b"\xA2"
 MQTT_DISCONNECT = b"\xe0\0"
@@ -879,7 +880,9 @@ class MQTT:
     def _wait_for_msg(self, timeout=0.1):
         # pylint: disable = too-many-return-statements
 
-        """Reads and processes network events."""
+        """Reads and processes network events.
+        Return the packet type or None if there is nothing to be received.
+        """
         # CPython socket module contains a timeout attribute
         if hasattr(self._socket_pool, "timeout"):
             try:
@@ -909,8 +912,11 @@ class MQTT:
                     "Unexpected PINGRESP returned from broker: {}.".format(sz)
                 )
             return MQTT_PINGRESP
-        if res[0] & 0xF0 != 0x30:
+
+        if res[0] & 0xF0 != MQTT_PUBLISH:
             return res[0]
+
+        # Handle only the PUBLISH packet type from now on.
         sz = self._recv_len()
         # topic length MSB & LSB
         topic_len = self._sock_exact_recv(2)
@@ -923,12 +929,13 @@ class MQTT:
             pid = self._sock_exact_recv(2)
             pid = pid[0] << 0x08 | pid[1]
             sz -= 0x02
+
         # read message contents
         raw_msg = self._sock_exact_recv(sz)
         msg = raw_msg if self._use_binary_mode else str(raw_msg, "utf-8")
         if self.logger is not None:
             self.logger.debug(
-                "Receiving SUBSCRIBE \nTopic: %s\nMsg: %s\n", topic, raw_msg
+                "Receiving PUBLISH \nTopic: %s\nMsg: %s\n", topic, raw_msg
             )
         self._handle_on_message(self, topic, msg)
         if res[0] & 0x06 == 0x02:
@@ -937,6 +944,7 @@ class MQTT:
             self._sock.send(pkt)
         elif res[0] & 6 == 4:
             assert 0
+
         return res[0]
 
     def _recv_len(self):
