@@ -211,7 +211,6 @@ class MQTT:
         # LWT
         self._lw_topic = None
         self._lw_qos = 0
-        self._lw_topic = None
         self._lw_msg = None
         self._lw_retain = False
 
