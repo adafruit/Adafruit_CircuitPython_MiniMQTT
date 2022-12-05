@@ -632,7 +632,7 @@ class MQTT:
         ), "Quality of Service Level 2 is unsupported by this library."
 
         # fixed header. [3.3.1.2], [3.3.1.3]
-        pub_hdr_fixed = bytearray([0x30 | retain | qos << 1])
+        pub_hdr_fixed = bytearray([MQTT_PUBLISH | retain | qos << 1])
 
         # variable header = 2-byte Topic length (big endian)
         pub_hdr_var = bytearray(struct.pack(">H", len(topic.encode("utf-8"))))
