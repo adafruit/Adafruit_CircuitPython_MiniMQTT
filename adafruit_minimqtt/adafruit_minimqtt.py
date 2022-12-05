@@ -956,15 +956,29 @@ class MQTT:
         bytes is returned or trigger a timeout exception.
 
         :param int bufsize: number of bytes to receive
-
+        :return: byte array
         """
+        stamp = time.monotonic()
         if not self._backwards_compatible_sock:
             # CPython/Socketpool Impl.
             rc = bytearray(bufsize)
-            self._sock.recv_into(rc, bufsize)
-        else:  # ESP32SPI Impl.
-            stamp = time.monotonic()
+            mv = memoryview(rc)
+            recv = self._sock.recv_into(rc, bufsize)
+            to_read = bufsize - recv
+            assert to_read >= 0
             read_timeout = self.keep_alive
+            mv = mv[recv:]
+            while to_read > 0:
+                recv = self._sock.recv_into(mv, to_read)
+                to_read -= recv
+                mv = mv[recv:]
+                if time.monotonic() - stamp > read_timeout:
+                    raise MMQTTException(
+                        "Unable to receive {} bytes within {} seconds.".format(
+                            to_read, read_timeout
+                        )
+                    )
+        else:  # ESP32SPI Impl.
             # This will timeout with socket timeout (not keepalive timeout)
             rc = self._sock.recv(bufsize)
             if not rc:
