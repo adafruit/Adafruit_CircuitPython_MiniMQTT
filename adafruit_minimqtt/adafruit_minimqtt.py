@@ -483,7 +483,7 @@ class MQTT:
 
         # Set up variable header and remaining_length
         remaining_length = 12 + len(self.client_id.encode("utf-8"))
-        if self._username:
+        if self._username is not None:
             remaining_length += (
                 2
                 + len(self._username.encode("utf-8"))
@@ -533,9 +533,7 @@ class MQTT:
             # [MQTT-3.1.3-11]
             self._send_str(self._lw_topic)
             self._send_str(self._lw_msg)
-        if self._username is None:
-            self._username = None
-        else:
+        if self._username is not None:
             self._send_str(self._username)
             self._send_str(self._password)
         if self.logger is not None:
