@@ -52,6 +52,8 @@ MQTT_SUB = b"\x82"
 MQTT_UNSUB = b"\xA2"
 MQTT_DISCONNECT = b"\xe0\0"
 
+MQTT_PKT_TYPE_MASK = const(0xF0)
+
 # Variable CONNECT header [MQTT 3.1.2]
 MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
 
@@ -902,7 +904,7 @@ class MQTT:
         if res in [None, b"", b"\x00"]:
             # If we get here, it means that there is nothing to be received
             return None
-        if res[0] & 0xF0 == MQTT_PINGRESP:
+        if res[0] & MQTT_PKT_TYPE_MASK == MQTT_PINGRESP:
             if self.logger is not None:
                 self.logger.debug("Got PINGRESP")
             sz = self._sock_exact_recv(1)[0]
@@ -912,7 +914,7 @@ class MQTT:
                 )
             return MQTT_PINGRESP
 
-        if res[0] & 0xF0 != MQTT_PUBLISH:
+        if res[0] & MQTT_PKT_TYPE_MASK != MQTT_PUBLISH:
             return res[0]
 
         # Handle only the PUBLISH packet type from now on.
