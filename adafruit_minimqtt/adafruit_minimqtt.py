@@ -963,15 +963,15 @@ class MQTT:
             # CPython/Socketpool Impl.
             rc = bytearray(bufsize)
             mv = memoryview(rc)
-            recv = self._sock.recv_into(rc, bufsize)
-            to_read = bufsize - recv
+            recv_len = self._sock.recv_into(rc, bufsize)
+            to_read = bufsize - recv_len
             assert to_read >= 0
             read_timeout = self.keep_alive
-            mv = mv[recv:]
+            mv = mv[recv_len:]
             while to_read > 0:
-                recv = self._sock.recv_into(mv, to_read)
-                to_read -= recv
-                mv = mv[recv:]
+                recv_len = self._sock.recv_into(mv, to_read)
+                to_read -= recv_len
+                mv = mv[recv_len:]
                 if time.monotonic() - stamp > read_timeout:
                     raise MMQTTException(
                         "Unable to receive {} bytes within {} seconds.".format(
