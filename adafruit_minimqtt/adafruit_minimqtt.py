@@ -974,9 +974,7 @@ class MQTT:
                 mv = mv[recv_len:]
                 if time.monotonic() - stamp > read_timeout:
                     raise MMQTTException(
-                        "Unable to receive {} bytes within {} seconds.".format(
-                            to_read, read_timeout
-                        )
+                        f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
         else:  # ESP32SPI Impl.
             # This will timeout with socket timeout (not keepalive timeout)
@@ -997,9 +995,7 @@ class MQTT:
                 rc += recv
                 if time.monotonic() - stamp > read_timeout:
                     raise MMQTTException(
-                        "Unable to receive {} bytes within {} seconds.".format(
-                            to_read, read_timeout
-                        )
+                        f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
         return rc
 
