@@ -138,6 +138,7 @@ class MQTT:
     :param int socket_timeout: How often to check socket state for read/write/connect operations,
         in seconds.
     :param int connect_retries: How many times to try to connect to broker before giving up.
+    :param class user_data: arbitrary data to pass as a second argument to the callbacks.
 
     """
 
@@ -158,6 +159,7 @@ class MQTT:
         use_binary_mode=False,
         socket_timeout=1,
         connect_retries=5,
+        user_data=None,
     ):
 
         self._socket_pool = socket_pool
@@ -175,7 +177,7 @@ class MQTT:
         self._connect_retries = connect_retries
 
         self.keep_alive = keep_alive
-        self._user_data = None
+        self._user_data = user_data
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
