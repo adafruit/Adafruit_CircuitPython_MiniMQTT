@@ -11,6 +11,13 @@ https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/matcher.py
 * Author(s): Yoch (https://github.com/yoch)
 """
 
+try:
+    from typing import Dict, Any
+except ImportError:
+    pass
+
+from collections.abc import Callable, Iterator
+
 
 class MQTTMatcher:
     """Intended to manage topic filters including wildcards.
@@ -27,14 +34,14 @@ class MQTTMatcher:
 
         __slots__ = "children", "content"
 
-        def __init__(self):
-            self.children = {}
+        def __init__(self) -> None:
+            self.children: Dict[str, MQTTMatcher.Node] = {}
             self.content = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._root = self.Node()
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Callable[..., Any]) -> None:
         """Add a topic filter :key to the prefix tree
         and associate it to :value"""
         node = self._root
@@ -42,7 +49,7 @@ class MQTTMatcher:
             node = node.children.setdefault(sym, self.Node())
         node.content = value
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Callable[..., Any]:
         """Retrieve the value associated with some topic filter :key"""
         try:
             node = self._root
@@ -54,7 +61,7 @@ class MQTTMatcher:
         except KeyError:
             raise KeyError(key) from None
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         """Delete the value associated with some topic filter :key"""
         lst = []
         try:
@@ -71,13 +78,13 @@ class MQTTMatcher:
                     break
                 del parent.children[k]
 
-    def iter_match(self, topic):
+    def iter_match(self, topic: str) -> Iterator[Callable[..., Any]]:
         """Return an iterator on all values associated with filters
         that match the :topic"""
         lst = topic.split("/")
         normal = not topic.startswith("$")
 
-        def rec(node, i=0):
+        def rec(node: MQTTMatcher.Node, i: int = 0) -> Iterator[Callable[..., Any]]:
             if i == len(lst):
                 if node.content is not None:
                     yield node.content
