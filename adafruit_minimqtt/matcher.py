@@ -12,11 +12,9 @@ https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/matcher.py
 """
 
 try:
-    from typing import Any, Dict
+    from typing import Any, Dict, Callable, Iterator
 except ImportError:
     pass
-
-from collections.abc import Callable, Iterator
 
 
 class MQTTMatcher:
