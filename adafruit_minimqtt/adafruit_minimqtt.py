@@ -1082,6 +1082,7 @@ class MQTT:
         :param log_level: Numeric value of a logging level, defaults to INFO.
         :param logger_name: name of the logger, defaults to "log".
         :return logger object
+
         """
         self.logger = log_pkg.getLogger(logger_name)
         self.logger.setLevel(log_level)
