@@ -124,7 +124,7 @@ class MQTT:
     """MQTT Client for CircuitPython.
 
     :param str broker: MQTT Broker URL or IP Address.
-    :param int port: Optional port definition, defaults to MQTT_TLS_PORT if is_ssl is set,
+    :param int port: Optional port definition, defaults to MQTT_TLS_PORT if is_ssl is True,
         MQTT_TCP_PORT otherwise.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
