@@ -124,7 +124,8 @@ class MQTT:
     """MQTT Client for CircuitPython.
 
     :param str broker: MQTT Broker URL or IP Address.
-    :param int port: Optional port definition, defaults to 8883.
+    :param int port: Optional port definition, defaults to MQTT_TLS_PORT if is_ssl is set,
+        MQTT_TCP_PORT otherwise.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
     :param network_manager: NetworkManager object, such as WiFiManager from ESPSPI_WiFiManager.
@@ -252,7 +253,7 @@ class MQTT:
         if not isinstance(port, int):
             raise RuntimeError("Port must be an integer")
 
-        if port == 8883 and not self._ssl_context:
+        if port == MQTT_TLS_PORT and not self._ssl_context:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
@@ -282,7 +283,7 @@ class MQTT:
                 continue
 
             connect_host = addr_info[-1][0]
-            if port == 8883:
+            if port == MQTT_TLS_PORT:
                 sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
                 connect_host = host
             sock.settimeout(timeout)
