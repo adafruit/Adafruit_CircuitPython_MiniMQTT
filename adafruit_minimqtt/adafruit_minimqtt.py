@@ -1080,10 +1080,12 @@ class MQTT:
 
         :param log_pkg: A Python logging package.
         :param log_level: Numeric value of a logging level, defaults to INFO.
-
+        :return logger object
         """
         self.logger = log_pkg.getLogger("log")
         self.logger.setLevel(log_level)
+
+        return self.logger
 
     def disable_logger(self):
         """Disables logging."""
