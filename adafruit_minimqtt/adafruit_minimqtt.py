@@ -1074,15 +1074,21 @@ class MQTT:
         return self._is_connected and self._sock is not None
 
     # Logging
-    def enable_logger(self, logger, log_level=20):
-        """Enables library logging provided a logger object.
+    def enable_logger(self, log_pkg, log_level=20, logger_name="log"):
+        """Enables library logging by getting logger from the specified logging package
+        and setting its log level.
 
-        :param logger: A python logger pacakge.
+        :param log_pkg: A Python logging package.
         :param log_level: Numeric value of a logging level, defaults to INFO.
+        :param logger_name: name of the logger, defaults to "log".
+
+        :return logger object
 
         """
-        self.logger = logger.getLogger("log")
+        self.logger = log_pkg.getLogger(logger_name)
         self.logger.setLevel(log_level)
+
+        return self.logger
 
     def disable_logger(self):
         """Disables logging."""
