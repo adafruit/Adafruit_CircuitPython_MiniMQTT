@@ -222,11 +222,12 @@ class MQTT:
 
         self.port = MQTT_TCP_PORT
         if is_ssl:
+            self._is_ssl = True
             self.port = MQTT_TLS_PORT
         if port:
             self.port = port
 
-        # define client identifer
+        # define client identifier
         if client_id:
             # user-defined client_id MAY allow client_id's > 23 bytes or
             # non-alpha-numeric characters
@@ -282,12 +283,12 @@ class MQTT:
         if not isinstance(port, int):
             raise RuntimeError("Port must be an integer")
 
-        if port == MQTT_TLS_PORT and not self._ssl_context:
+        if self._is_ssl and not self._ssl_context:
             raise RuntimeError(
                 "ssl_context must be set before using adafruit_mqtt for secure MQTT."
             )
 
-        if port == MQTT_TLS_PORT:
+        if self._is_ssl:
             self.logger.info(f"Establishing a SECURE SSL connection to {host}:{port}")
         else:
             self.logger.info(f"Establishing an INSECURE connection to {host}:{port}")
@@ -306,7 +307,7 @@ class MQTT:
             raise TemporaryError from exc
 
         connect_host = addr_info[-1][0]
-        if port == MQTT_TLS_PORT:
+        if self._is_ssl:
             sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
             connect_host = host
         sock.settimeout(timeout)
