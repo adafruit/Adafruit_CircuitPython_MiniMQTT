@@ -965,7 +965,11 @@ class MQTT:
             mv = memoryview(rc)
             recv_len = self._sock.recv_into(rc, bufsize)
             to_read = bufsize - recv_len
-            assert to_read >= 0
+            if to_read < 0:
+                raise MMQTTException(
+                    f"negative number of bytes to read: "
+                    f"{to_read} = {bufsize} - {recv_len}"
+                )
             read_timeout = self.keep_alive
             mv = mv[recv_len:]
             while to_read > 0:
