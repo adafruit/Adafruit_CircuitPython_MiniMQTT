@@ -46,8 +46,7 @@ def message(client, topic, message):
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"],
-    port=1883,
+    broker="io.adafruit.com",
     username=secrets["aio_username"],
     password=secrets["aio_key"],
     socket_pool=socket,

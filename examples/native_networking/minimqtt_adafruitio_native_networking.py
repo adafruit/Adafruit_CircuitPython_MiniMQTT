@@ -62,7 +62,7 @@ pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"],
+    broker="io.adafruit.com",
     port=secrets["port"],
     username=secrets["aio_username"],
     password=secrets["aio_key"],
