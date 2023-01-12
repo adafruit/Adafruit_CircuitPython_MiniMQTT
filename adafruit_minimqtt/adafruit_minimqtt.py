@@ -206,8 +206,8 @@ class MQTT:
             self.client_id = client_id
         else:
             # assign a unique client_id
-            self.client_id = "cpy{0}{1}".format(
-                randint(0, int(time.monotonic() * 100) % 1000), randint(0, 99)
+            self.client_id = (
+                f"cpy{randint(0, int(time.monotonic() * 100) % 1000)}{randint(0, 99)}"
             )
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id.encode("utf-8")) > 23 or not self.client_id:
@@ -261,13 +261,9 @@ class MQTT:
             )
 
         if self.logger is not None and port == MQTT_TLS_PORT:
-            self.logger.info(
-                "Establishing a SECURE SSL connection to {0}:{1}".format(host, port)
-            )
+            self.logger.info(f"Establishing a SECURE SSL connection to {host}:{port}")
         elif self.logger is not None:
-            self.logger.info(
-                "Establishing an INSECURE connection to {0}:{1}".format(host, port)
-            )
+            self.logger.info(f"Establishing an INSECURE connection to {host}:{port}")
 
         addr_info = self._socket_pool.getaddrinfo(
             host, port, 0, self._socket_pool.SOCK_STREAM
@@ -543,7 +539,7 @@ class MQTT:
             self._sock.send(MQTT_DISCONNECT)
         except RuntimeError as e:
             if self.logger is not None:
-                self.logger.warning("Unable to send DISCONNECT packet: {}".format(e))
+                self.logger.warning(f"Unable to send DISCONNECT packet: {e}")
         if self.logger is not None:
             self.logger.debug("Closing socket")
         self._sock.close()
@@ -598,7 +594,7 @@ class MQTT:
         else:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise MMQTTException("Message size larger than %d bytes." % MQTT_MSG_MAX_SZ)
+            raise MMQTTException(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
         assert (
             0 <= qos <= 1
         ), "Quality of Service Level 2 is unsupported by this library."
@@ -881,9 +877,7 @@ class MQTT:
                 self.logger.debug("Got PINGRESP")
             sz = self._sock_exact_recv(1)[0]
             if sz != 0x00:
-                raise MMQTTException(
-                    "Unexpected PINGRESP returned from broker: {}.".format(sz)
-                )
+                raise MMQTTException(f"Unexpected PINGRESP returned from broker: {sz}.")
             return MQTT_PINGRESP
 
         if res[0] & MQTT_PKT_TYPE_MASK != MQTT_PUBLISH:
