@@ -128,7 +128,6 @@ class MQTT:
         MQTT_TCP_PORT otherwise.
     :param str username: Username for broker authentication.
     :param str password: Password for broker authentication.
-    :param network_manager: NetworkManager object, such as WiFiManager from ESPSPI_WiFiManager.
     :param str client_id: Optional client identifier, defaults to a unique, generated string.
     :param bool is_ssl: Sets a secure or insecure connection with the broker.
     :param int keep_alive: KeepAlive interval between the broker and the MiniMQTT client.
