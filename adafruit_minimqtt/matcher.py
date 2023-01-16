@@ -12,7 +12,7 @@ https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/matcher.py
 """
 
 try:
-    from typing import Any, Callable, Dict, Iterator
+    from typing import Dict
 except ImportError:
     pass
 
@@ -39,7 +39,7 @@ class MQTTMatcher:
     def __init__(self) -> None:
         self._root = self.Node()
 
-    def __setitem__(self, key: str, value: Callable[..., Any]) -> None:
+    def __setitem__(self, key: str, value) -> None:
         """Add a topic filter :key to the prefix tree
         and associate it to :value"""
         node = self._root
@@ -47,7 +47,7 @@ class MQTTMatcher:
             node = node.children.setdefault(sym, self.Node())
         node.content = value
 
-    def __getitem__(self, key: str) -> Callable[..., Any]:
+    def __getitem__(self, key: str):
         """Retrieve the value associated with some topic filter :key"""
         try:
             node = self._root
@@ -76,13 +76,13 @@ class MQTTMatcher:
                     break
                 del parent.children[k]
 
-    def iter_match(self, topic: str) -> Iterator[Callable[..., Any]]:
+    def iter_match(self, topic: str):
         """Return an iterator on all values associated with filters
         that match the :topic"""
         lst = topic.split("/")
         normal = not topic.startswith("$")
 
-        def rec(node: MQTTMatcher.Node, i: int = 0) -> Iterator[Callable[..., Any]]:
+        def rec(node: MQTTMatcher.Node, i: int = 0):
             if i == len(lst):
                 if node.content is not None:
                     yield node.content
