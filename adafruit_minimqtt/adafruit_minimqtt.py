@@ -298,10 +298,9 @@ class MQTT:
             sock = self._socket_pool.socket(addr_info[0], addr_info[1])
         except OSError as exc:
             # Do not consider this for back-off.
-            if self.logger is not None:
-                self.logger.warning(
-                    f"Failed to create socket for host {addr_info[0]} and port {addr_info[1]}"
-                )
+            self.logger.warning(
+                f"Failed to create socket for host {addr_info[0]} and port {addr_info[1]}"
+            )
             raise TemporaryError from exc
 
         connect_host = addr_info[-1][0]
@@ -315,8 +314,7 @@ class MQTT:
             sock.connect((connect_host, port))
         except MemoryError as exc:
             sock.close()
-            if self.logger is not None:
-                self.logger.warning(f"Failed to allocate memory for connect: {exc}")
+            self.logger.warning(f"Failed to allocate memory for connect: {exc}")
             # Do not consider this for back-off.
             raise TemporaryError from exc
         except OSError as exc:
@@ -461,10 +459,10 @@ class MQTT:
                     self._recompute_reconnect_backoff()
                 else:
                     self._reset_reconnect_backoff()
-            if self.logger is not None:
-                self.logger.debug(
-                    f"Attempting to connect to MQTT broker (attempt #{self._reconnect_attempt})"
-                )
+
+            self.logger.debug(
+                f"Attempting to connect to MQTT broker (attempt #{self._reconnect_attempt})"
+            )
 
             try:
                 ret = self._connect(
@@ -476,18 +474,15 @@ class MQTT:
                 self._reset_reconnect_backoff()
                 return ret
             except TemporaryError as e:
-                if self.logger is not None:
-                    self.logger.warning(f"temporary error when connecting: {e}")
+                self.logger.warning(f"temporary error when connecting: {e}")
                 backoff = False
             except OSError as e:
                 last_exception = e
-                if self.logger is not None:
-                    self.logger.info(f"failed to connect: {e}")
+                self.logger.info(f"failed to connect: {e}")
                 backoff = True
             except MMQTTException as e:
                 last_exception = e
-                if self.logger is not None:
-                    self.logger.info(f"MMQT error: {e}")
+                self.logger.info(f"MMQT error: {e}")
                 backoff = True
 
         if self._reconnect_attempts_max > 1:
@@ -519,10 +514,9 @@ class MQTT:
         self.logger.debug("Attempting to establish MQTT connection...")
 
         if self._reconnect_attempt > 0:
-            if self.logger is not None:
-                self.logger.debug(
-                    f"Sleeping for {self._reconnect_timeout:.3} seconds due to connect back-off"
-                )
+            self.logger.debug(
+                f"Sleeping for {self._reconnect_timeout:.3} seconds due to connect back-off"
+            )
             time.sleep(self._reconnect_timeout)
 
         # Get a new socket
@@ -867,29 +861,26 @@ class MQTT:
         """
         self._reconnect_attempt = self._reconnect_attempt + 1
         self._reconnect_timeout = 2**self._reconnect_attempt
-        if self.logger is not None:
-            # pylint: disable=consider-using-f-string
-            self.logger.debug(
-                "Reconnect timeout computed to {:.2f}".format(self._reconnect_timeout)
-            )
+        # pylint: disable=consider-using-f-string
+        self.logger.debug(
+            "Reconnect timeout computed to {:.2f}".format(self._reconnect_timeout)
+        )
 
         if self._reconnect_timeout > self._reconnect_maximum_backoff:
-            if self.logger is not None:
-                self.logger.debug(
-                    f"Truncating reconnect timeout to {self._reconnect_maximum_backoff} seconds"
-                )
+            self.logger.debug(
+                f"Truncating reconnect timeout to {self._reconnect_maximum_backoff} seconds"
+            )
             self._reconnect_timeout = float(self._reconnect_maximum_backoff)
 
         # Add a sub-second jitter.
         # Even truncated timeout should have jitter added to it. This is why it is added here.
         jitter = randint(0, 1000) / 1000
-        if self.logger is not None:
-            # pylint: disable=consider-using-f-string
-            self.logger.debug(
-                "adding jitter {:.2f} to {:.2f} seconds".format(
-                    jitter, self._reconnect_timeout
-                )
+        # pylint: disable=consider-using-f-string
+        self.logger.debug(
+            "adding jitter {:.2f} to {:.2f} seconds".format(
+                jitter, self._reconnect_timeout
             )
+        )
         self._reconnect_timeout += jitter
 
     def _reset_reconnect_backoff(self):
@@ -897,8 +888,7 @@ class MQTT:
         Reset reconnect back-off to the initial state.
 
         """
-        if self.logger is not None:
-            self.logger.debug("Resetting reconnect backoff")
+        self.logger.debug("Resetting reconnect backoff")
         self._reconnect_attempt = 0
         self._reconnect_timeout = float(0)
 
@@ -912,7 +902,7 @@ class MQTT:
         """
 
         self.logger.debug("Attempting to reconnect with MQTT broker")
-        self.connect()
+        ret = self.connect()
         self.logger.debug("Reconnected with broker")
         if resub_topics:
             self.logger.debug(
