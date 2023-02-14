@@ -46,3 +46,6 @@ _build
 .idea
 .vscode
 *~
+
+# tox local cache
+.tox
