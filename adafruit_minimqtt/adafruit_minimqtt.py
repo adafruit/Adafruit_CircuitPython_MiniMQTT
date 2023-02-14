@@ -32,7 +32,6 @@ import struct
 import time
 from random import randint
 
-import adafruit_logging as logging
 from micropython import const
 
 from .matcher import MQTTMatcher
@@ -125,6 +124,19 @@ class _FakeSSLContext:
         """Return the same socket"""
         # pylint: disable=unused-argument
         return _FakeSSLSocket(socket, self._iface.TLS_MODE)
+
+
+class NullLogger:
+    """Fake logger class that does not do anything"""
+
+    # pylint: disable=unused-argument
+    def nothing(self, msg: str, *args) -> None:
+        """no action"""
+        pass
+
+    def __init__(self):
+        for log_level in ["debug", "info", "warning", "error", "critical"]:
+            setattr(NullLogger, log_level, self.nothing)
 
 
 class MQTT:
@@ -1178,6 +1190,5 @@ class MQTT:
         self._init_logger()
 
     def _init_logger(self):
-        """Initializes logger to use NullHandler, i.e. no logging will be done."""
-        self.logger = logging.getLogger("")
-        self.logger.addHandler(logging.NullHandler())
+        """Initializes logger to NullLogger, i.e. no logging will be done."""
+        self.logger = NullLogger()
