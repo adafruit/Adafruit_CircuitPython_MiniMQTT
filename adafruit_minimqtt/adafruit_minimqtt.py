@@ -506,9 +506,10 @@ class MQTT:
             self.logger.debug("Attempting to establish MQTT connection...")
 
         if self._reconnect_attempt > 0:
-            self.logger.debug(
-                f"Sleeping for {self._reconnect_timeout:.3} seconds due to connect back-off"
-            )
+            if self.logger is not None:
+                self.logger.debug(
+                    f"Sleeping for {self._reconnect_timeout:.3} seconds due to connect back-off"
+                )
             time.sleep(self._reconnect_timeout)
 
         # Get a new socket
