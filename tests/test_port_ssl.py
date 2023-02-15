@@ -41,9 +41,7 @@ class PortSslSetup(TestCase):
             ssl_mock.assert_not_called()
             connect_mock.assert_called()
             # Assuming the repeated calls will have the same arguments.
-            connect_mock.assert_has_calls(
-                [call((host, expected_port))]
-            )
+            connect_mock.assert_has_calls([call((host, expected_port))])
 
     def test_connect_override(self):
         """Test that connect() can override host and port."""
@@ -62,19 +60,13 @@ class PortSslSetup(TestCase):
             with self.assertRaises(MQTT.MMQTTException):
                 expected_host = "127.0.0.2"
                 expected_port = 1884
-                self.assertNotEqual(
-                    expected_port, port, "port override should differ"
-                )
-                self.assertNotEqual(
-                    expected_host, host, "host override should differ"
-                )
+                self.assertNotEqual(expected_port, port, "port override should differ")
+                self.assertNotEqual(expected_host, host, "host override should differ")
                 mqtt_client.connect(host=expected_host, port=expected_port)
 
             connect_mock.assert_called()
             # Assuming the repeated calls will have the same arguments.
-            connect_mock.assert_has_calls(
-                [call((expected_host, expected_port))]
-            )
+            connect_mock.assert_has_calls([call((expected_host, expected_port))])
 
     def test_tls_port(self) -> None:
         """verify that when is_ssl=True is set, the default port is 8883
