@@ -53,7 +53,7 @@ mqtt_client = MQTT.MQTT(
     password=secrets["aio_key"],
     socket_pool=socket,
     is_ssl=True,
-    ssl_context=ssl.create_default_context()
+    ssl_context=ssl.create_default_context(),
 )
 
 # Setup the callback methods above
