@@ -1,8 +1,10 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import time
 import socket
+import ssl
+import time
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 ### Secrets File Setup ###
@@ -50,6 +52,8 @@ mqtt_client = MQTT.MQTT(
     username=secrets["aio_username"],
     password=secrets["aio_key"],
     socket_pool=socket,
+    is_ssl=True,
+    ssl_context=ssl.create_default_context()
 )
 
 # Setup the callback methods above
