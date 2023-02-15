@@ -171,7 +171,7 @@ class MQTT:
         username=None,
         password=None,
         client_id=None,
-        is_ssl=True,
+        is_ssl=None,
         keep_alive=60,
         recv_timeout=10,
         socket_pool=None,
@@ -220,9 +220,14 @@ class MQTT:
         ):  # [MQTT-3.1.3.5]
             raise MMQTTException("Password length is too large.")
 
+        # The connection will be insecure unless is_ssl is set to True.
+        # If the port is not specified, the security will be set based on the is_ssl parameter.
+        # If the port is specified, the is_ssl parameter will be honored.
         self.port = MQTT_TCP_PORT
-        if is_ssl:
-            self._is_ssl = True
+        if is_ssl is None:
+            is_ssl = False
+        self._is_ssl = is_ssl
+        if self._is_ssl:
             self.port = MQTT_TLS_PORT
         if port:
             self.port = port
