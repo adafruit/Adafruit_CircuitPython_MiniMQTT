@@ -201,7 +201,9 @@ class MQTT:
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
         self._timestamp = 0
-        self._init_logger()
+        self.logger = NullLogger()
+        """An optional logging attribute that can be set with with a Logger 
+        to enable debug logging."""
 
         self._reconnect_attempt = 0
         self._reconnect_timeout = float(0)
@@ -1177,8 +1179,4 @@ class MQTT:
 
     def disable_logger(self):
         """Disables logging."""
-        self._init_logger()
-
-    def _init_logger(self):
-        """Initializes logger to NullLogger, i.e. no logging will be done."""
         self.logger = NullLogger()
