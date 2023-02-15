@@ -202,7 +202,7 @@ class MQTT:
         self._pid = 0
         self._timestamp = 0
         self.logger = NullLogger()
-        """An optional logging attribute that can be set with with a Logger 
+        """An optional logging attribute that can be set with with a Logger
         to enable debug logging."""
 
         self._reconnect_attempt = 0
