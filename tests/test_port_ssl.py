@@ -34,7 +34,7 @@ class PortSslSetup(TestCase):
             ssl_mock = Mock()
             ssl_context.wrap_socket = ssl_mock
 
-            with self.assertRaises(OSError):
+            with self.assertRaises(MQTT.MMQTTException):
                 expected_port = port
                 mqtt_client.connect()
 
@@ -59,7 +59,7 @@ class PortSslSetup(TestCase):
                 connect_retries=1,
             )
 
-            with self.assertRaises(OSError):
+            with self.assertRaises(MQTT.MMQTTException):
                 expected_host = "127.0.0.2"
                 expected_port = 1884
                 self.assertNotEqual(
@@ -102,7 +102,7 @@ class PortSslSetup(TestCase):
                 socket_mock.connect = connect_mock
                 ssl_mock.wrap_socket = Mock(return_value=socket_mock)
 
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(MQTT.MMQTTException):
                     mqtt_client.connect()
 
                 ssl_mock.wrap_socket.assert_called()
