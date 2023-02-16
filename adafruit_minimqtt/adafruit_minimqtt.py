@@ -1040,16 +1040,6 @@ class MQTT:
                 return n
             sh += 7
 
-    def _recv_into(self, buf, size=0):
-        """Backwards-compatible _recv_into implementation."""
-        if self._backwards_compatible_sock:
-            size = len(buf) if size == 0 else size
-            b = self._sock.recv(size)
-            read_size = len(b)
-            buf[:read_size] = b
-            return read_size
-        return self._sock.recv_into(buf, size)
-
     def _sock_exact_recv(self, bufsize):
         """Reads _exact_ number of bytes from the connected socket. Will only return
         string with the exact number of bytes requested.
