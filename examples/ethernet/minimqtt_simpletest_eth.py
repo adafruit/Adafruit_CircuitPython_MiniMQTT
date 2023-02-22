@@ -67,8 +67,12 @@ def publish(client, userdata, topic, pid):
 MQTT.set_socket(socket, eth)
 
 # Set up a MiniMQTT Client
+# NOTE: We'll need to connect insecurely for ethernet configurations.
 client = MQTT.MQTT(
-    broker=secrets["broker"], username=secrets["user"], password=secrets["pass"]
+    broker=secrets["broker"],
+    username=secrets["user"],
+    password=secrets["pass"],
+    is_ssl=False,
 )
 
 # Connect callback handlers to client
