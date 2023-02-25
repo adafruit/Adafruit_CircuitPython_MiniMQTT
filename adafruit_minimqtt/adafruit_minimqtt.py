@@ -1040,8 +1040,8 @@ class MQTT:
                 f"Topic length {topic_len} in PUBLISH packet exceeds remaining length {sz} - 2"
             )
 
-        topic = self._sock_exact_recv(topic_len)
-        topic = str(topic, "utf-8")
+        topic_buf = self._sock_exact_recv(topic_len)
+        topic = str(topic_buf, "utf-8")
         sz -= topic_len + 2
         pid = 0
         if res[0] & 0x06:
