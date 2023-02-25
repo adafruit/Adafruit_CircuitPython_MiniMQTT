@@ -1045,8 +1045,8 @@ class MQTT:
         sz -= topic_len + 2
         pid = 0
         if res[0] & 0x06:
-            pid = self._sock_exact_recv(2)
-            pid = pid[0] << 0x08 | pid[1]
+            pid_buf = self._sock_exact_recv(2)
+            pid = pid_buf[0] << 0x08 | pid_buf[1]
             sz -= 0x02
 
         # read message contents
