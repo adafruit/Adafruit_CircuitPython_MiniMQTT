@@ -205,7 +205,7 @@ class MQTT:
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
-        self._timestamp = 0
+        self._timestamp: float = 0
         self.logger = NullLogger()
         """An optional logging attribute that can be set with with a Logger
         to enable debug logging."""
@@ -364,7 +364,13 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self._msg_size_lim = msg_size
 
-    def will_set(self, topic=None, payload=None, qos=0, retain=False):
+    def will_set(
+        self,
+        topic: Union[str, None] = None,
+        payload: Union[int, float, str, None] = None,
+        qos: int = 0,
+        retain: bool = False,
+    ) -> None:
         """Sets the last will and testament properties. MUST be called before `connect()`.
 
         :param str topic: MQTT Broker topic.
