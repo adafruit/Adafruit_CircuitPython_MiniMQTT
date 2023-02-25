@@ -1032,8 +1032,8 @@ class MQTT:
         # Handle only the PUBLISH packet type from now on.
         sz = self._recv_len()
         # topic length MSB & LSB
-        topic_len = self._sock_exact_recv(2)
-        topic_len = int((topic_len[0] << 8) | topic_len[1])
+        topic_len_buf = self._sock_exact_recv(2)
+        topic_len = int((topic_len_buf[0] << 8) | topic_len_buf[1])
 
         if topic_len > sz - 2:
             raise MMQTTException(
