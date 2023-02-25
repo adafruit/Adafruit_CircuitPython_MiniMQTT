@@ -33,7 +33,7 @@ import time
 from random import randint
 
 try:
-    from typing import List, Tuple, Type, Union
+    from typing import List, Tuple, Union
 except ImportError:
     pass
 
