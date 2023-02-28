@@ -33,7 +33,7 @@ import time
 from random import randint
 
 try:
-    from typing import List, Tuple, Union
+    from typing import List, Optional, Tuple, Union
 except ImportError:
     pass
 
@@ -172,11 +172,11 @@ class MQTT:
         self,
         *,
         broker: str,
-        port: Union[int, None] = None,
-        username: Union[str, None] = None,
-        password: Union[str, None] = None,
-        client_id: Union[str, None] = None,
-        is_ssl: Union[bool, None] = None,
+        port: Optional[int] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        client_id: Optional[str] = None,
+        is_ssl: Optional[bool] = None,
         keep_alive: int = 60,
         recv_timeout: int = 10,
         socket_pool=None,
@@ -366,8 +366,8 @@ class MQTT:
 
     def will_set(
         self,
-        topic: Union[str, None] = None,
-        payload: Union[int, float, str, None] = None,
+        topic: Optional[str] = None,
+        payload: Optional[int, float, str] = None,
         qos: int = 0,
         retain: bool = False,
     ) -> None:
@@ -445,7 +445,7 @@ class MQTT:
         if not matched and self.on_message:  # regular on_message
             self.on_message(client, topic, message)
 
-    def username_pw_set(self, username: str, password: Union[str, None] = None) -> None:
+    def username_pw_set(self, username: str, password: Optional[str] = None) -> None:
         """Set client's username and an optional password.
 
         :param str username: Username to use with your MQTT broker.
@@ -461,9 +461,9 @@ class MQTT:
     def connect(
         self,
         clean_session: bool = True,
-        host: Union[str, None] = None,
-        port: Union[int, None] = None,
-        keep_alive: Union[int, None] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        keep_alive: Optional[int] = None,
     ) -> int:
         """Initiates connection with the MQTT Broker. Will perform exponential back-off
         on connect failures.
@@ -523,9 +523,9 @@ class MQTT:
     def _connect(
         self,
         clean_session: bool = True,
-        host: Union[str, None] = None,
-        port: Union[int, None] = None,
-        keep_alive: Union[int, None] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        keep_alive: Optional[int] = None,
     ) -> int:
         """Initiates connection with the MQTT Broker.
 
@@ -953,7 +953,7 @@ class MQTT:
 
         return ret
 
-    def loop(self, timeout: float = 0) -> Union[list[int], None]:
+    def loop(self, timeout: float = 0) -> Optional[list[int]]:
         # pylint: disable = too-many-return-statements
         """Non-blocking message loop. Use this method to
         check incoming subscription messages.
@@ -993,7 +993,7 @@ class MQTT:
 
         return rcs if rcs else None
 
-    def _wait_for_msg(self, timeout: float = 0.1) -> Union[int, None]:
+    def _wait_for_msg(self, timeout: float = 0.1) -> Optional[int]:
         # pylint: disable = too-many-return-statements
 
         """Reads and processes network events.
