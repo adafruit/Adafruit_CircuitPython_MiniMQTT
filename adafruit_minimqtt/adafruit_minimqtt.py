@@ -1076,7 +1076,7 @@ class MQTT:
 
     def _sock_exact_recv(self, bufsize: int) -> bytearray:
         """Reads _exact_ number of bytes from the connected socket. Will only return
-        string with the exact number of bytes requested.
+        bytearray with the exact number of bytes requested.
 
         The semantics of native socket receive is that it returns no more than the
         specified number of bytes (i.e. max size). However, it makes no guarantees in
