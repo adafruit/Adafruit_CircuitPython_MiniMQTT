@@ -367,7 +367,7 @@ class MQTT:
     def will_set(
         self,
         topic: Optional[str] = None,
-        payload: Optional[int, float, str] = None,
+        payload: Optional[Union[int, float, str]] = None,
         qos: int = 0,
         retain: bool = False,
     ) -> None:
