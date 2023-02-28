@@ -756,8 +756,8 @@ class MQTT:
                 if op == 0x40:
                     sz = self._sock_exact_recv(1)
                     assert sz == b"\x02"
-                    rcv_pid = self._sock_exact_recv(2)
-                    rcv_pid = rcv_pid[0] << 0x08 | rcv_pid[1]
+                    rcv_pid_buf = self._sock_exact_recv(2)
+                    rcv_pid = rcv_pid_buf[0] << 0x08 | rcv_pid_buf[1]
                     if self._pid == rcv_pid:
                         if self.on_publish is not None:
                             self.on_publish(self, self._user_data, topic, rcv_pid)
