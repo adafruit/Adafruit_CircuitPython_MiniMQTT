@@ -33,7 +33,12 @@ import time
 from random import randint
 
 try:
-    from typing import List, Optional, Tuple, Union
+    from typing import List, Optional, Tuple, Type, Union
+except ImportError:
+    pass
+
+try:
+    from types import TracebackType
 except ImportError:
     pass
 
@@ -343,7 +348,12 @@ class MQTT:
     def __enter__(self):
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback) -> None:
+    def __exit__(
+        self,
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
         self.deinit()
 
     def deinit(self) -> None:
