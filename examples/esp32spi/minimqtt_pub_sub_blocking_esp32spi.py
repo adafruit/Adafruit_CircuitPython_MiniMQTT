@@ -1,25 +1,23 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import time
 import board
 import busio
 from digitalio import DigitalInOut
 import neopixel
 from adafruit_esp32spi import adafruit_esp32spi
-from adafruit_esp32spi import adafruit_esp32spi_wifimanager
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### WiFi ###
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your WiFi credentials. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
 
-# Get wifi details and more from a secrets.py file
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 # If you are using a board with pre-defined ESP32 Pins:
 esp32_cs = DigitalInOut(board.ESP_CS)
@@ -46,14 +44,14 @@ status_light = neopixel.NeoPixel(
 # GREEN_LED = PWMOut.PWMOut(esp, 27)
 # BLUE_LED = PWMOut.PWMOut(esp, 25)
 # status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
-wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
 
 ### Adafruit IO Setup ###
 
 # Setup a feed named `testfeed` for publishing.
-default_topic = secrets["user"] + "/feeds/testfeed"
+default_topic = aio_username + "/feeds/testfeed"
 
 ### Code ###
+
 
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
@@ -81,7 +79,7 @@ def message(client, topic, message):
 
 # Connect to WiFi
 print("Connecting to WiFi...")
-wifi.connect()
+esp.connect_AP(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
 print("Connected!")
 
 # Initialize MQTT interface with the esp interface
@@ -89,7 +87,7 @@ MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"], username=secrets["user"], password=secrets["pass"]
+    broker=os.getenv("broker"), username=aio_username, password=aio_key
 )
 
 # Setup the callback methods above
@@ -109,7 +107,11 @@ while True:
         mqtt_client.loop()
     except (ValueError, RuntimeError) as e:
         print("Failed to get data, retrying\n", e)
-        wifi.reset()
+        esp.reset()
+        time.sleep(1)
+        esp.connect_AP(
+            os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
+        )
         mqtt_client.reconnect()
         continue
     time.sleep(1)
