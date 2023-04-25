@@ -16,8 +16,8 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 # with your WiFi credentials. Add your Adafruit IO username and key as well.
 # DO NOT share that file or commit it into Git or other source control.
 
-aio_username = os.getenv('aio_username')
-aio_key = os.getenv('aio_key')
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 # If you are using a board with pre-defined ESP32 Pins:
 esp32_cs = DigitalInOut(board.ESP_CS)
@@ -55,6 +55,7 @@ onoff_feed = aio_username + "/feeds/onoff"
 
 ### Code ###
 
+
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
@@ -78,7 +79,7 @@ def message(client, topic, message):
 
 # Connect to WiFi
 print("Connecting to WiFi...")
-esp.connect_AP(os.getenv('CIRCUITPY_WIFI_SSID'), os.getenv('CIRCUITPY_WIFI_PASSWORD'))
+esp.connect_AP(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
 print("Connected!")
 
 # Initialize MQTT interface with the esp interface

@@ -15,13 +15,15 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 # Set your Adafruit IO Username, Key and Port in settings.toml
 # (visit io.adafruit.com if you need to create an account,
 # or if you need your Adafruit IO key.)
-aio_username = os.getenv('aio_username')
-aio_key = os.getenv('aio_key')
-aio_port = os.getenv('port')
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
+aio_port = os.getenv("port")
 
-print("Connecting to %s" % os.getenv('CIRCUITPY_WIFI_SSID'))
-wifi.radio.connect(os.getenv('CIRCUITPY_WIFI_SSID'), os.getenv('CIRCUITPY_WIFI_PASSWORD'))
-print("Connected to %s!" % os.getenv('CIRCUITPY_WIFI_SSID'))
+print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
+wifi.radio.connect(
+    os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
+)
+print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
@@ -31,6 +33,7 @@ photocell_feed = aio_username + "/feeds/photocell"
 onoff_feed = aio_username + "/feeds/onoff"
 
 ### Code ###
+
 
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
