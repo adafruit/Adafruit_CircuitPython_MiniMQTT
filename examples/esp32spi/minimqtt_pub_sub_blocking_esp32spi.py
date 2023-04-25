@@ -87,7 +87,7 @@ MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=os.getenv("broker"), username=aio_username, password=aio_key
+    broker="io.adafruit.com", username=aio_username, password=aio_key
 )
 
 # Setup the callback methods above

@@ -16,8 +16,6 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 # or if you need your Adafruit IO key.)
 aio_username = os.getenv("aio_username")
 aio_key = os.getenv("aio_key")
-aio_broker = os.getenv("broker")
-aio_port = os.getenv("port")
 
 print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
 wifi.radio.connect(
@@ -77,8 +75,8 @@ pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=aio_broker,
-    port=aio_port,
+    broker="io.adafruit.com",
+    port=8883,
     username=os.getenv("CIRCUITPY_WIFI_SSID"),
     password=os.getenv("CIRCUITPY_WIFI_PASSWORD"),
     socket_pool=pool,
