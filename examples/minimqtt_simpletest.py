@@ -31,7 +31,7 @@ mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
+# mqtt_topic = aio_username + '/feeds/temperature'
 
 
 ### Code ###
@@ -77,8 +77,8 @@ pool = socketpool.SocketPool(wifi.radio)
 mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
     port=8883,
-    username=os.getenv("CIRCUITPY_WIFI_SSID"),
-    password=os.getenv("CIRCUITPY_WIFI_PASSWORD"),
+    username=aio_username,
+    password=aio_key,
     socket_pool=pool,
     ssl_context=ssl.create_default_context(),
 )
