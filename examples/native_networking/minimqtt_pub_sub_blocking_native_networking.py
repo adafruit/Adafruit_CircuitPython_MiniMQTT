@@ -32,6 +32,7 @@ print("Connected to %s!" % secrets["ssid"])
 # Setup a feed named `testfeed` for publishing.
 default_topic = secrets["aio_username"] + "/feeds/testfeed"
 
+
 ### Code ###
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
@@ -59,6 +60,14 @@ def message(client, topic, message):
 
 # Create a socket pool
 pool = socketpool.SocketPool(wifi.radio)
+ssl_context = ssl.create_default_context()
+
+# If you need to use certificate/key pair authentication (e.g. X.509), you can load them in the
+# ssl context by uncommenting the line below
+# ssl_context.load_cert_chain(
+#     certfile=secrets['device_cert_path'],
+#     keyfile=secrets['device_key_path']
+# )
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
@@ -67,7 +76,7 @@ mqtt_client = MQTT.MQTT(
     username=secrets["aio_username"],
     password=secrets["aio_key"],
     socket_pool=pool,
-    ssl_context=ssl.create_default_context(),
+    ssl_context=ssl_context,
 )
 
 # Setup the callback methods above
