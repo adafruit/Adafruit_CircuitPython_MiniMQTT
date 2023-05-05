@@ -63,10 +63,12 @@ pool = socketpool.SocketPool(wifi.radio)
 ssl_context = ssl.create_default_context()
 
 # If you need to use certificate/key pair authentication (e.g. X.509), you can load them in the
-# ssl context by uncommenting the line below
+# ssl context by uncommenting the lines below and adding the following keys to the "secrets"
+# dictionary in your secrets.py file:
+# "device_cert_path" - Path to the Device Certificate
+# "device_key_path" - Path to the RSA Private Key
 # ssl_context.load_cert_chain(
-#     certfile=secrets['device_cert_path'],
-#     keyfile=secrets['device_key_path']
+#     certfile=secrets["device_cert_path"], keyfile=secrets["device_key_path"]
 # )
 
 # Set up a MiniMQTT Client
