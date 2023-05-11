@@ -21,6 +21,7 @@ except ImportError:
 # ------------- MQTT Topic Setup ------------- #
 mqtt_topic = "test/topic"
 
+
 ### Code ###
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name

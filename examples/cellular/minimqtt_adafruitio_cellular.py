@@ -36,6 +36,7 @@ onoff_feed = secrets["aio_username"] + "/feeds/onoff"
 
 ### Code ###
 
+
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):

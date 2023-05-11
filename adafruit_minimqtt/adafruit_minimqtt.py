@@ -191,7 +191,6 @@ class MQTT:
         connect_retries: int = 5,
         user_data=None,
     ) -> None:
-
         self._socket_pool = socket_pool
         self._ssl_context = ssl_context
         self._sock = None
