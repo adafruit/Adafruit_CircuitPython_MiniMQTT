@@ -70,11 +70,10 @@ class MQTTMatcher:
             node.content = None
         except KeyError:
             raise KeyError(key) from None
-        else:  # cleanup
-            for parent, k, node in reversed(lst):
-                if node.children or node.content is not None:
-                    break
-                del parent.children[k]
+        for parent, k, node in reversed(lst):
+            if node.children or node.content is not None:
+                break
+            del parent.children[k]
 
     def iter_match(self, topic: str):
         """Return an iterator on all values associated with filters
