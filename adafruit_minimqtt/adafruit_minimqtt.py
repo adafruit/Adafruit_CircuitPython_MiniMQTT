@@ -1119,6 +1119,14 @@ class MQTT:
             rc = bytearray(bufsize)
             mv = memoryview(rc)
             recv_len = self._sock.recv_into(rc, bufsize)
+            
+            if recv_len == 0:
+                self.logger.debug("_sock_exact_recv timeout")
+                # If no bytes are waiting, raise an OSError for good measure.
+                # Some implementations of recv_into do this on their own (like CPython), 
+                # but we should be prepared if one doesn't (looking at you esp23spi...)
+                raise OSError(errno.ETIMEDOUT)
+
             to_read = bufsize - recv_len
             if to_read < 0:
                 raise MMQTTException(f"negative number of bytes to read: {to_read}")
