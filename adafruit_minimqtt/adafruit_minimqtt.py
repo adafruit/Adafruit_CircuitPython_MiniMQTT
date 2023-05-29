@@ -1122,7 +1122,7 @@ class MQTT:
             if recv_len == 0:
                 self.logger.debug("_sock_exact_recv timeout")
                 # If no bytes are waiting, raise an OSError for good measure.
-                # Some implementations of recv_into do this on their own (like CPython), 
+                # Some implementations of recv_into do this on their own (like CPython),
                 # but we should be prepared if one doesn't (looking at you esp23spi...)
                 raise OSError(errno.ETIMEDOUT)
             to_read = bufsize - recv_len
