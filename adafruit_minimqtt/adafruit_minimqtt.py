@@ -1008,9 +1008,7 @@ class MQTT:
             if rc is not None:
                 rcs.append(rc)
             if time.monotonic() - stamp > timeout:
-                self.logger.debug(
-                    f"Loop timed out, message queue empty after {timeout} seconds"
-                )
+                self.logger.debug(f"Loop timed out after {timeout} seconds")
                 break
 
         return rcs if rcs else None
