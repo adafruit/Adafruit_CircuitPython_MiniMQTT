@@ -983,7 +983,7 @@ class MQTT:
         """Non-blocking message loop. Use this method to check for incoming messages.
         Returns list of response codes of any messages received or None.
 
-        :param float timeout: timeout to wait for a message, in seconds.
+        :param float timeout: return after this timeout, in seconds.
 
         """
 
