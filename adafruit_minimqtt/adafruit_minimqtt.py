@@ -980,11 +980,10 @@ class MQTT:
 
     def loop(self, timeout: float = 0) -> Optional[list[int]]:
         # pylint: disable = too-many-return-statements
-        """Non-blocking message loop. Use this method to
-        check incoming subscription messages.
-        Returns response codes of any messages received.
+        """Non-blocking message loop. Use this method to check for incoming messages.
+        Returns list of response codes of any messages received or None.
 
-        :param float timeout: Socket timeout, in seconds.
+        :param float timeout: timeout to wait for a message, in seconds.
 
         """
 
@@ -1002,23 +1001,21 @@ class MQTT:
             return rcs
 
         stamp = time.monotonic()
-        self._sock.settimeout(timeout)
         rcs = []
 
         while True:
-            rc = self._wait_for_msg(timeout)
-            if rc is None:
-                break
-            if time.monotonic() - stamp > self._recv_timeout:
+            rc = self._wait_for_msg()
+            if rc is not None:
+                rcs.append(rc)
+            if time.monotonic() - stamp > timeout:
                 self.logger.debug(
-                    f"Loop timed out, message queue not empty after {self._recv_timeout}s"
+                    f"Loop timed out, message queue empty after {timeout} seconds"
                 )
                 break
-            rcs.append(rc)
 
         return rcs if rcs else None
 
-    def _wait_for_msg(self, timeout: float = 0.1) -> Optional[int]:
+    def _wait_for_msg(self) -> Optional[int]:
         # pylint: disable = too-many-return-statements
 
         """Reads and processes network events.
@@ -1039,8 +1036,6 @@ class MQTT:
                     return None
                 raise MMQTTException from error
 
-        # Block while we parse the rest of the response
-        self._sock.settimeout(timeout)
         if res in [None, b"", b"\x00"]:
             # If we get here, it means that there is nothing to be received
             return None
