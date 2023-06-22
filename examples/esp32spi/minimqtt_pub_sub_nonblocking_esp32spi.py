@@ -109,4 +109,4 @@ while True:
     print("Sending photocell value: %d" % photocell_val)
     mqtt_client.publish(default_topic, photocell_val)
     photocell_val += 1
-    time.sleep(0.5)
+    time.sleep(3)
