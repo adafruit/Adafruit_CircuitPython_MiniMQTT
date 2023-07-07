@@ -30,7 +30,6 @@ print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
 default_topic = aio_username + "/feeds/testfeed"
 
 
-
 ### Code ###
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
