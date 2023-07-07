@@ -50,6 +50,7 @@ print("Connected to", str(esp.ssid, "utf-8"), "\tRSSI:", esp.rssi)
 # Use this topic if you'd like to connect to io.adafruit.com
 mqtt_topic = aio_username + "/feeds/temperature"
 
+
 ### Code ###
 
 
