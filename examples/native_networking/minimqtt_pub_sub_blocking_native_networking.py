@@ -36,7 +36,7 @@ default_topic = aio_username + "/feeds/testfeed"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to MQTT broker! Listening for topic changes on %s" % default_topic)
+    print(f"Connected to MQTT broker! Listening for topic changes on {default_topic}")
     # Subscribe to all changes on the default_topic feed.
     client.subscribe(default_topic)
 
@@ -52,7 +52,7 @@ def message(client, topic, message):
     :param str topic: The topic of the feed with a new value.
     :param str message: The new value
     """
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Create a socket pool
