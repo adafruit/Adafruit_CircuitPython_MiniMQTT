@@ -18,11 +18,11 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 aio_username = os.getenv("aio_username")
 aio_key = os.getenv("aio_key")
 
-print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
+print(f"Connecting to {os.getenv('CIRCUITPY_WIFI_SSID')}")
 wifi.radio.connect(
     os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
 )
-print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
+print(f"Connected to {os.getenv('CIRCUITPY_WIFI_SSID')}!")
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
@@ -39,7 +39,7 @@ onoff_feed = aio_username + "/feeds/onoff"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to Adafruit IO! Listening for topic changes on %s" % onoff_feed)
+    print(f"Connected to Adafruit IO! Listening for topic changes on {onoff_feed}")
     # Subscribe to all changes on the onoff_feed.
     client.subscribe(onoff_feed)
 
@@ -52,7 +52,7 @@ def disconnected(client, userdata, rc):
 def message(client, topic, message):
     # This method is called when a topic the client is subscribed to
     # has a new message.
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Create a socket pool
@@ -61,9 +61,9 @@ pool = socketpool.SocketPool(wifi.radio)
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
-    port=8883,
-    username=os.getenv("CIRCUITPY_WIFI_SSID"),
-    password=os.getenv("CIRCUITPY_WIFI_PASSWORD"),
+    port=1883,
+    username=aio_username,
+    password=aio_key,
     socket_pool=pool,
     ssl_context=ssl.create_default_context(),
 )
@@ -83,7 +83,7 @@ while True:
     mqtt_client.loop()
 
     # Send a new message
-    print("Sending photocell value: %d..." % photocell_val)
+    print(f"Sending photocell value: {photocell_val}...")
     mqtt_client.publish(photocell_feed, photocell_val)
     print("Sent!")
     photocell_val += 1

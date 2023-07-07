@@ -2,39 +2,57 @@
 # SPDX-License-Identifier: MIT
 
 import os
-import ssl
-import socketpool
-import wifi
+import board
+import busio
+from digitalio import DigitalInOut
+from adafruit_esp32spi import adafruit_esp32spi
+import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
-# with your WiFi credentials. DO NOT share that file or commit it into Git or other
-# source control.
+# with your WiFi credentials. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
 
-# Set your Adafruit IO Username and Key in settings.toml
-# (visit io.adafruit.com if you need to create an account,
-# or if you need your Adafruit IO key.)
 aio_username = os.getenv("aio_username")
 aio_key = os.getenv("aio_key")
 
-print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
-wifi.radio.connect(
-    os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
-)
-print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
+# If you are using a board with pre-defined ESP32 Pins:
+esp32_cs = DigitalInOut(board.ESP_CS)
+esp32_ready = DigitalInOut(board.ESP_BUSY)
+esp32_reset = DigitalInOut(board.ESP_RESET)
+
+# If you have an externally connected ESP32:
+# esp32_cs = DigitalInOut(board.D9)
+# esp32_ready = DigitalInOut(board.D10)
+# esp32_reset = DigitalInOut(board.D5)
+
+spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
+esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
+
+print("Connecting to AP...")
+while not esp.is_connected:
+    try:
+        esp.connect_AP(
+            os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
+        )
+    except RuntimeError as e:
+        print("could not connect to AP, retrying: ", e)
+        continue
+print("Connected to", str(esp.ssid, "utf-8"), "\tRSSI:", esp.rssi)
 
 ### Topic Setup ###
 
 # MQTT Topic
 # Use this topic if you'd like to connect to a standard MQTT broker
-mqtt_topic = "test/topic"
+# mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = aio_username + '/feeds/temperature'
-
+mqtt_topic = aio_username + "/feeds/temperature"
 
 ### Code ###
+
+
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
 def connect(mqtt_client, userdata, flags, rc):
@@ -66,21 +84,17 @@ def publish(mqtt_client, userdata, topic, pid):
 
 
 def message(client, topic, message):
-    # Method called when a client's subscribed feed has a new value.
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-# Create a socket pool
-pool = socketpool.SocketPool(wifi.radio)
+socket.set_interface(esp)
+MQTT.set_socket(socket, esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
-    port=8883,
     username=aio_username,
     password=aio_key,
-    socket_pool=pool,
-    ssl_context=ssl.create_default_context(),
 )
 
 # Connect callback handlers to mqtt_client

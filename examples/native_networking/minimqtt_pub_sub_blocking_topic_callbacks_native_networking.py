@@ -1,33 +1,31 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import time
 import ssl
 import socketpool
 import wifi
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
-# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your WiFi credentials. DO NOT share that file or commit it into Git or other
 # source control.
-# pylint: disable=no-name-in-module,wrong-import-order
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
 
-# Set your Adafruit IO Username and Key in secrets.py
+# Set your Adafruit IO Username, Key and Port in settings.toml
 # (visit io.adafruit.com if you need to create an account,
 # or if you need your Adafruit IO key.)
-aio_username = secrets["aio_username"]
-aio_key = secrets["aio_key"]
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
-print("Connecting to %s" % secrets["ssid"])
-wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!" % secrets["ssid"])
+print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
+wifi.radio.connect(
+    os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
+)
+print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
 
 ### Code ###
+
 
 # Define callback methods which are called when events occur
 # pylint: disable=unused-argument, redefined-outer-name
@@ -56,7 +54,7 @@ def on_battery_msg(client, topic, message):
     # Method called when device/batteryLife has a new value
     print("Battery level: {}v".format(message))
 
-    # client.remove_topic_callback(secrets["aio_username"] + "/feeds/device.batterylevel")
+    # client.remove_topic_callback(aio_username + "/feeds/device.batterylevel")
 
 
 def on_message(client, topic, message):
@@ -69,10 +67,10 @@ pool = socketpool.SocketPool(wifi.radio)
 
 # Set up a MiniMQTT Client
 client = MQTT.MQTT(
-    broker=secrets["broker"],
-    port=secrets["port"],
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
+    broker="io.adafruit.com",
+    port=1883,
+    username=aio_username,
+    password=aio_key,
     socket_pool=pool,
     ssl_context=ssl.create_default_context(),
 )
@@ -83,16 +81,14 @@ client.on_disconnect = disconnected
 client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_message = on_message
-client.add_topic_callback(
-    secrets["aio_username"] + "/feeds/device.batterylevel", on_battery_msg
-)
+client.add_topic_callback(aio_username + "/feeds/device.batterylevel", on_battery_msg)
 
 # Connect the client to the MQTT broker.
 print("Connecting to MQTT broker...")
 client.connect()
 
 # Subscribe to all notifications on the device group
-client.subscribe(secrets["aio_username"] + "/groups/device", 1)
+client.subscribe(aio_username + "/groups/device", 1)
 
 # Start a blocking message loop...
 # NOTE: NO code below this loop will execute
