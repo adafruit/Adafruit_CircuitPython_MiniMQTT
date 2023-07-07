@@ -1,38 +1,35 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import time
 import ssl
 import socketpool
 import wifi
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
-# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your WiFi credentials. DO NOT share that file or commit it into Git or other
 # source control.
-# pylint: disable=no-name-in-module,wrong-import-order
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
 
-# Set your Adafruit IO Username and Key in secrets.py
+# Set your Adafruit IO Username, Key and Port in settings.toml
 # (visit io.adafruit.com if you need to create an account,
 # or if you need your Adafruit IO key.)
-aio_username = secrets["aio_username"]
-aio_key = secrets["aio_key"]
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
-print("Connecting to %s" % secrets["ssid"])
-wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!" % secrets["ssid"])
+print(f"Connecting to {os.getenv('CIRCUITPY_WIFI_SSID')}")
+wifi.radio.connect(
+    os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
+)
+print(f"Connected to {os.getenv('CIRCUITPY_WIFI_SSID')}!")
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = secrets["aio_username"] + "/feeds/photocell"
+photocell_feed = aio_username + "/feeds/photocell"
 
 # Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = secrets["aio_username"] + "/feeds/onoff"
+onoff_feed = aio_username + "/feeds/onoff"
 
 ### Code ###
 
@@ -42,7 +39,7 @@ onoff_feed = secrets["aio_username"] + "/feeds/onoff"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to Adafruit IO! Listening for topic changes on %s" % onoff_feed)
+    print(f"Connected to Adafruit IO! Listening for topic changes on {onoff_feed}")
     # Subscribe to all changes on the onoff_feed.
     client.subscribe(onoff_feed)
 
@@ -55,7 +52,7 @@ def disconnected(client, userdata, rc):
 def message(client, topic, message):
     # This method is called when a topic the client is subscribed to
     # has a new message.
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Create a socket pool
@@ -74,9 +71,9 @@ ssl_context = ssl.create_default_context()
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
-    port=secrets["port"],
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
+    port=1883,
+    username=aio_username,
+    password=aio_key,
     socket_pool=pool,
     ssl_context=ssl_context,
 )
@@ -96,7 +93,7 @@ while True:
     mqtt_client.loop()
 
     # Send a new message
-    print("Sending photocell value: %d..." % photocell_val)
+    print(f"Sending photocell value: {photocell_val}...")
     mqtt_client.publish(photocell_feed, photocell_val)
     print("Sent!")
     photocell_val += 1

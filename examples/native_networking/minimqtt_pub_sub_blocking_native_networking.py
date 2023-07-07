@@ -1,36 +1,33 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import time
 import ssl
 import socketpool
 import wifi
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
-# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your WiFi credentials. DO NOT share that file or commit it into Git or other
 # source control.
-# pylint: disable=no-name-in-module,wrong-import-order
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
 
-# Set your Adafruit IO Username and Key in secrets.py
+# Set your Adafruit IO Username, Key and Port in settings.toml
 # (visit io.adafruit.com if you need to create an account,
 # or if you need your Adafruit IO key.)
-aio_username = secrets["aio_username"]
-aio_key = secrets["aio_key"]
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
-print("Connecting to %s" % secrets["ssid"])
-wifi.radio.connect(secrets["ssid"], secrets["password"])
-print("Connected to %s!" % secrets["ssid"])
+print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
+wifi.radio.connect(
+    os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
+)
+print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
 
 ### Adafruit IO Setup ###
 
 # Setup a feed named `testfeed` for publishing.
-default_topic = secrets["aio_username"] + "/feeds/testfeed"
+default_topic = aio_username + "/feeds/testfeed"
 
 
 ### Code ###
@@ -39,7 +36,7 @@ default_topic = secrets["aio_username"] + "/feeds/testfeed"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to MQTT broker! Listening for topic changes on %s" % default_topic)
+    print(f"Connected to MQTT broker! Listening for topic changes on {default_topic}")
     # Subscribe to all changes on the default_topic feed.
     client.subscribe(default_topic)
 
@@ -55,7 +52,7 @@ def message(client, topic, message):
     :param str topic: The topic of the feed with a new value.
     :param str message: The new value
     """
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Create a socket pool
@@ -73,10 +70,10 @@ ssl_context = ssl.create_default_context()
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"],
-    port=secrets["port"],
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
+    broker="io.adafruit.com",
+    port=1883,
+    username=aio_username,
+    password=aio_key,
     socket_pool=pool,
     ssl_context=ssl_context,
 )
