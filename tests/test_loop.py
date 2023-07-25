@@ -47,10 +47,10 @@ class Loop(TestCase):
         with patch.object(mqtt_client, "_wait_for_msg") as mock_method:
             mock_method.side_effect = self.fake_wait_for_msg
 
-            time_before = time.time()
+            time_before = time.monotonic()
             timeout = random.randint(3, 8)
             rcs = mqtt_client.loop(timeout=timeout)
-            time_after = time.time()
+            time_after = time.monotonic()
 
             assert time_after - time_before >= timeout
             mock_method.assert_called()
