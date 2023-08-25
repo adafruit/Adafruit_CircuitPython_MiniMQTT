@@ -986,7 +986,7 @@ class MQTT:
         :param float timeout: return after this timeout, in seconds.
 
         """
-
+        self._connected()
         self.logger.debug(f"waiting for messages for {timeout} seconds")
         if self._timestamp == 0:
             self._timestamp = time.monotonic()
