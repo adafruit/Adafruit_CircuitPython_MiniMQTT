@@ -44,8 +44,11 @@ class Loop(TestCase):
             ssl_context=ssl.create_default_context(),
         )
 
-        with patch.object(mqtt_client, "_wait_for_msg") as mock_method:
-            mock_method.side_effect = self.fake_wait_for_msg
+        with patch.object(mqtt_client, "_wait_for_msg") as wait_for_msg_mock, \
+                patch.object(mqtt_client, "is_connected") as is_connected_mock:
+
+            wait_for_msg_mock.side_effect = self.fake_wait_for_msg
+            is_connected_mock.side_effect = lambda: True
 
             time_before = time.monotonic()
             timeout = random.randint(3, 8)
@@ -53,7 +56,7 @@ class Loop(TestCase):
             time_after = time.monotonic()
 
             assert time_after - time_before >= timeout
-            mock_method.assert_called()
+            wait_for_msg_mock.assert_called()
 
             # Check the return value.
             assert rcs is not None
