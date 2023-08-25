@@ -49,7 +49,6 @@ class Loop(TestCase):
         ) as wait_for_msg_mock, patch.object(
             mqtt_client, "is_connected"
         ) as is_connected_mock:
-
             wait_for_msg_mock.side_effect = self.fake_wait_for_msg
             is_connected_mock.side_effect = lambda: True
 
