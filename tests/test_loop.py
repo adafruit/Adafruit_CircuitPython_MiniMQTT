@@ -44,8 +44,11 @@ class Loop(TestCase):
             ssl_context=ssl.create_default_context(),
         )
 
-        with patch.object(mqtt_client, "_wait_for_msg") as wait_for_msg_mock, \
-                patch.object(mqtt_client, "is_connected") as is_connected_mock:
+        with patch.object(
+            mqtt_client, "_wait_for_msg"
+        ) as wait_for_msg_mock, patch.object(
+            mqtt_client, "is_connected"
+        ) as is_connected_mock:
 
             wait_for_msg_mock.side_effect = self.fake_wait_for_msg
             is_connected_mock.side_effect = lambda: True
@@ -65,6 +68,22 @@ class Loop(TestCase):
             for ret_code in rcs:
                 assert ret_code == expected_rc
                 expected_rc += 1
+
+    def test_loop_is_connected(self):
+        """
+        loop() should throw MMQTTException if not connected
+        """
+        mqtt_client = MQTT.MQTT(
+            broker="127.0.0.1",
+            port=1883,
+            socket_pool=socket,
+            ssl_context=ssl.create_default_context(),
+        )
+
+        with self.assertRaises(MQTT.MMQTTException) as context:
+            mqtt_client.loop(timeout=1)
+
+        assert "not connected" in str(context.exception)
 
 
 if __name__ == "__main__":
