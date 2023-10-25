@@ -444,15 +444,15 @@ class MQTT:
     def on_message(self, method) -> None:
         self._on_message = method
 
-    def _handle_on_message(self, client, topic: str, message: str):
+    def _handle_on_message(self, topic: str, message: str):
         matched = False
         if topic is not None:
             for callback in self._on_message_filtered.iter_match(topic):
-                callback(client, topic, message)  # on_msg with callback
+                callback(self, topic, message)  # on_msg with callback
                 matched = True
 
         if not matched and self.on_message:  # regular on_message
-            self.on_message(client, topic, message)
+            self.on_message(self, topic, message)
 
     def username_pw_set(self, username: str, password: Optional[str] = None) -> None:
         """Set client's username and an optional password.
@@ -1072,7 +1072,7 @@ class MQTT:
         raw_msg = self._sock_exact_recv(sz)
         msg = raw_msg if self._use_binary_mode else str(raw_msg, "utf-8")
         self.logger.debug("Receiving PUBLISH \nTopic: %s\nMsg: %s\n", topic, raw_msg)
-        self._handle_on_message(self, topic, msg)
+        self._handle_on_message(topic, msg)
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
             struct.pack_into("!H", pkt, 2, pid)
