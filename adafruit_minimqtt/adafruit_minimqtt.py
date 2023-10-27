@@ -267,6 +267,7 @@ class MQTT:
 
         # Default topic callback methods
         self._on_message = None
+        self.on_message_user_data = None
         self.on_connect = None
         self.on_disconnect = None
         self.on_publish = None
@@ -451,8 +452,11 @@ class MQTT:
                 callback(self, topic, message)  # on_msg with callback
                 matched = True
 
-        if not matched and self.on_message:  # regular on_message
-            self.on_message(self, topic, message)
+        if not matched:  # regular on_message
+            if self.on_message:
+                self.on_message(self, topic, message)
+            if self.on_message_user_data:
+                self.on_message_user_data(self, self._user_data, topic, message)
 
     def username_pw_set(self, username: str, password: Optional[str] = None) -> None:
         """Set client's username and an optional password.
