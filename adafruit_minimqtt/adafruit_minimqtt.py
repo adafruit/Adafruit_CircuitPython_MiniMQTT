@@ -1037,16 +1037,17 @@ class MQTT:
         if res in [None, b"", b"\x00"]:
             # If we get here, it means that there is nothing to be received
             return None
-        if res[0] & MQTT_PKT_TYPE_MASK == MQTT_PINGRESP:
+        pkt_type = res[0] & MQTT_PKT_TYPE_MASK
+        self.logger.debug(f"Got message type: {hex(pkt_type)} pkt: {hex(res[0])}")
+        if pkt_type == MQTT_PINGRESP:
             self.logger.debug("Got PINGRESP")
             sz = self._sock_exact_recv(1)[0]
             if sz != 0x00:
                 raise MMQTTException(f"Unexpected PINGRESP returned from broker: {sz}.")
-            return MQTT_PINGRESP
+            return pkt_type
 
-        if res[0] & MQTT_PKT_TYPE_MASK != MQTT_PUBLISH:
-            self.logger.debug(f"Got message type: {hex(res[0])}")
-            return res[0]
+        if pkt_type != MQTT_PUBLISH:
+            return pkt_type
 
         # Handle only the PUBLISH packet type from now on.
         sz = self._recv_len()
@@ -1080,7 +1081,7 @@ class MQTT:
         elif res[0] & 6 == 4:
             assert 0
 
-        return res[0]
+        return pkt_type
 
     def _recv_len(self) -> int:
         """Unpack MQTT message length."""
