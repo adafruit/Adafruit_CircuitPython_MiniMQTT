@@ -666,7 +666,7 @@ class MQTT:
     def ping(self) -> list[int]:
         """Pings the MQTT Broker to confirm if the broker is alive or if
         there is an active network connection.
-        Returns response codes of any messages received while waiting for PINGRESP.
+        Returns packet types of any messages received while waiting for PINGRESP.
         """
         self._connected()
         self.logger.debug("Sending PINGREQ")
@@ -981,7 +981,7 @@ class MQTT:
     def loop(self, timeout: float = 0) -> Optional[list[int]]:
         # pylint: disable = too-many-return-statements
         """Non-blocking message loop. Use this method to check for incoming messages.
-        Returns list of response codes of any messages received or None.
+        Returns list of packet types of any messages received or None.
 
         :param float timeout: return after this timeout, in seconds.
 
