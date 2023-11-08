@@ -21,9 +21,9 @@ class Loop(TestCase):
     INITIAL_RCS_VAL = 42
     rcs_val = INITIAL_RCS_VAL
 
-    def fake_wait_for_msg(self):
+    def fake_wait_for_msg(self, timeout=1):
         """_wait_for_msg() replacement. Sleeps for 1 second and returns an integer."""
-        time.sleep(1)
+        time.sleep(timeout)
         retval = self.rcs_val
         self.rcs_val += 1
         return retval
