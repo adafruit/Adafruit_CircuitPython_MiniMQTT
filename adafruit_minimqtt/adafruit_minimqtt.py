@@ -427,7 +427,9 @@ class MQTT:
         :param function callback_method: The callback method with user data.
         """
         if mqtt_topic is None or callback_method is None or self._user_data is None:
-            raise ValueError("MQTT topic, callback method and user data must both be defined.")
+            raise ValueError(
+                "MQTT topic, callback method and user data must both be defined."
+            )
         self._on_message_filtered_user_data[mqtt_topic] = callback_method
 
     def remove_topic_callback(self, mqtt_topic: str) -> None:
