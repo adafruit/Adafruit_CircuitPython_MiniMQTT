@@ -264,6 +264,7 @@ class MQTT:
         # List of subscribed topics, used for tracking
         self._subscribed_topics: List[str] = []
         self._on_message_filtered = MQTTMatcher()
+        self._on_message_filtered_user_data = MQTTMatcher()
 
         # Default topic callback methods
         self._on_message = None
@@ -419,6 +420,16 @@ class MQTT:
             raise ValueError("MQTT topic and callback method must both be defined.")
         self._on_message_filtered[mqtt_topic] = callback_method
 
+    def add_topic_callback_user_data(self, mqtt_topic: str, callback_method) -> None:
+        """Registers a callback_method for a specific MQTT topic.
+
+        :param str mqtt_topic: MQTT topic identifier.
+        :param function callback_method: The callback method with user data.
+        """
+        if mqtt_topic is None or callback_method is None or self._user_data is None:
+            raise ValueError("MQTT topic, callback method and user data must both be defined.")
+        self._on_message_filtered_user_data[mqtt_topic] = callback_method
+
     def remove_topic_callback(self, mqtt_topic: str) -> None:
         """Removes a registered callback method.
 
@@ -428,10 +439,24 @@ class MQTT:
             raise ValueError("MQTT Topic must be defined.")
         try:
             del self._on_message_filtered[mqtt_topic]
-        except KeyError:
-            raise KeyError(
+        except KeyError as exc:
+            raise MMQTTException(
                 "MQTT topic callback not added with add_topic_callback."
-            ) from None
+            ) from exc
+
+    def remove_topic_callback_user_data(self, mqtt_topic: str) -> None:
+        """Removes a registered callback method with user data.
+
+        :param str mqtt_topic: MQTT topic identifier string.
+        """
+        if mqtt_topic is None:
+            raise ValueError("MQTT Topic must be defined.")
+        try:
+            del self._on_message_filtered_user_data[mqtt_topic]
+        except KeyError as exc:
+            raise MMQTTException(
+                "MQTT topic callback not added with add_topic_callback_user_data."
+            ) from exc
 
     @property
     def on_message(self):
@@ -450,6 +475,10 @@ class MQTT:
         if topic is not None:
             for callback in self._on_message_filtered.iter_match(topic):
                 callback(self, topic, message)  # on_msg with callback
+                matched = True
+
+            for callback in self._on_message_filtered_user_data.iter_match(topic):
+                callback(self, self._user_data, topic, message)  # on_msg with callback
                 matched = True
 
         if not matched:  # regular on_message
