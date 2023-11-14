@@ -39,7 +39,9 @@ class OnMessage(TestCase):
         message = '{"foo": "bar"}'
         mqtt_client._handle_on_message(topic, message)
         mqtt_client.on_message.assert_called_with(mqtt_client, topic, message)
-        mqtt_client.on_message_user_data.assert_called_with(mqtt_client, user_data, topic, message)
+        mqtt_client.on_message_user_data.assert_called_with(
+            mqtt_client, user_data, topic, message
+        )
 
 
 if __name__ == "__main__":
