@@ -15,6 +15,7 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 class OnMessage(TestCase):
     """unit tests for _handle_on_message()"""
 
+    # pylint: disable=no-self-use
     def test_handle_on_message(self) -> None:
         """
         test that _handle_on_message() calls both regular message handlers if set.
@@ -37,6 +38,7 @@ class OnMessage(TestCase):
 
         topic = "devices/foo/bar"
         message = '{"foo": "bar"}'
+        # pylint: disable=protected-access
         mqtt_client._handle_on_message(topic, message)
         mqtt_client.on_message.assert_called_with(mqtt_client, topic, message)
         mqtt_client.on_message_user_data.assert_called_with(
