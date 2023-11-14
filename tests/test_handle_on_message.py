@@ -24,7 +24,7 @@ class OnMessage(TestCase):
         host = "172.40.0.3"
         port = 1883
 
-        user_data = "foo"
+        user_data = "regular"
         mqtt_client = MQTT.MQTT(
             broker=host,
             port=port,
@@ -44,6 +44,33 @@ class OnMessage(TestCase):
         mqtt_client.on_message_user_data.assert_called_with(
             mqtt_client, user_data, topic, message
         )
+
+    # pylint: disable=no-self-use
+    def test_handle_on_message_filtered(self) -> None:
+        """
+        test that _handle_on_message() calls the callback for filtered topic if set.
+        """
+
+        host = "172.40.0.3"
+        port = 1883
+
+        user_data = "filtered"
+        mqtt_client = MQTT.MQTT(
+            broker=host,
+            port=port,
+            socket_pool=socket,
+            ssl_context=ssl.create_default_context(),
+            user_data=user_data,
+        )
+
+        topic = "devices/foo/bar"
+        mock_callback = MagicMock()
+        mqtt_client.add_topic_callback_user_data(topic, mock_callback)
+
+        message = '{"foo": "bar"}'
+        # pylint: disable=protected-access
+        mqtt_client._handle_on_message(topic, message)
+        mock_callback.assert_called_with(mqtt_client, user_data, topic, message)
 
 
 if __name__ == "__main__":
