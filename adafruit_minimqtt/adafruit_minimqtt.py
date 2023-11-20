@@ -60,7 +60,7 @@ MQTT_TLS_PORT = const(8883)
 MQTT_PINGREQ = b"\xc0\0"
 MQTT_PINGRESP = const(0xD0)
 MQTT_PUBLISH = const(0x30)
-MQTT_SUB = b"\x82"
+MQTT_SUB = const(0x82)
 MQTT_UNSUB = b"\xA2"
 MQTT_DISCONNECT = b"\xe0\0"
 
@@ -626,18 +626,7 @@ class MQTT:
             var_header[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
             var_header[6] |= self._lw_retain << 5
 
-        # Remaining length calculation
-        large_rel_length = False
-        if remaining_length > 0x7F:
-            large_rel_length = True
-            # Calculate Remaining Length [2.2.3]
-            while remaining_length > 0:
-                encoded_byte = remaining_length % 0x80
-                remaining_length = remaining_length // 0x80
-                # if there is more data to encode, set the top bit of the byte
-                if remaining_length > 0:
-                    encoded_byte |= 0x80
-                fixed_header.append(encoded_byte)
+        large_rel_length = self.encode_remaining_length(fixed_header, remaining_length)
         if large_rel_length:
             fixed_header.append(0x00)
         else:
@@ -679,6 +668,25 @@ class MQTT:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
+
+    # pylint: disable=no-self-use
+    def encode_remaining_length(self, fixed_header, remaining_length):
+        """
+        Encode Remaining Length [2.2.3]
+        """
+        # Remaining length calculation
+        large_rel_length = False
+        if remaining_length > 0x7F:
+            large_rel_length = True
+            while remaining_length > 0:
+                encoded_byte = remaining_length % 0x80
+                remaining_length = remaining_length // 0x80
+                # if there is more data to encode, set the top bit of the byte
+                if remaining_length > 0:
+                    encoded_byte |= 0x80
+                fixed_header.append(encoded_byte)
+
+        return large_rel_length
 
     def disconnect(self) -> None:
         """Disconnects the MiniMQTT client from the MQTT broker."""
@@ -812,7 +820,7 @@ class MQTT:
 
     def subscribe(self, topic: str, qos: int = 0) -> None:
         """Subscribes to a topic on the MQTT Broker.
-        This method can subscribe to one topics or multiple topics.
+        This method can subscribe to one topic or multiple topics.
 
         :param str|tuple|list topic: Unique MQTT topic identifier string. If
                                      this is a `tuple`, then the tuple should
@@ -842,20 +850,27 @@ class MQTT:
                 self._valid_topic(t)
                 topics.append((t, q))
         # Assemble packet
+        self.logger.debug("Sending SUBSCRIBE to broker...")
+        fixed_header = bytearray([MQTT_SUB])
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic.encode("utf-8")) for topic, qos in topics)
-        packet_length_byte = packet_length.to_bytes(1, "big")
+        self.encode_remaining_length(fixed_header, remaining_length=packet_length)
+        self.logger.debug(f"Fixed Header: {fixed_header}")
+        self._sock.send(fixed_header)
         self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
         packet_id_bytes = self._pid.to_bytes(2, "big")
-        # Packet with variable and fixed headers
-        packet = MQTT_SUB + packet_length_byte + packet_id_bytes
+        var_header = packet_id_bytes
+        self.logger.debug(f"Variable Header: {var_header}")
+        self._sock.send(var_header)
         # attaching topic and QOS level to the packet
+        packet = bytes()
         for t, q in topics:
             topic_size = len(t.encode("utf-8")).to_bytes(2, "big")
             qos_byte = q.to_bytes(1, "big")
             packet += topic_size + t.encode() + qos_byte
         for t, q in topics:
             self.logger.debug("SUBSCRIBING to topic %s with QoS %d", t, q)
+        self.logger.debug(f"packet: {packet}")
         self._sock.send(packet)
         stamp = self.get_monotonic_time()
         while True:
@@ -869,7 +884,7 @@ class MQTT:
                 if op == 0x90:
                     rc = self._sock_exact_recv(3)
                     # Check packet identifier.
-                    assert rc[1] == packet[2] and rc[2] == packet[3]
+                    assert rc[1] == var_header[0] and rc[2] == var_header[1]
                     remaining_len = rc[0] - 2
                     assert remaining_len > 0
                     rc = self._sock_exact_recv(remaining_len)
