@@ -168,9 +168,10 @@ class MQTT:
         in seconds.
     :param int connect_retries: How many times to try to connect to the broker before giving up
         on connect or reconnect. Exponential backoff will be used for the retries.
-    :param class user_data: arbitrary data to pass as a second argument to the callbacks.
-        This works with all callbacks but "on_message"; there, it is necessary to extract
-        the user_data from the MQTT object (passed as 1st argument) using the 'user_data' member.
+    :param class user_data: arbitrary data to pass as a second argument to most of the callbacks.
+        This works with all callbacks but the "on_message" and those added via add_topic_callback();
+        for those, to get access to the user_data use the 'user_data' member of the MQTT object
+        passed as 1st argument.
 
     """
 
@@ -415,6 +416,9 @@ class MQTT:
 
         :param str mqtt_topic: MQTT topic identifier.
         :param function callback_method: The callback method.
+
+        Expected method signature is ``on_message(client, topic, message)``
+        To get access to the user_data, use the client argument.
         """
         if mqtt_topic is None or callback_method is None:
             raise ValueError("MQTT topic and callback method must both be defined.")
@@ -439,6 +443,7 @@ class MQTT:
         """Called when a new message has been received on a subscribed topic.
 
         Expected method signature is ``on_message(client, topic, message)``
+        To get access to the user_data, use the client argument.
         """
         return self._on_message
 
