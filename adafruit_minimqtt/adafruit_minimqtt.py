@@ -419,6 +419,8 @@ class MQTT:
 
         Expected method signature is ``on_message(client, topic, message)``
         To get access to the user_data, use the client argument.
+
+        If a callback is called for the topic, then any "on_message" callback will not be called.
         """
         if mqtt_topic is None or callback_method is None:
             raise ValueError("MQTT topic and callback method must both be defined.")
