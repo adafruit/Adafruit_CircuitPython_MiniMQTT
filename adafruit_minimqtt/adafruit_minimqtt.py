@@ -169,6 +169,8 @@ class MQTT:
     :param int connect_retries: How many times to try to connect to the broker before giving up
         on connect or reconnect. Exponential backoff will be used for the retries.
     :param class user_data: arbitrary data to pass as a second argument to the callbacks.
+        This works with all callbacks but "on_message"; there, it is necessary to extract
+        the user_data from the MQTT object (passed as 1st argument) using the 'user_data' member.
 
     """
 
@@ -205,7 +207,7 @@ class MQTT:
         self._recv_timeout = recv_timeout
 
         self.keep_alive = keep_alive
-        self._user_data = user_data
+        self.user_data = user_data
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
@@ -638,7 +640,7 @@ class MQTT:
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
-                    self.on_connect(self, self._user_data, result, rc[2])
+                    self.on_connect(self, self.user_data, result, rc[2])
 
                 return result
 
@@ -661,7 +663,7 @@ class MQTT:
         self._is_connected = False
         self._subscribed_topics = []
         if self.on_disconnect is not None:
-            self.on_disconnect(self, self._user_data, 0)
+            self.on_disconnect(self, self.user_data, 0)
 
     def ping(self) -> list[int]:
         """Pings the MQTT Broker to confirm if the broker is alive or if
@@ -757,7 +759,7 @@ class MQTT:
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
         if qos == 0 and self.on_publish is not None:
-            self.on_publish(self, self._user_data, topic, self._pid)
+            self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
             stamp = time.monotonic()
             while True:
@@ -769,7 +771,7 @@ class MQTT:
                     rcv_pid = rcv_pid_buf[0] << 0x08 | rcv_pid_buf[1]
                     if self._pid == rcv_pid:
                         if self.on_publish is not None:
-                            self.on_publish(self, self._user_data, topic, rcv_pid)
+                            self.on_publish(self, self.user_data, topic, rcv_pid)
                         return
 
                 if op is None:
@@ -849,7 +851,7 @@ class MQTT:
 
                     for t, q in topics:
                         if self.on_subscribe is not None:
-                            self.on_subscribe(self, self._user_data, t, q)
+                            self.on_subscribe(self, self.user_data, t, q)
                         self._subscribed_topics.append(t)
                     return
 
@@ -907,7 +909,7 @@ class MQTT:
                     assert rc[1] == packet_id_bytes[0] and rc[2] == packet_id_bytes[1]
                     for t in topics:
                         if self.on_unsubscribe is not None:
-                            self.on_unsubscribe(self, self._user_data, t, self._pid)
+                            self.on_unsubscribe(self, self.user_data, t, self._pid)
                         self._subscribed_topics.remove(t)
                     return
 
