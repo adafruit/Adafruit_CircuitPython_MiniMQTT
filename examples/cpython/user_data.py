@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2023 Vladimír Kotal
+# SPDX-License-Identifier: Unlicense
 
 # pylint: disable=logging-fstring-interpolation
 
