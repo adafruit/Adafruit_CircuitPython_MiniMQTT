@@ -168,7 +168,10 @@ class MQTT:
         in seconds.
     :param int connect_retries: How many times to try to connect to the broker before giving up
         on connect or reconnect. Exponential backoff will be used for the retries.
-    :param class user_data: arbitrary data to pass as a second argument to the callbacks.
+    :param class user_data: arbitrary data to pass as a second argument to most of the callbacks.
+        This works with all callbacks but the "on_message" and those added via add_topic_callback();
+        for those, to get access to the user_data use the 'user_data' member of the MQTT object
+        passed as 1st argument.
     :param bool use_imprecise_time: on boards without time.monotonic_ns() one has to set
         this to True in order to operate correctly over more than 24 days or so
 
@@ -222,7 +225,7 @@ class MQTT:
         self._recv_timeout = recv_timeout
 
         self.keep_alive = keep_alive
-        self._user_data = user_data
+        self.user_data = user_data
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
@@ -440,6 +443,11 @@ class MQTT:
 
         :param str mqtt_topic: MQTT topic identifier.
         :param function callback_method: The callback method.
+
+        Expected method signature is ``on_message(client, topic, message)``
+        To get access to the user_data, use the client argument.
+
+        If a callback is called for the topic, then any "on_message" callback will not be called.
         """
         if mqtt_topic is None or callback_method is None:
             raise ValueError("MQTT topic and callback method must both be defined.")
@@ -464,6 +472,7 @@ class MQTT:
         """Called when a new message has been received on a subscribed topic.
 
         Expected method signature is ``on_message(client, topic, message)``
+        To get access to the user_data, use the client argument.
         """
         return self._on_message
 
@@ -665,7 +674,7 @@ class MQTT:
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
-                    self.on_connect(self, self._user_data, result, rc[2])
+                    self.on_connect(self, self.user_data, result, rc[2])
 
                 return result
 
@@ -688,7 +697,7 @@ class MQTT:
         self._is_connected = False
         self._subscribed_topics = []
         if self.on_disconnect is not None:
-            self.on_disconnect(self, self._user_data, 0)
+            self.on_disconnect(self, self.user_data, 0)
 
     def ping(self) -> list[int]:
         """Pings the MQTT Broker to confirm if the broker is alive or if
@@ -784,7 +793,7 @@ class MQTT:
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
         if qos == 0 and self.on_publish is not None:
-            self.on_publish(self, self._user_data, topic, self._pid)
+            self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
             stamp = self.get_monotonic_time()
             while True:
@@ -796,7 +805,7 @@ class MQTT:
                     rcv_pid = rcv_pid_buf[0] << 0x08 | rcv_pid_buf[1]
                     if self._pid == rcv_pid:
                         if self.on_publish is not None:
-                            self.on_publish(self, self._user_data, topic, rcv_pid)
+                            self.on_publish(self, self.user_data, topic, rcv_pid)
                         return
 
                 if op is None:
@@ -876,7 +885,7 @@ class MQTT:
 
                     for t, q in topics:
                         if self.on_subscribe is not None:
-                            self.on_subscribe(self, self._user_data, t, q)
+                            self.on_subscribe(self, self.user_data, t, q)
                         self._subscribed_topics.append(t)
                     return
 
@@ -934,7 +943,7 @@ class MQTT:
                     assert rc[1] == packet_id_bytes[0] and rc[2] == packet_id_bytes[1]
                     for t in topics:
                         if self.on_unsubscribe is not None:
-                            self.on_unsubscribe(self, self._user_data, t, self._pid)
+                            self.on_unsubscribe(self, self.user_data, t, self._pid)
                         self._subscribed_topics.remove(t)
                     return
 
@@ -1013,7 +1022,7 @@ class MQTT:
         :param float timeout: return after this timeout, in seconds.
 
         """
-
+        self._connected()
         self.logger.debug(f"waiting for messages for {timeout} seconds")
         if self._timestamp == 0:
             self._timestamp = self.get_monotonic_time()
