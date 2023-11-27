@@ -66,9 +66,6 @@ MQTT_DISCONNECT = b"\xe0\0"
 
 MQTT_PKT_TYPE_MASK = const(0xF0)
 
-# Variable CONNECT header [MQTT 3.1.2]
-MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
-
 
 CONNACK_ERRORS = {
     const(0x01): "Connection Refused - Incorrect Protocol Version",
@@ -603,10 +600,9 @@ class MQTT:
         # Fixed Header
         fixed_header = bytearray([0x10])
 
-        # NOTE: Variable header is
-        # MQTT_HDR_CONNECT = bytearray(b"\x04MQTT\x04\x02\0\0")
-        # because final 4 bytes are 4, 2, 0, 0
-        var_header = MQTT_HDR_CONNECT
+        # Variable CONNECT header [MQTT 3.1.2]
+        # The byte array is used as a template.
+        var_header = bytearray(b"\x04MQTT\x04\x02\0\0")
         var_header[6] = clean_session << 1
 
         # Set up variable header and remaining_length
