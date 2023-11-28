@@ -597,13 +597,12 @@ class MQTT:
             self.broker, self.port, timeout=self._socket_timeout
         )
 
-        # Fixed Header
         fixed_header = bytearray([0x10])
 
         # Variable CONNECT header [MQTT 3.1.2]
         # The byte array is used as a template.
-        var_header = bytearray(b"\x04MQTT\x04\x02\0\0")
-        var_header[6] = clean_session << 1
+        var_header = bytearray(b"\x00\x04MQTT\x04\x02\0\0")
+        var_header[7] = clean_session << 1
 
         # Set up variable header and remaining_length
         remaining_length = 12 + len(self.client_id.encode("utf-8"))
@@ -614,20 +613,19 @@ class MQTT:
                 + 2
                 + len(self._password.encode("utf-8"))
             )
-            var_header[6] |= 0xC0
+            var_header[7] |= 0xC0
         if self.keep_alive:
             assert self.keep_alive < MQTT_TOPIC_LENGTH_LIMIT
-            var_header[7] |= self.keep_alive >> 8
-            var_header[8] |= self.keep_alive & 0x00FF
+            var_header[8] |= self.keep_alive >> 8
+            var_header[9] |= self.keep_alive & 0x00FF
         if self._lw_topic:
             remaining_length += (
                 2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg)
             )
-            var_header[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
-            var_header[6] |= self._lw_retain << 5
+            var_header[7] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
+            var_header[7] |= self._lw_retain << 5
 
         self.encode_remaining_length(fixed_header, remaining_length)
-        fixed_header.append(0x00)
         self.logger.debug("Sending CONNECT to broker...")
         self.logger.debug(f"Fixed Header: {fixed_header}")
         self.logger.debug(f"Variable Header: {var_header}")
