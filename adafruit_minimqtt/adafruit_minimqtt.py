@@ -765,16 +765,7 @@ class MQTT:
             pub_hdr_var.append(self._pid >> 8)
             pub_hdr_var.append(self._pid & 0xFF)
 
-        # Calculate remaining length [2.2.3]
-        if remaining_length > 0x7F:
-            while remaining_length > 0:
-                encoded_byte = remaining_length % 0x80
-                remaining_length = remaining_length // 0x80
-                if remaining_length > 0:
-                    encoded_byte |= 0x80
-                pub_hdr_fixed.append(encoded_byte)
-        else:
-            pub_hdr_fixed.append(remaining_length)
+        self.encode_remaining_length(pub_hdr_fixed, remaining_length)
 
         self.logger.debug(
             "Sending PUBLISH\nTopic: %s\nMsg: %s\
