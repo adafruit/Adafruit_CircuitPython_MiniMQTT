@@ -856,15 +856,15 @@ class MQTT:
         self.logger.debug(f"Variable Header: {var_header}")
         self._sock.send(var_header)
         # attaching topic and QOS level to the packet
-        packet = bytes()
+        payload = bytes()
         for t, q in topics:
             topic_size = len(t.encode("utf-8")).to_bytes(2, "big")
             qos_byte = q.to_bytes(1, "big")
-            packet += topic_size + t.encode() + qos_byte
+            payload += topic_size + t.encode() + qos_byte
         for t, q in topics:
             self.logger.debug(f"SUBSCRIBING to topic {t} with QoS {q}")
-        self.logger.debug(f"packet: {packet}")
-        self._sock.send(packet)
+        self.logger.debug(f"payload: {payload}")
+        self._sock.send(payload)
         stamp = self.get_monotonic_time()
         while True:
             op = self._wait_for_msg()
