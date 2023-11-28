@@ -626,13 +626,8 @@ class MQTT:
             var_header[6] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
             var_header[6] |= self._lw_retain << 5
 
-        large_rel_length = self.encode_remaining_length(fixed_header, remaining_length)
-        if large_rel_length:
-            fixed_header.append(0x00)
-        else:
-            fixed_header.append(remaining_length)
-            fixed_header.append(0x00)
-
+        self.encode_remaining_length(fixed_header, remaining_length)
+        fixed_header.append(0x00)
         self.logger.debug("Sending CONNECT to broker...")
         self.logger.debug(f"Fixed Header: {fixed_header}")
         self.logger.debug(f"Variable Header: {var_header}")
@@ -670,14 +665,12 @@ class MQTT:
                     )
 
     # pylint: disable=no-self-use
-    def encode_remaining_length(self, fixed_header, remaining_length):
+    def encode_remaining_length(self, fixed_header: bytearray, remaining_length: int):
         """
         Encode Remaining Length [2.2.3]
         """
         # Remaining length calculation
-        large_rel_length = False
         if remaining_length > 0x7F:
-            large_rel_length = True
             while remaining_length > 0:
                 encoded_byte = remaining_length % 0x80
                 remaining_length = remaining_length // 0x80
@@ -685,8 +678,8 @@ class MQTT:
                 if remaining_length > 0:
                     encoded_byte |= 0x80
                 fixed_header.append(encoded_byte)
-
-        return large_rel_length
+        else:
+            fixed_header.append(remaining_length)
 
     def disconnect(self) -> None:
         """Disconnects the MiniMQTT client from the MQTT broker."""
