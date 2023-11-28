@@ -869,7 +869,7 @@ class MQTT:
             qos_byte = q.to_bytes(1, "big")
             packet += topic_size + t.encode() + qos_byte
         for t, q in topics:
-            self.logger.debug("SUBSCRIBING to topic %s with QoS %d", t, q)
+            self.logger.debug(f"SUBSCRIBING to topic {t} with QoS {q}")
         self.logger.debug(f"packet: {packet}")
         self._sock.send(packet)
         stamp = self.get_monotonic_time()
