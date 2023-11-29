@@ -12,6 +12,7 @@ import wifi
 import socketpool
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 from adafruit_minimqtt.adafruit_minimqtt import MMQTTException
+
 # from adafruit_bme280 import basic as adafruit_bme280
 
 # Initialize Web Sockets (This should always be near the top of a script!)
@@ -41,6 +42,7 @@ sleep_time = 900
 # i2c = board.STEMMA_I2C()  # uses board.SCL and board.SDA
 # bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c)
 
+
 # Converts seconds to minutes/hours/days
 # Attribution: Written by DJDevon3 & refined by Elpekenin
 def time_calc(input_time):
@@ -51,6 +53,7 @@ def time_calc(input_time):
     if input_time < 86400:
         return f"{input_time / 60 / 60:.0f} hours"
     return f"{input_time / 60 / 60 / 24:.1f} days"
+
 
 # Define callback methods when events occur
 def connect(mqtt_client, userdata, flags, rc):
@@ -123,14 +126,14 @@ while True:
         except (ValueError, RuntimeError, OSError) as e:
             print("| | ❌ Error:, retrying\n", e)
             continue
-        except (ConnectionError) as e:
+        except ConnectionError as e:
             print("| | ❌ Failed to connect, retrying\n", e)
             continue
-        except (MMQTTException) as e:
+        except MMQTTException as e:
             print("| | ❌ MMQTTException", e)
             traceback.print_exception(e, e, e.__traceback__)
             break
-            
+
         mqtt_client.disconnect()
         print("| ✂️ Disconnected from Wifi")
         print("Next Update: ", time_calc(sleep_time))
