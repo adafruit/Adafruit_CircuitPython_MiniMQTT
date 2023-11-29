@@ -6,20 +6,18 @@
 import traceback
 import os
 import time
-import board
 import ssl
 import wifi
 import socketpool
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 from adafruit_minimqtt.adafruit_minimqtt import MMQTTException
 
-# from adafruit_bme280 import basic as adafruit_bme280
-
 # Initialize Web Sockets (This should always be near the top of a script!)
 # There can be only one pool
 pool = socketpool.SocketPool(wifi.radio)
 
-# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# Add settings.toml to your filesystem
+# CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
 # with your WiFi credentials. Add your Adafruit IO username and key as well.
 # DO NOT share that file or commit it into Git or other source control.
 ssid = os.getenv("CIRCUITPY_WIFI_SSID")
@@ -38,11 +36,6 @@ feed_04 = aio_username + "/feeds/BME280-Altitude"
 # 600 = 10 mins, 900 = 15 mins, 1800 = 30 mins, 3600 = 1 hour
 sleep_time = 900
 
-# Initialize BME280 Sensor
-# i2c = board.STEMMA_I2C()  # uses board.SCL and board.SDA
-# bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c)
-
-
 # Converts seconds to minutes/hours/days
 # Attribution: Written by DJDevon3 & refined by Elpekenin
 def time_calc(input_time):
@@ -56,19 +49,19 @@ def time_calc(input_time):
 
 
 # Define callback methods when events occur
-def connect(mqtt_client, userdata, flags, rc):
+def connect(client, userdata, flags, rc):
     # Method when mqtt_client connected to the broker.
     print("| | ✅ Connected to MQTT Broker!")
 
 
-def disconnect(mqtt_client, userdata, rc):
+def disconnect(client, userdata, rc):
     # Method when the mqtt_client disconnects from broker.
     print("| | ✂️ Disconnected from MQTT Broker")
 
 
-def publish(mqtt_client, userdata, topic, pid):
+def publish(client, userdata, topic, pid):
     # Method when the mqtt_client publishes data to a feed.
-    print(f"| | | Published {topic}")
+    print("| | | Published to {0} with PID {1}".format(topic, pid))
 
 
 # Initialize a new MQTT Client object
@@ -122,13 +115,6 @@ while True:
             time.sleep(1)
             mqtt_client.publish(feed_04, BME280_altitude)
             time.sleep(1)
-
-        except (ValueError, RuntimeError, OSError) as e:
-            print("| | ❌ Error:, retrying\n", e)
-            continue
-        except ConnectionError as e:
-            print("| | ❌ Failed to connect, retrying\n", e)
-            continue
         except MMQTTException as e:
             print("| | ❌ MMQTTException", e)
             traceback.print_exception(e, e, e.__traceback__)
