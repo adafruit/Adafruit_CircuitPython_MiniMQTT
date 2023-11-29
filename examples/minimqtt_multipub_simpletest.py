@@ -36,6 +36,7 @@ feed_04 = aio_username + "/feeds/BME280-Altitude"
 # 600 = 10 mins, 900 = 15 mins, 1800 = 30 mins, 3600 = 1 hour
 sleep_time = 900
 
+
 # Converts seconds to minutes/hours/days
 # Attribution: Written by DJDevon3 & refined by Elpekenin
 def time_calc(input_time):
@@ -48,7 +49,8 @@ def time_calc(input_time):
     return f"{input_time / 60 / 60 / 24:.1f} days"
 
 
-# Define callback methods when events occur
+# Define callback methods which are called when events occur
+# pylint: disable=unused-argument, redefined-outer-name
 def connect(client, userdata, flags, rc):
     # Method when mqtt_client connected to the broker.
     print("| | ✅ Connected to MQTT Broker!")
