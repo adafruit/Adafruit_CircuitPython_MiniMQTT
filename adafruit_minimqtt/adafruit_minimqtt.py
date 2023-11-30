@@ -61,7 +61,7 @@ MQTT_PINGREQ = b"\xc0\0"
 MQTT_PINGRESP = const(0xD0)
 MQTT_PUBLISH = const(0x30)
 MQTT_SUB = const(0x82)
-MQTT_UNSUB = b"\xA2"
+MQTT_UNSUB = const(0xA2)
 MQTT_DISCONNECT = b"\xe0\0"
 
 MQTT_PKT_TYPE_MASK = const(0xF0)
@@ -911,18 +911,25 @@ class MQTT:
                     "Topic must be subscribed to before attempting unsubscribe."
                 )
         # Assemble packet
+        self.logger.debug("Sending UNSUBSCRIBE to broker...")
+        fixed_header = bytearray([MQTT_UNSUB])
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic.encode("utf-8")) for topic in topics)
-        packet_length_byte = packet_length.to_bytes(1, "big")
+        self.encode_remaining_length(fixed_header, remaining_length=packet_length)
+        self.logger.debug(f"Fixed Header: {fixed_header}")
+        self._sock.send(fixed_header)
         self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
         packet_id_bytes = self._pid.to_bytes(2, "big")
-        packet = MQTT_UNSUB + packet_length_byte + packet_id_bytes
+        var_header = packet_id_bytes
+        self.logger.debug(f"Variable Header: {var_header}")
+        self._sock.send(var_header)
+        payload = bytes()
         for t in topics:
             topic_size = len(t.encode("utf-8")).to_bytes(2, "big")
-            packet += topic_size + t.encode()
+            payload += topic_size + t.encode()
         for t in topics:
-            self.logger.debug("UNSUBSCRIBING from topic %s", t)
-        self._sock.send(packet)
+            self.logger.debug(f"UNSUBSCRIBING from topic {t}")
+        self._sock.send(payload)
         self.logger.debug("Waiting for UNSUBACK...")
         while True:
             stamp = self.get_monotonic_time()
