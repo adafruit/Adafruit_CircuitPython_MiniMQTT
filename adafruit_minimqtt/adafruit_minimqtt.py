@@ -880,11 +880,15 @@ class MQTT:
                         if self.on_subscribe is not None:
                             self.on_subscribe(self, self.user_data, t, q)
                         self._subscribed_topics.append(t)
+
                     return
 
-                raise MMQTTException(
-                    f"invalid message received as response to SUBSCRIBE: {hex(op)}"
-                )
+                if op != MQTT_PUBLISH:
+                    # [3.8.4] The Server is permitted to start sending PUBLISH packets
+                    # matching the Subscription before the Server sends the SUBACK Packet.
+                    raise MMQTTException(
+                        f"invalid message received as response to SUBSCRIBE: {hex(op)}"
+                    )
 
     def unsubscribe(self, topic: str) -> None:
         """Unsubscribes from a MQTT topic.
