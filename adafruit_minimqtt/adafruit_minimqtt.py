@@ -800,7 +800,7 @@ class MQTT:
                             f"No data received from broker for {self._recv_timeout} seconds."
                         )
 
-    def subscribe(self, topic: str, qos: int = 0) -> None:
+    def subscribe(self, topic: Optional[Union[tuple, str, list]], qos: int = 0) -> None:
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topic or multiple topics.
 
