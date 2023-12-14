@@ -29,7 +29,7 @@ testdata = [
     # short topic with remaining length encoded as single byte
     (
         "foo/bar",
-        bytearray([0x90, 0x03, 0x00, 0x01, 0x00]),
+        bytearray([0x90, 0x03, 0x00, 0x01, 0x00]),  # SUBACK
         bytearray(
             [
                 0x82,  # fixed header
@@ -52,7 +52,7 @@ testdata = [
     # remaining length is encoded as 2 bytes due to long topic name.
     (
         "f" + "o" * 257,
-        bytearray([0x90, 0x03, 0x00, 0x01, 0x00]),
+        bytearray([0x90, 0x03, 0x00, 0x01, 0x00]),  # SUBACK
         bytearray(
             [
                 0x82,  # fixed header
@@ -68,11 +68,58 @@ testdata = [
             + [0x00]  # QoS
         ),
     ),
+    # SUBSCRIBE responded to by PUBLISH followed by SUBACK
+    (
+        "foo/bar",
+        bytearray(
+            [
+                0x30,  # PUBLISH
+                0x0C,
+                0x00,
+                0x07,
+                0x66,
+                0x6F,
+                0x6F,
+                0x2F,
+                0x62,
+                0x61,
+                0x72,
+                0x66,
+                0x6F,
+                0x6F,
+                0x90,  # SUBACK
+                0x03,
+                0x00,
+                0x01,
+                0x00,
+            ]
+        ),
+        bytearray(
+            [
+                0x82,  # fixed header
+                0x0C,  # remaining length
+                0x00,
+                0x01,  # message ID
+                0x00,
+                0x07,  # topic length
+                0x66,  # topic
+                0x6F,
+                0x6F,
+                0x2F,
+                0x62,
+                0x61,
+                0x72,
+                0x00,  # QoS
+            ]
+        ),
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    "topic,to_send,exp_recv", testdata, ids=["short_topic", "long_topic"]
+    "topic,to_send,exp_recv",
+    testdata,
+    ids=["short_topic", "long_topic", "publish_first"],
 )
 def test_subscribe(topic, to_send, exp_recv) -> None:
     """
