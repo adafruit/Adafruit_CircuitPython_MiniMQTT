@@ -890,7 +890,7 @@ class MQTT:
                         f"invalid message received as response to SUBSCRIBE: {hex(op)}"
                     )
 
-    def unsubscribe(self, topic: str) -> None:
+    def unsubscribe(self, topic: Optional[Union[str, list]]) -> None:
         """Unsubscribes from a MQTT topic.
 
         :param str|list topic: Unique MQTT topic identifier string or list.
