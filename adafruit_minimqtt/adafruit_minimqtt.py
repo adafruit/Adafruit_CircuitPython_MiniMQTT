@@ -625,7 +625,7 @@ class MQTT:
             var_header[7] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
             var_header[7] |= self._lw_retain << 5
 
-        self.encode_remaining_length(fixed_header, remaining_length)
+        self._encode_remaining_length(fixed_header, remaining_length)
         self.logger.debug("Sending CONNECT to broker...")
         self.logger.debug(f"Fixed Header: {fixed_header}")
         self.logger.debug(f"Variable Header: {var_header}")
@@ -663,10 +663,13 @@ class MQTT:
                     )
 
     # pylint: disable=no-self-use
-    def encode_remaining_length(self, fixed_header: bytearray, remaining_length: int):
-        """
-        Encode Remaining Length [2.2.3]
-        """
+    def _encode_remaining_length(
+        self, fixed_header: bytearray, remaining_length: int
+    ) -> None:
+        """Encode Remaining Length [2.2.3]"""
+        if remaining_length > 268_435_455:
+            raise MMQTTException("invalid remaining length")
+
         # Remaining length calculation
         if remaining_length > 0x7F:
             while remaining_length > 0:
@@ -765,7 +768,7 @@ class MQTT:
             pub_hdr_var.append(self._pid >> 8)
             pub_hdr_var.append(self._pid & 0xFF)
 
-        self.encode_remaining_length(pub_hdr_fixed, remaining_length)
+        self._encode_remaining_length(pub_hdr_fixed, remaining_length)
 
         self.logger.debug(
             "Sending PUBLISH\nTopic: %s\nMsg: %s\
@@ -836,7 +839,7 @@ class MQTT:
         fixed_header = bytearray([MQTT_SUB])
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
         packet_length += sum(len(topic.encode("utf-8")) for topic, qos in topics)
-        self.encode_remaining_length(fixed_header, remaining_length=packet_length)
+        self._encode_remaining_length(fixed_header, remaining_length=packet_length)
         self.logger.debug(f"Fixed Header: {fixed_header}")
         self._sock.send(fixed_header)
         self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
@@ -864,13 +867,13 @@ class MQTT:
                     )
             else:
                 if op == 0x90:
-                    rc = self._sock_exact_recv(3)
-                    # Check packet identifier.
-                    assert rc[1] == var_header[0] and rc[2] == var_header[1]
-                    remaining_len = rc[0] - 2
+                    remaining_len = self._decode_remaining_length()
                     assert remaining_len > 0
-                    rc = self._sock_exact_recv(remaining_len)
-                    for i in range(0, remaining_len):
+                    rc = self._sock_exact_recv(2)
+                    # Check packet identifier.
+                    assert rc[0] == var_header[0] and rc[1] == var_header[1]
+                    rc = self._sock_exact_recv(remaining_len - 2)
+                    for i in range(0, remaining_len - 2):
                         if rc[i] not in [0, 1, 2]:
                             raise MMQTTException(
                                 f"SUBACK Failure for topic {topics[i][0]}: {hex(rc[i])}"
@@ -915,7 +918,7 @@ class MQTT:
         fixed_header = bytearray([MQTT_UNSUB])
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic.encode("utf-8")) for topic in topics)
-        self.encode_remaining_length(fixed_header, remaining_length=packet_length)
+        self._encode_remaining_length(fixed_header, remaining_length=packet_length)
         self.logger.debug(f"Fixed Header: {fixed_header}")
         self._sock.send(fixed_header)
         self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
@@ -1090,7 +1093,7 @@ class MQTT:
             return pkt_type
 
         # Handle only the PUBLISH packet type from now on.
-        sz = self._recv_len()
+        sz = self._decode_remaining_length()
         # topic length MSB & LSB
         topic_len_buf = self._sock_exact_recv(2)
         topic_len = int((topic_len_buf[0] << 8) | topic_len_buf[1])
@@ -1123,11 +1126,13 @@ class MQTT:
 
         return pkt_type
 
-    def _recv_len(self) -> int:
-        """Unpack MQTT message length."""
+    def _decode_remaining_length(self) -> int:
+        """Decode Remaining Length [2.2.3]"""
         n = 0
         sh = 0
         while True:
+            if sh > 28:
+                raise MMQTTException("invalid remaining length encoding")
             b = self._sock_exact_recv(1)[0]
             n |= (b & 0x7F) << sh
             if not b & 0x80:

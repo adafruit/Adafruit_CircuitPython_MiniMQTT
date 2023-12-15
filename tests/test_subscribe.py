@@ -49,6 +49,29 @@ testdata = [
             ]
         ),
     ),
+    # same as before but with tuple
+    (
+        ("foo/bar", 0),
+        bytearray([0x90, 0x03, 0x00, 0x01, 0x00]),  # SUBACK
+        bytearray(
+            [
+                0x82,  # fixed header
+                0x0C,  # remaining length
+                0x00,
+                0x01,  # message ID
+                0x00,
+                0x07,  # topic length
+                0x66,  # topic
+                0x6F,
+                0x6F,
+                0x2F,
+                0x62,
+                0x61,
+                0x72,
+                0x00,  # QoS
+            ]
+        ),
+    ),
     # remaining length is encoded as 2 bytes due to long topic name.
     (
         "f" + "o" * 257,
@@ -113,13 +136,52 @@ testdata = [
             ]
         ),
     ),
+    # use list of topics for more coverage. If the range was (1, 10000), that would be
+    # long enough to use 3 bytes for remaining length, however that would make the test
+    # run for many minutes even on modern systems, so 1001 is used instead.
+    # This results in 2 bytes for the remaining length.
+    (
+        [(f"foo/bar{x:04}", 0) for x in range(1, 1001)],
+        bytearray(
+            [
+                0x90,
+                0xEA,  # remaining length
+                0x07,
+                0x00,  # message ID
+                0x01,
+            ]
+            + [0x00] * 1000  # success for all topics
+        ),
+        bytearray(
+            [
+                0x82,  # fixed header
+                0xB2,  # remaining length
+                0x6D,
+                0x00,  # message ID
+                0x01,
+            ]
+            + sum(
+                [
+                    [0x00, 0x0B] + list(f"foo/bar{x:04}".encode("ascii")) + [0x00]
+                    for x in range(1, 1001)
+                ],
+                [],
+            )
+        ),
+    ),
 ]
 
 
 @pytest.mark.parametrize(
     "topic,to_send,exp_recv",
     testdata,
-    ids=["short_topic", "long_topic", "publish_first"],
+    ids=[
+        "short_topic",
+        "short_topic_tuple",
+        "long_topic",
+        "publish_first",
+        "topic_list_long",
+    ],
 )
 def test_subscribe(topic, to_send, exp_recv) -> None:
     """
@@ -157,5 +219,10 @@ def test_subscribe(topic, to_send, exp_recv) -> None:
     logger.info(f"subscribing to {topic}")
     mqtt_client.subscribe(topic)
 
-    assert topic in subscribed_topics
+    if isinstance(topic, str):
+        assert topic in subscribed_topics
+    elif isinstance(topic, list):
+        for topic_name, _ in topic:
+            assert topic_name in subscribed_topics
     assert mocket.sent == exp_recv
+    assert len(mocket._to_send) == 0
