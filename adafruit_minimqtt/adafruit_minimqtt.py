@@ -885,6 +885,9 @@ class MQTT:
                         self._subscribed_topics.append(t)
                     return
 
+                if op == MQTT_PUBLISH:
+                    continue
+
                 raise MMQTTException(
                     f"invalid message received as response to SUBSCRIBE: {hex(op)}"
                 )
