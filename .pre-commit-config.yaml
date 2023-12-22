@@ -39,4 +39,4 @@ repos:
         types: [python]
         files: "^tests/"
         args:
-          - --disable=missing-docstring,consider-using-f-string,duplicate-code
+          - --disable=missing-docstring,invalid-name,consider-using-f-string,duplicate-code
