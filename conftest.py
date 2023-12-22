@@ -5,7 +5,7 @@
 """ PyTest Setup """
 
 import pytest
-import adafruit_connectionmanager
+import adafruit_connection_manager
 
 
 @pytest.fixture(autouse=True)
@@ -13,5 +13,5 @@ def reset_connection_manager(monkeypatch):
     """Reset the ConnectionManager, since it's a singlton and will hold data"""
     monkeypatch.setattr(
         "adafruit_minimqtt.adafruit_minimqtt.get_connection_manager",
-        adafruit_connectionmanager.ConnectionManager,
+        adafruit_connection_manager.ConnectionManager,
     )

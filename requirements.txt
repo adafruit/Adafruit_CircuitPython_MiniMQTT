@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: Unlicense
 
 Adafruit-Blinka
-Adafruit-Circuitpython-ConnectionManager@git+https://github.com/justmobilize/Adafruit_CircuitPython_ConnectionManager
+Adafruit-Circuitpython-ConnectionManager@git+https://github.com/justmobilize/Adafruit_CircuitPython_ConnectionManager@connection-manager

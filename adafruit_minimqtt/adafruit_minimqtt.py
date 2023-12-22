@@ -35,7 +35,7 @@ import struct
 import time
 from random import randint
 
-from adafruit_connectionmanager import (
+from adafruit_connection_manager import (
     get_connection_manager,
     SocketGetOSError,
     SocketConnectMemoryError,
