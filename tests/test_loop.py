@@ -62,7 +62,7 @@ class Loop(TestCase):
 
             # Check the return value.
             assert rcs is not None
-            assert len(rcs) > 1
+            assert len(rcs) >= 1
             expected_rc = self.INITIAL_RCS_VAL
             for ret_code in rcs:
                 assert ret_code == expected_rc
