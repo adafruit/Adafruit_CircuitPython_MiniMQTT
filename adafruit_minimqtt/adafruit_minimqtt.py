@@ -593,7 +593,7 @@ class MQTT:
         self._connected()
         self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
-        ping_timeout = self.keep_alive
+        ping_timeout = self._recv_timeout
         stamp = self.get_monotonic_time()
         self._last_msg_sent_timestamp = stamp
         rc, rcs = None, []
@@ -602,7 +602,9 @@ class MQTT:
             if rc:
                 rcs.append(rc)
             if self.get_monotonic_time() - stamp > ping_timeout:
-                raise MMQTTException("PINGRESP not returned from broker.")
+                raise MMQTTException(
+                    f"PINGRESP not returned from broker within {ping_timeout} seconds."
+                )
         return rcs
 
     # pylint: disable=too-many-branches, too-many-statements
