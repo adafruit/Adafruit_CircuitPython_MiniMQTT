@@ -223,6 +223,7 @@ class Loop(TestCase):
         # patch is_connected() to avoid CONNECT/CONNACK handling.
         mqtt_client.is_connected = lambda: True
 
+        # With QoS=0 no PUBACK message is sent, so Nulltet can be used.
         mocket = Nulltet()
         # pylint: disable=protected-access
         mqtt_client._sock = mocket
@@ -231,7 +232,7 @@ class Loop(TestCase):
         topic = "foo"
         message = "bar"
         for _ in range(3 * keep_alive_timeout):
-            mqtt_client.publish(topic, message)
+            mqtt_client.publish(topic, message, qos=0)
             mqtt_client.loop(1)
             i += 1
 
