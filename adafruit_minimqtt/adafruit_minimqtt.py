@@ -226,7 +226,7 @@ class MQTT:
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
-        self._timestamp: float = 0
+        self._last_msg_sent_timestamp: float = 0
         self.logger = NullLogger()
         """An optional logging attribute that can be set with with a Logger
         to enable debug logging."""
@@ -640,6 +640,7 @@ class MQTT:
         if self._username is not None:
             self._send_str(self._username)
             self._send_str(self._password)
+        self._last_msg_sent_timestamp = self.get_monotonic_time()
         self.logger.debug("Receiving CONNACK packet from broker")
         stamp = self.get_monotonic_time()
         while True:
@@ -694,6 +695,7 @@ class MQTT:
         self._sock.close()
         self._is_connected = False
         self._subscribed_topics = []
+        self._last_msg_sent_timestamp = 0
         if self.on_disconnect is not None:
             self.on_disconnect(self, self.user_data, 0)
 
@@ -707,6 +709,7 @@ class MQTT:
         self._sock.send(MQTT_PINGREQ)
         ping_timeout = self.keep_alive
         stamp = self.get_monotonic_time()
+        self._last_msg_sent_timestamp = stamp
         rc, rcs = None, []
         while rc != MQTT_PINGRESP:
             rc = self._wait_for_msg()
@@ -781,6 +784,7 @@ class MQTT:
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
+        self._last_msg_sent_timestamp = self.get_monotonic_time()
         if qos == 0 and self.on_publish is not None:
             self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
@@ -858,6 +862,7 @@ class MQTT:
         self.logger.debug(f"payload: {payload}")
         self._sock.send(payload)
         stamp = self.get_monotonic_time()
+        self._last_msg_sent_timestamp = stamp
         while True:
             op = self._wait_for_msg()
             if op is None:
@@ -933,6 +938,7 @@ class MQTT:
         for t in topics:
             self.logger.debug(f"UNSUBSCRIBING from topic {t}")
         self._sock.send(payload)
+        self._last_msg_sent_timestamp = self.get_monotonic_time()
         self.logger.debug("Waiting for UNSUBACK...")
         while True:
             stamp = self.get_monotonic_time()
@@ -1022,7 +1028,6 @@ class MQTT:
         return ret
 
     def loop(self, timeout: float = 0) -> Optional[list[int]]:
-        # pylint: disable = too-many-return-statements
         """Non-blocking message loop. Use this method to check for incoming messages.
         Returns list of packet types of any messages received or None.
 
@@ -1031,22 +1036,26 @@ class MQTT:
         """
         self._connected()
         self.logger.debug(f"waiting for messages for {timeout} seconds")
-        if self._timestamp == 0:
-            self._timestamp = self.get_monotonic_time()
-        current_time = self.get_monotonic_time()
-        if current_time - self._timestamp >= self.keep_alive:
-            self._timestamp = 0
-            # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
-            self.logger.debug(
-                "KeepAlive period elapsed - requesting a PINGRESP from the server..."
-            )
-            rcs = self.ping()
-            return rcs
 
         stamp = self.get_monotonic_time()
         rcs = []
 
         while True:
+            if (
+                self.get_monotonic_time() - self._last_msg_sent_timestamp
+                >= self.keep_alive
+            ):
+                # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
+                self.logger.debug(
+                    "KeepAlive period elapsed - requesting a PINGRESP from the server..."
+                )
+                rcs.extend(self.ping())
+                # ping() itself contains a _wait_for_msg() loop which might have taken a while,
+                # so check here as well.
+                if self.get_monotonic_time() - stamp > timeout:
+                    self.logger.debug(f"Loop timed out after {timeout} seconds")
+                    break
+
             rc = self._wait_for_msg()
             if rc is not None:
                 rcs.append(rc)
