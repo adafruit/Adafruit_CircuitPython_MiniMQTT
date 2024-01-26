@@ -68,16 +68,18 @@ class Loop(TestCase):
                 assert ret_code == expected_rc
                 expected_rc += 1
 
+    # pylint: disable=invalid-name
     def test_loop_timeout_vs_socket_timeout(self):
         """
-        loop() should throw MMQTTException if the timeout argument is bigger than the socket timeout.
+        loop() should throw MMQTTException if the timeout argument
+        is bigger than the socket timeout.
         """
         mqtt_client = MQTT.MQTT(
             broker="127.0.0.1",
             port=1883,
             socket_pool=socket,
             ssl_context=ssl.create_default_context(),
-            socket_timeout=1
+            socket_timeout=1,
         )
 
         mqtt_client.is_connected = lambda: True
