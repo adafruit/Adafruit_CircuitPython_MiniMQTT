@@ -1031,7 +1031,9 @@ class MQTT:
         """
         if timeout < self._socket_timeout:
             raise MMQTTException(
-                f"loop timeout ({timeout}) must be bigger than socket timeout ({self._socket_timeout})"
+                # pylint: disable=consider-using-f-string
+                "loop timeout ({}) must be bigger ".format(timeout)
+                + "than socket timeout ({}))".format(self._socket_timeout)
             )
 
         self._connected()
