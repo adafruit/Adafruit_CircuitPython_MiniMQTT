@@ -1047,7 +1047,7 @@ class MQTT:
         rcs = []
 
         while True:
-            rc = self._wait_for_msg()
+            rc = self._wait_for_msg(timeout=timeout)
             if rc is not None:
                 rcs.append(rc)
             if self.get_monotonic_time() - stamp > timeout:
@@ -1056,11 +1056,13 @@ class MQTT:
 
         return rcs if rcs else None
 
-    def _wait_for_msg(self) -> Optional[int]:
+    def _wait_for_msg(self, timeout: Optional[float] = None) -> Optional[int]:
         # pylint: disable = too-many-return-statements
 
         """Reads and processes network events.
         Return the packet type or None if there is nothing to be received.
+
+        :param float timeout: return after this timeout, in seconds.
         """
         # CPython socket module contains a timeout attribute
         if hasattr(self._socket_pool, "timeout"):
@@ -1070,7 +1072,7 @@ class MQTT:
                 return None
         else:  # socketpool, esp32spi
             try:
-                res = self._sock_exact_recv(1)
+                res = self._sock_exact_recv(1, timeout=timeout)
             except OSError as error:
                 if error.errno in (errno.ETIMEDOUT, errno.EAGAIN):
                     # raised by a socket timeout if 0 bytes were present
@@ -1139,7 +1141,9 @@ class MQTT:
                 return n
             sh += 7
 
-    def _sock_exact_recv(self, bufsize: int) -> bytearray:
+    def _sock_exact_recv(
+        self, bufsize: int, timeout: Optional[float] = None
+    ) -> bytearray:
         """Reads _exact_ number of bytes from the connected socket. Will only return
         bytearray with the exact number of bytes requested.
 
@@ -1150,6 +1154,7 @@ class MQTT:
         bytes is returned or trigger a timeout exception.
 
         :param int bufsize: number of bytes to receive
+        :param float timeout: timeout, in seconds. Defaults to keep_alive
         :return: byte array
         """
         stamp = self.get_monotonic_time()
@@ -1161,7 +1166,7 @@ class MQTT:
             to_read = bufsize - recv_len
             if to_read < 0:
                 raise MMQTTException(f"negative number of bytes to read: {to_read}")
-            read_timeout = self.keep_alive
+            read_timeout = timeout if timeout is not None else self.keep_alive
             mv = mv[recv_len:]
             while to_read > 0:
                 recv_len = self._sock.recv_into(mv, to_read)
