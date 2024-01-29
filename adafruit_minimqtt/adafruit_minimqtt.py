@@ -1029,6 +1029,13 @@ class MQTT:
         :param float timeout: return after this timeout, in seconds.
 
         """
+        if timeout < self._socket_timeout:
+            raise MMQTTException(
+                # pylint: disable=consider-using-f-string
+                "loop timeout ({}) must be bigger ".format(timeout)
+                + "than socket timeout ({}))".format(self._socket_timeout)
+            )
+
         self._connected()
         self.logger.debug(f"waiting for messages for {timeout} seconds")
         if self._timestamp == 0:
