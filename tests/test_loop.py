@@ -108,9 +108,9 @@ class Loop(TestCase):
     INITIAL_RCS_VAL = 42
     rcs_val = INITIAL_RCS_VAL
 
-    def fake_wait_for_msg(self):
+    def fake_wait_for_msg(self, timeout=1):
         """_wait_for_msg() replacement. Sleeps for 1 second and returns an integer."""
-        time.sleep(1)
+        time.sleep(timeout)
         retval = self.rcs_val
         self.rcs_val += 1
         return retval
@@ -151,12 +151,32 @@ class Loop(TestCase):
 
             # Check the return value.
             assert rcs is not None
-            assert len(rcs) > 1
+            assert len(rcs) >= 1
             expected_rc = self.INITIAL_RCS_VAL
             # pylint: disable=not-an-iterable
             for ret_code in rcs:
                 assert ret_code == expected_rc
                 expected_rc += 1
+
+    # pylint: disable=invalid-name
+    def test_loop_timeout_vs_socket_timeout(self):
+        """
+        loop() should throw MMQTTException if the timeout argument
+        is bigger than the socket timeout.
+        """
+        mqtt_client = MQTT.MQTT(
+            broker="127.0.0.1",
+            port=1883,
+            socket_pool=socket,
+            ssl_context=ssl.create_default_context(),
+            socket_timeout=1,
+        )
+
+        mqtt_client.is_connected = lambda: True
+        with self.assertRaises(MQTT.MMQTTException) as context:
+            mqtt_client.loop(timeout=0.5)
+
+        assert "loop timeout" in str(context.exception)
 
     def test_loop_is_connected(self):
         """
