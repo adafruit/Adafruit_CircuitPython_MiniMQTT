@@ -187,7 +187,7 @@ class MQTT:
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
-        self._timestamp: float = 0
+        self._last_msg_sent_timestamp: float = 0
         self.logger = NullLogger()
         """An optional logging attribute that can be set with with a Logger
         to enable debug logging."""
@@ -537,6 +537,7 @@ class MQTT:
         if self._username is not None:
             self._send_str(self._username)
             self._send_str(self._password)
+        self._last_msg_sent_timestamp = self.get_monotonic_time()
         self.logger.debug("Receiving CONNACK packet from broker")
         stamp = self.get_monotonic_time()
         while True:
@@ -591,6 +592,7 @@ class MQTT:
         self._connection_manager.free_socket(self._sock)
         self._is_connected = False
         self._subscribed_topics = []
+        self._last_msg_sent_timestamp = 0
         if self.on_disconnect is not None:
             self.on_disconnect(self, self.user_data, 0)
 
@@ -604,6 +606,7 @@ class MQTT:
         self._sock.send(MQTT_PINGREQ)
         ping_timeout = self.keep_alive
         stamp = self.get_monotonic_time()
+        self._last_msg_sent_timestamp = stamp
         rc, rcs = None, []
         while rc != MQTT_PINGRESP:
             rc = self._wait_for_msg()
@@ -678,6 +681,7 @@ class MQTT:
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
+        self._last_msg_sent_timestamp = self.get_monotonic_time()
         if qos == 0 and self.on_publish is not None:
             self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
@@ -755,6 +759,7 @@ class MQTT:
         self.logger.debug(f"payload: {payload}")
         self._sock.send(payload)
         stamp = self.get_monotonic_time()
+        self._last_msg_sent_timestamp = stamp
         while True:
             op = self._wait_for_msg()
             if op is None:
@@ -830,6 +835,7 @@ class MQTT:
         for t in topics:
             self.logger.debug(f"UNSUBSCRIBING from topic {t}")
         self._sock.send(payload)
+        self._last_msg_sent_timestamp = self.get_monotonic_time()
         self.logger.debug("Waiting for UNSUBACK...")
         while True:
             stamp = self.get_monotonic_time()
@@ -919,31 +925,41 @@ class MQTT:
         return ret
 
     def loop(self, timeout: float = 0) -> Optional[list[int]]:
-        # pylint: disable = too-many-return-statements
         """Non-blocking message loop. Use this method to check for incoming messages.
         Returns list of packet types of any messages received or None.
 
         :param float timeout: return after this timeout, in seconds.
 
         """
+        if timeout < self._socket_timeout:
+            raise MMQTTException(
+                # pylint: disable=consider-using-f-string
+                "loop timeout ({}) must be bigger ".format(timeout)
+                + "than socket timeout ({}))".format(self._socket_timeout)
+            )
+
         self._connected()
         self.logger.debug(f"waiting for messages for {timeout} seconds")
-        if self._timestamp == 0:
-            self._timestamp = self.get_monotonic_time()
-        current_time = self.get_monotonic_time()
-        if current_time - self._timestamp >= self.keep_alive:
-            self._timestamp = 0
-            # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
-            self.logger.debug(
-                "KeepAlive period elapsed - requesting a PINGRESP from the server..."
-            )
-            rcs = self.ping()
-            return rcs
 
         stamp = self.get_monotonic_time()
         rcs = []
 
         while True:
+            if (
+                self.get_monotonic_time() - self._last_msg_sent_timestamp
+                >= self.keep_alive
+            ):
+                # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
+                self.logger.debug(
+                    "KeepAlive period elapsed - requesting a PINGRESP from the server..."
+                )
+                rcs.extend(self.ping())
+                # ping() itself contains a _wait_for_msg() loop which might have taken a while,
+                # so check here as well.
+                if self.get_monotonic_time() - stamp > timeout:
+                    self.logger.debug(f"Loop timed out after {timeout} seconds")
+                    break
+
             rc = self._wait_for_msg()
             if rc is not None:
                 rcs.append(rc)
@@ -953,11 +969,13 @@ class MQTT:
 
         return rcs if rcs else None
 
-    def _wait_for_msg(self) -> Optional[int]:
+    def _wait_for_msg(self, timeout: Optional[float] = None) -> Optional[int]:
         # pylint: disable = too-many-return-statements
 
         """Reads and processes network events.
         Return the packet type or None if there is nothing to be received.
+
+        :param float timeout: return after this timeout, in seconds.
         """
         # CPython socket module contains a timeout attribute
         if hasattr(self._socket_pool, "timeout"):
@@ -967,7 +985,7 @@ class MQTT:
                 return None
         else:  # socketpool, esp32spi
             try:
-                res = self._sock_exact_recv(1)
+                res = self._sock_exact_recv(1, timeout=timeout)
             except OSError as error:
                 if error.errno in (errno.ETIMEDOUT, errno.EAGAIN):
                     # raised by a socket timeout if 0 bytes were present
@@ -1036,7 +1054,9 @@ class MQTT:
                 return n
             sh += 7
 
-    def _sock_exact_recv(self, bufsize: int) -> bytearray:
+    def _sock_exact_recv(
+        self, bufsize: int, timeout: Optional[float] = None
+    ) -> bytearray:
         """Reads _exact_ number of bytes from the connected socket. Will only return
         bytearray with the exact number of bytes requested.
 
@@ -1047,6 +1067,7 @@ class MQTT:
         bytes is returned or trigger a timeout exception.
 
         :param int bufsize: number of bytes to receive
+        :param float timeout: timeout, in seconds. Defaults to keep_alive
         :return: byte array
         """
         stamp = self.get_monotonic_time()
@@ -1058,7 +1079,7 @@ class MQTT:
             to_read = bufsize - recv_len
             if to_read < 0:
                 raise MMQTTException(f"negative number of bytes to read: {to_read}")
-            read_timeout = self.keep_alive
+            read_timeout = timeout if timeout is not None else self.keep_alive
             mv = mv[recv_len:]
             while to_read > 0:
                 recv_len = self._sock.recv_into(mv, to_read)
