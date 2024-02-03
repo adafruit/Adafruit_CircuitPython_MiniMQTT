@@ -486,7 +486,7 @@ class MQTT:
         self._sock = self._connection_manager.get_socket(
             self.broker,
             self.port,
-            "mqtt:",
+            proto="mqtt:",
             timeout=self._socket_timeout,
             is_ssl=self._is_ssl,
             ssl_context=self._ssl_context,
