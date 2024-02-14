@@ -35,11 +35,7 @@ import struct
 import time
 from random import randint
 
-from adafruit_connection_manager import (
-    get_connection_manager,
-    SocketGetOSError,
-    SocketConnectMemoryError,
-)
+from adafruit_connection_manager import get_connection_manager
 
 try:
     from typing import List, Optional, Tuple, Type, Union
@@ -86,8 +82,6 @@ CONNACK_ERRORS = {
 
 _default_sock = None  # pylint: disable=invalid-name
 _fake_context = None  # pylint: disable=invalid-name
-
-TemporaryError = (SocketGetOSError, SocketConnectMemoryError)
 
 
 class MMQTTException(Exception):
@@ -430,8 +424,8 @@ class MQTT:
                 )
                 self._reset_reconnect_backoff()
                 return ret
-            except TemporaryError as e:
-                self.logger.warning(f"temporary error when connecting: {e}")
+            except RuntimeError as e:
+                self.logger.warning(f"Socket error when connecting: {e}")
                 backoff = False
             except MMQTTException as e:
                 last_exception = e
@@ -486,8 +480,6 @@ class MQTT:
             timeout=self._socket_timeout,
             is_ssl=self._is_ssl,
             ssl_context=self._ssl_context,
-            max_retries=1,  # setting to 1 since we want to handle backoff internally
-            exception_passthrough=True,
         )
 
         fixed_header = bytearray([0x10])

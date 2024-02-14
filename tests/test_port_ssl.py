@@ -116,7 +116,7 @@ class PortSslSetup(TestCase):
             connect_retries=1,
         )
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(AttributeError) as context:
             mqtt_client.connect()
             self.assertTrue("ssl_context must be set" in str(context))
 
