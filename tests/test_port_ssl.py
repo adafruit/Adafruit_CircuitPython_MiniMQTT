@@ -20,7 +20,7 @@ class PortSslSetup(TestCase):
     def test_default_port(self) -> None:
         """verify default port value and that TLS is not used"""
         host = "127.0.0.1"
-        port = 1883
+        expected_port = 1883
 
         with patch.object(socket.socket, "connect") as connect_mock:
             ssl_context = ssl.create_default_context()
@@ -31,14 +31,15 @@ class PortSslSetup(TestCase):
                 connect_retries=1,
             )
 
+            connect_mock.side_effect = OSError
             ssl_mock = Mock()
             ssl_context.wrap_socket = ssl_mock
 
             with self.assertRaises(MQTT.MMQTTException):
-                expected_port = port
                 mqtt_client.connect()
 
             ssl_mock.assert_not_called()
+
             connect_mock.assert_called()
             # Assuming the repeated calls will have the same arguments.
             connect_mock.assert_has_calls([call((host, expected_port))])

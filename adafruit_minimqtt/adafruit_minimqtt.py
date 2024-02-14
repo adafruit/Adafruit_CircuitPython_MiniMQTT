@@ -433,10 +433,6 @@ class MQTT:
             except TemporaryError as e:
                 self.logger.warning(f"temporary error when connecting: {e}")
                 backoff = False
-            except OSError as e:
-                last_exception = e
-                self.logger.info(f"failed to connect: {e}")
-                backoff = True
             except MMQTTException as e:
                 last_exception = e
                 self.logger.info(f"MMQT error: {e}")
