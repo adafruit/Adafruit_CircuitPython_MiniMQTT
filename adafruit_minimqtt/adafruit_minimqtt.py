@@ -353,7 +353,6 @@ class MQTT:
             connect_host = host
         sock.settimeout(timeout)
 
-        last_exception = None
         try:
             sock.connect((connect_host, port))
         except MemoryError as exc:
@@ -363,10 +362,9 @@ class MQTT:
             raise TemporaryError from exc
         except OSError as exc:
             sock.close()
-            last_exception = exc
-
-        if last_exception:
-            raise last_exception
+            self.logger.warning(f"Failed to connect: {exc}")
+            # Do not consider this for back-off.
+            raise TemporaryError from exc
 
         self._backwards_compatible_sock = not hasattr(sock, "recv_into")
         return sock
@@ -543,10 +541,6 @@ class MQTT:
             except TemporaryError as e:
                 self.logger.warning(f"temporary error when connecting: {e}")
                 backoff = False
-            except OSError as e:
-                last_exception = e
-                self.logger.info(f"failed to connect: {e}")
-                backoff = True
             except MMQTTException as e:
                 last_exception = e
                 self.logger.info(f"MMQT error: {e}")
