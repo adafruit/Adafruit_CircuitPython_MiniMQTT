@@ -92,7 +92,7 @@ mqtt_client.connect()
 # NOTE: Network reconnection is handled within this loop
 while True:
     try:
-        mqtt_client.loop()
+        mqtt_client.loop(timeout=1)
     except (ValueError, RuntimeError) as e:
         print("Failed to get data, retrying\n", e)
         wifi.reset()

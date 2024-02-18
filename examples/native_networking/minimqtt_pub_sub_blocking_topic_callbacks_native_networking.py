@@ -104,7 +104,7 @@ client.subscribe(aio_username + "/groups/device", 1)
 # NOTE: NO code below this loop will execute
 while True:
     try:
-        client.loop()
+        client.loop(timeout=1)
     except (ValueError, RuntimeError) as e:
         print("Failed to get data, retrying\n", e)
         wifi.reset()
