@@ -481,6 +481,7 @@ class MQTT:
             is_ssl=self._is_ssl,
             ssl_context=self._ssl_context,
         )
+        self._backwards_compatible_sock = not hasattr(self._sock, "recv_into")
 
         fixed_header = bytearray([0x10])
 
