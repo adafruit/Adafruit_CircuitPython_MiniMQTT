@@ -4,7 +4,6 @@
 
 """loop() tests"""
 
-import pytest
 import random
 import socket
 import ssl
@@ -14,6 +13,7 @@ import errno
 from unittest.mock import patch
 from unittest import mock
 
+import pytest
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
@@ -158,6 +158,7 @@ class TestLoop:
                 assert ret_code == expected_rc
                 expected_rc += 1
 
+    # pylint: disable=no-self-use
     # pylint: disable=invalid-name
     def test_loop_timeout_vs_socket_timeout(self):
         """
@@ -178,6 +179,7 @@ class TestLoop:
 
         assert "loop timeout" in str(context)
 
+    # pylint: disable=no-self-use
     def test_loop_is_connected(self):
         """
         loop() should throw MMQTTException if not connected

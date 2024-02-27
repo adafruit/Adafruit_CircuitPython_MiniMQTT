@@ -4,12 +4,13 @@
 
 """exponential back-off tests"""
 
-import pytest
+
 import socket
 import ssl
 import time
 from unittest.mock import call, patch
 
+import pytest
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
