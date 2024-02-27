@@ -1,22 +1,22 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import time
-import adafruit_esp32spi.adafruit_esp32spi_socket as socket
+import adafruit_connection_manager
+import adafruit_esp32spi.adafruit_esp32spi_socket as pool
 import adafruit_pyportal
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 pyportal = adafruit_pyportal.PyPortal()
 
-### WiFi ###
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your WiFi credentials. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
 
-# Get wifi details and more from a secrets.py file
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 # ------------- MQTT Topic Setup ------------- #
 mqtt_topic = "test/topic"
@@ -51,16 +51,19 @@ print("Connecting to WiFi...")
 pyportal.network.connect()
 print("Connected!")
 
-# Initialize MQTT interface with the esp interface
 # pylint: disable=protected-access
-MQTT.set_socket(socket, pyportal.network._wifi.esp)
+ssl_context = adafruit_connection_manager.create_fake_ssl_context(
+    pool, pyportal.network._wifi.esp
+)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"],
-    username=secrets["user"],
-    password=secrets["pass"],
+    broker=os.getenv("broker"),
+    username=os.getenv("username"),
+    password=os.getenv("password"),
     is_ssl=False,
+    socket_pool=pool,
+    ssl_context=ssl_context,
 )
 
 # Setup the callback methods above

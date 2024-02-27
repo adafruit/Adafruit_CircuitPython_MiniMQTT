@@ -1,27 +1,21 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
+
+import os
 import board
 import busio
 from digitalio import DigitalInOut
+import adafruit_connection_manager
 from adafruit_esp32spi import adafruit_esp32spi
-import adafruit_esp32spi.adafruit_esp32spi_socket as socket
+import adafruit_esp32spi.adafruit_esp32spi_socket as pool
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
-# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
-# source control.
-# pylint: disable=no-name-in-module,wrong-import-order
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your WiFi credentials. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
 
-# Set your Adafruit IO Username and Key in secrets.py
-# (visit io.adafruit.com if you need to create an account,
-# or if you need your Adafruit IO key.)
-aio_username = secrets["aio_username"]
-aio_key = secrets["aio_key"]
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 # If you are using a board with pre-defined ESP32 Pins:
 esp32_cs = DigitalInOut(board.ESP_CS)
@@ -39,7 +33,7 @@ esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 print("Connecting to AP...")
 while not esp.is_connected:
     try:
-        esp.connect_AP(secrets["ssid"], secrets["password"])
+        esp.connect_AP(os.getenv("ssid"), os.getenv("password"))
     except RuntimeError as e:
         print("could not connect to AP, retrying: ", e)
         continue
@@ -53,7 +47,7 @@ mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = secrets["aio_username"] + '/feeds/temperature'
+# mqtt_topic = aio_username + '/feeds/temperature'
 
 ### Code ###
 
@@ -92,15 +86,16 @@ def message(client, topic, message):
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-socket.set_interface(esp)
-MQTT.set_socket(socket, esp)
+ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"],
-    port=secrets["port"],
-    username=secrets["username"],
-    password=secrets["password"],
+    broker=os.getenv("broker"),
+    port=os.getenv("port"),
+    username=os.getenv("username"),
+    password=os.getenv("password"),
+    socket_pool=pool,
+    ssl_context=ssl_context,
 )
 
 # Connect callback handlers to mqtt_client

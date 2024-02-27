@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import socket
 import ssl
 import time
@@ -9,19 +10,19 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 ### Secrets File Setup ###
 
-try:
-    from secrets import secrets
-except ImportError:
-    print("Connection secrets are kept in secrets.py, please add them there!")
-    raise
+# Add settings.toml to your filesystem. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
+
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = secrets["aio_username"] + "/feeds/photocell"
+photocell_feed = aio_username + "/feeds/photocell"
 
 # Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = secrets["aio_username"] + "/feeds/onoff"
+onoff_feed = aio_username + "/feeds/onoff"
 
 ### Code ###
 
@@ -50,8 +51,8 @@ def message(client, topic, message):
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
+    username=aio_username,
+    password=aio_key,
     socket_pool=socket,
     is_ssl=True,
     ssl_context=ssl.create_default_context(),

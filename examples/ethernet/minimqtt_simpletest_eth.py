@@ -1,20 +1,21 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import board
 import busio
 from digitalio import DigitalInOut
+import adafruit_connection_manager
 from adafruit_wiznet5k.adafruit_wiznet5k import WIZNET5K
-import adafruit_wiznet5k.adafruit_wiznet5k_socket as socket
+import adafruit_wiznet5k.adafruit_wiznet5k_socket as pool
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Get MQTT details and more from a secrets.py file
-try:
-    from secrets import secrets
-except ImportError:
-    print("MQTT secrets are kept in secrets.py, please add them there!")
-    raise
+# Add settings.toml to your filesystem. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
+
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 cs = DigitalInOut(board.D10)
 spi_bus = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
@@ -64,16 +65,17 @@ def publish(client, userdata, topic, pid):
     print("Published to {0} with PID {1}".format(topic, pid))
 
 
-# Initialize MQTT interface with the ethernet interface
-MQTT.set_socket(socket, eth)
+ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, eth)
 
 # Set up a MiniMQTT Client
 # NOTE: We'll need to connect insecurely for ethernet configurations.
 client = MQTT.MQTT(
-    broker=secrets["broker"],
-    username=secrets["user"],
-    password=secrets["pass"],
+    broker=os.getenv("broker"),
+    username=os.getenv("username"),
+    password=os.getenv("password"),
     is_ssl=False,
+    socket_pool=pool,
+    ssl_context=ssl_context,
 )
 
 # Connect callback handlers to client
