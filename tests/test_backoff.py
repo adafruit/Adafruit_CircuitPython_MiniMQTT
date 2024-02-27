@@ -4,16 +4,16 @@
 
 """exponential back-off tests"""
 
+import pytest
 import socket
 import ssl
 import time
-from unittest import TestCase, main
 from unittest.mock import call, patch
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
-class ExpBackOff(TestCase):
+class TestExpBackOff:
     """basic exponential back-off test"""
 
     connect_times = []
@@ -42,9 +42,9 @@ class ExpBackOff(TestCase):
                 connect_retries=connect_retries,
             )
             print("connecting")
-            with self.assertRaises(MQTT.MMQTTException) as context:
+            with pytest.raises(MQTT.MMQTTException) as context:
                 mqtt_client.connect()
-                self.assertTrue("Repeated connect failures" in str(context.exception))
+            assert "Repeated connect failures" in str(context)
 
             mock_method.assert_called()
             calls = [call((host, port)) for _ in range(0, connect_retries)]
@@ -53,7 +53,3 @@ class ExpBackOff(TestCase):
             print(f"connect() call times: {self.connect_times}")
             for i in range(1, connect_retries):
                 assert self.connect_times[i] >= 2**i
-
-
-if __name__ == "__main__":
-    main()
