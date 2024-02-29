@@ -6,17 +6,18 @@
 
 import socket
 import ssl
-from unittest import TestCase, main
 from unittest.mock import Mock, call, patch
 
+import pytest
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
-class PortSslSetup(TestCase):
+class TestPortSslSetup:
     """This class contains tests that verify how host/port and TLS is set for connect().
     These tests assume that there is no MQTT broker running on the hosts/ports they connect to.
     """
 
+    # pylint: disable=no-self-use
     def test_default_port(self) -> None:
         """verify default port value and that TLS is not used"""
         host = "127.0.0.1"
@@ -35,7 +36,7 @@ class PortSslSetup(TestCase):
             ssl_mock = Mock()
             ssl_context.wrap_socket = ssl_mock
 
-            with self.assertRaises(MQTT.MMQTTException):
+            with pytest.raises(MQTT.MMQTTException):
                 mqtt_client.connect()
 
             ssl_mock.assert_not_called()
@@ -44,6 +45,7 @@ class PortSslSetup(TestCase):
             # Assuming the repeated calls will have the same arguments.
             connect_mock.assert_has_calls([call((host, expected_port))])
 
+    # pylint: disable=no-self-use
     def test_connect_override(self):
         """Test that connect() can override host and port."""
         host = "127.0.0.1"
@@ -58,52 +60,54 @@ class PortSslSetup(TestCase):
                 connect_retries=1,
             )
 
-            with self.assertRaises(MQTT.MMQTTException):
+            with pytest.raises(MQTT.MMQTTException):
                 expected_host = "127.0.0.2"
                 expected_port = 1884
-                self.assertNotEqual(expected_port, port, "port override should differ")
-                self.assertNotEqual(expected_host, host, "host override should differ")
+                assert expected_port != port  # port override should differ
+                assert expected_host != host  # host override should differ
                 mqtt_client.connect(host=expected_host, port=expected_port)
 
             connect_mock.assert_called()
             # Assuming the repeated calls will have the same arguments.
             connect_mock.assert_has_calls([call((expected_host, expected_port))])
 
-    def test_tls_port(self) -> None:
+    # pylint: disable=no-self-use
+    @pytest.mark.parametrize("port", (None, 8883))
+    def test_tls_port(self, port) -> None:
         """verify that when is_ssl=True is set, the default port is 8883
         and the socket is TLS wrapped. Also test that the TLS port can be overridden."""
         host = "127.0.0.1"
 
-        for port in [None, 8884]:
-            if port is None:
-                expected_port = 8883
-            else:
-                expected_port = port
-            with self.subTest():
-                ssl_mock = Mock()
-                mqtt_client = MQTT.MQTT(
-                    broker=host,
-                    port=port,
-                    socket_pool=socket,
-                    is_ssl=True,
-                    ssl_context=ssl_mock,
-                    connect_retries=1,
-                )
+        if port is None:
+            expected_port = 8883
+        else:
+            expected_port = port
 
-                socket_mock = Mock()
-                connect_mock = Mock(side_effect=OSError)
-                socket_mock.connect = connect_mock
-                ssl_mock.wrap_socket = Mock(return_value=socket_mock)
+        ssl_mock = Mock()
+        mqtt_client = MQTT.MQTT(
+            broker=host,
+            port=port,
+            socket_pool=socket,
+            is_ssl=True,
+            ssl_context=ssl_mock,
+            connect_retries=1,
+        )
 
-                with self.assertRaises(MQTT.MMQTTException):
-                    mqtt_client.connect()
+        socket_mock = Mock()
+        connect_mock = Mock(side_effect=OSError)
+        socket_mock.connect = connect_mock
+        ssl_mock.wrap_socket = Mock(return_value=socket_mock)
 
-                ssl_mock.wrap_socket.assert_called()
+        with pytest.raises(MQTT.MMQTTException):
+            mqtt_client.connect()
 
-                connect_mock.assert_called()
-                # Assuming the repeated calls will have the same arguments.
-                connect_mock.assert_has_calls([call((host, expected_port))])
+        ssl_mock.wrap_socket.assert_called()
 
+        connect_mock.assert_called()
+        # Assuming the repeated calls will have the same arguments.
+        connect_mock.assert_has_calls([call((host, expected_port))])
+
+    # pylint: disable=no-self-use
     def test_tls_without_ssl_context(self) -> None:
         """verify that when is_ssl=True is set, the code will check that ssl_context is not None"""
         host = "127.0.0.1"
@@ -116,10 +120,6 @@ class PortSslSetup(TestCase):
             connect_retries=1,
         )
 
-        with self.assertRaises(RuntimeError) as context:
+        with pytest.raises(AttributeError) as context:
             mqtt_client.connect()
-            self.assertTrue("ssl_context must be set" in str(context))
-
-
-if __name__ == "__main__":
-    main()
+        assert "ssl_context must be set" in str(context)

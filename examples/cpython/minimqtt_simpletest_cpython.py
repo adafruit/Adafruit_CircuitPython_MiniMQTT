@@ -1,19 +1,16 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import ssl
 import socket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add a secrets.py to your filesystem that has a dictionary called secrets with "ssid" and
-# "password" keys with your WiFi credentials. DO NOT share that file or commit it into Git or other
-# source control.
-# pylint: disable=no-name-in-module,wrong-import-order
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
+# Add settings.toml to your filesystems. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
+
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 ### Topic Setup ###
 
@@ -23,7 +20,7 @@ mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = secrets["aio_username"] + "/feeds/temperature"
+# mqtt_topic = aio_username + "/feeds/temperature"
 
 
 ### Code ###
@@ -64,9 +61,9 @@ def message(client, topic, message):
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=secrets["broker"],
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
+    broker=os.getenv("broker"),
+    username=aio_username,
+    password=aio_key,
     socket_pool=socket,
     ssl_context=ssl.create_default_context(),
 )

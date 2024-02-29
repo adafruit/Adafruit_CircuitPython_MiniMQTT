@@ -1,22 +1,24 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import time
 import board
 import busio
 import digitalio
+import adafruit_connection_manager
 from adafruit_fona.adafruit_fona import FONA
 import adafruit_fona.adafruit_fona_network as network
-import adafruit_fona.adafruit_fona_socket as socket
+import adafruit_fona.adafruit_fona_socket as pool
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Get Adafruit IO details and more from a secrets.py file
-try:
-    from secrets import secrets
-except ImportError:
-    print("GPRS secrets are kept in secrets.py, please add them there!")
-    raise
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your GPRS credentials. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
+
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 ### Cellular ###
 
@@ -29,10 +31,10 @@ fona = FONA(uart, rst)
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = secrets["aio_username"] + "/feeds/photocell"
+photocell_feed = aio_username + "/feeds/photocell"
 
 # Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = secrets["aio_username"] + "/feeds/onoff"
+onoff_feed = aio_username + "/feeds/onoff"
 
 ### Code ###
 
@@ -60,7 +62,7 @@ def message(client, topic, message):
 
 # Initialize cellular data network
 network = network.CELLULAR(
-    fona, (secrets["apn"], secrets["apn_username"], secrets["apn_password"])
+    fona, (os.getenv("apn"), os.getenv("apn_username"), os.getenv("apn_password"))
 )
 
 while not network.is_attached:
@@ -74,16 +76,17 @@ while not network.is_connected:
     time.sleep(0.5)
 print("Network Connected!")
 
-# Initialize MQTT interface with the cellular interface
-MQTT.set_socket(socket, fona)
+ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, fona)
 
 # Set up a MiniMQTT Client
 # NOTE: We'll need to connect insecurely for ethernet configurations.
 mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
-    username=secrets["aio_username"],
-    password=secrets["aio_key"],
+    username=aio_username,
+    password=aio_key,
     is_ssl=False,
+    socket_pool=pool,
+    ssl_context=ssl_context,
 )
 
 # Setup the callback methods above

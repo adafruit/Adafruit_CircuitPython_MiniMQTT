@@ -1,24 +1,24 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import os
 import time
 import board
 import busio
 import digitalio
+import adafruit_connection_manager
 from adafruit_fona.adafruit_fona import FONA
 import adafruit_fona.adafruit_fona_network as network
-import adafruit_fona.adafruit_fona_socket as socket
+import adafruit_fona.adafruit_fona_socket as pool
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### Cellular ###
+# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
+# with your GPRS credentials. Add your Adafruit IO username and key as well.
+# DO NOT share that file or commit it into Git or other source control.
 
-# Get cellular details and more from a secrets.py file
-try:
-    from secrets import secrets
-except ImportError:
-    print("Cellular secrets are kept in secrets.py, please add them there!")
-    raise
+aio_username = os.getenv("aio_username")
+aio_key = os.getenv("aio_key")
 
 # Create a serial connection for the FONA connection
 uart = busio.UART(board.TX, board.RX)
@@ -71,7 +71,7 @@ def publish(client, userdata, topic, pid):
 
 # Initialize cellular data network
 network = network.CELLULAR(
-    fona, (secrets["apn"], secrets["apn_username"], secrets["apn_password"])
+    fona, (os.getenv("apn"), os.getenv("apn_username"), os.getenv("apn_password"))
 )
 
 while not network.is_attached:
@@ -85,15 +85,16 @@ while not network.is_connected:
     time.sleep(0.5)
 print("Network Connected!")
 
-# Initialize MQTT interface with the cellular interface
-MQTT.set_socket(socket, fona)
+ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, fona)
 
 # Set up a MiniMQTT Client
 client = MQTT.MQTT(
-    broker=secrets["broker"],
-    username=secrets["user"],
-    password=secrets["pass"],
+    broker=os.getenv("broker"),
+    username=os.getenv("username"),
+    password=os.getenv("password"),
     is_ssl=False,
+    socket_pool=pool,
+    ssl_context=ssl_context,
 )
 
 # Connect callback handlers to client

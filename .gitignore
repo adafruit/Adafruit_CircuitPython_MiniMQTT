@@ -47,5 +47,9 @@ _build
 .vscode
 *~
 
-# tox local cache
+# tox-specific files
 .tox
+build
+
+# coverage-specific files
+.coverage

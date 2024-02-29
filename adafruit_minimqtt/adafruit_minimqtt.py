@@ -26,11 +26,16 @@ Adapted from https://github.com/micropython/micropython-lib/tree/master/umqtt.si
 * Adafruit CircuitPython firmware for the supported boards:
   https://github.com/adafruit/circuitpython/releases
 
+* Adafruit's Connection Manager library:
+  https://github.com/adafruit/Adafruit_CircuitPython_ConnectionManager
+
 """
 import errno
 import struct
 import time
 from random import randint
+
+from adafruit_connection_manager import get_connection_manager
 
 try:
     from typing import List, Optional, Tuple, Type, Union
@@ -82,56 +87,6 @@ _fake_context = None  # pylint: disable=invalid-name
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
 
-    # pylint: disable=unnecessary-pass
-    # pass
-
-
-class TemporaryError(Exception):
-    """Temporary error class used for handling reconnects."""
-
-
-# Legacy ESP32SPI Socket API
-def set_socket(sock, iface=None) -> None:
-    """Legacy API for setting the socket and network interface.
-
-    :param sock: socket object.
-    :param iface: internet interface object
-
-    """
-    global _default_sock  # pylint: disable=invalid-name, global-statement
-    global _fake_context  # pylint: disable=invalid-name, global-statement
-    _default_sock = sock
-    if iface:
-        _default_sock.set_interface(iface)
-        _fake_context = _FakeSSLContext(iface)
-
-
-class _FakeSSLSocket:
-    def __init__(self, socket, tls_mode) -> None:
-        self._socket = socket
-        self._mode = tls_mode
-        self.settimeout = socket.settimeout
-        self.send = socket.send
-        self.recv = socket.recv
-        self.close = socket.close
-
-    def connect(self, address):
-        """connect wrapper to add non-standard mode parameter"""
-        try:
-            return self._socket.connect(address, self._mode)
-        except RuntimeError as error:
-            raise OSError(errno.ENOMEM) from error
-
-
-class _FakeSSLContext:
-    def __init__(self, iface) -> None:
-        self._iface = iface
-
-    def wrap_socket(self, socket, server_hostname=None) -> _FakeSSLSocket:
-        """Return the same socket"""
-        # pylint: disable=unused-argument
-        return _FakeSSLSocket(socket, self._iface.TLS_MODE)
-
 
 class NullLogger:
     """Fake logger class that does not do anything"""
@@ -139,7 +94,6 @@ class NullLogger:
     # pylint: disable=unused-argument
     def nothing(self, msg: str, *args) -> None:
         """no action"""
-        pass
 
     def __init__(self) -> None:
         for log_level in ["debug", "info", "warning", "error", "critical"]:
@@ -194,6 +148,7 @@ class MQTT:
         user_data=None,
         use_imprecise_time: Optional[bool] = None,
     ) -> None:
+        self._connection_manager = get_connection_manager(socket_pool)
         self._socket_pool = socket_pool
         self._ssl_context = ssl_context
         self._sock = None
@@ -299,75 +254,6 @@ class MQTT:
             return time.monotonic_ns() / 1000000000
 
         return time.monotonic()
-
-    # pylint: disable=too-many-branches
-    def _get_connect_socket(self, host: str, port: int, *, timeout: int = 1):
-        """Obtains a new socket and connects to a broker.
-
-        :param str host: Desired broker hostname
-        :param int port: Desired broker port
-        :param int timeout: Desired socket timeout, in seconds
-        """
-        # For reconnections - check if we're using a socket already and close it
-        if self._sock:
-            self._sock.close()
-            self._sock = None
-
-        # Legacy API - use the interface's socket instead of a passed socket pool
-        if self._socket_pool is None:
-            self._socket_pool = _default_sock
-
-        # Legacy API - fake the ssl context
-        if self._ssl_context is None:
-            self._ssl_context = _fake_context
-
-        if not isinstance(port, int):
-            raise RuntimeError("Port must be an integer")
-
-        if self._is_ssl and not self._ssl_context:
-            raise RuntimeError(
-                "ssl_context must be set before using adafruit_mqtt for secure MQTT."
-            )
-
-        if self._is_ssl:
-            self.logger.info(f"Establishing a SECURE SSL connection to {host}:{port}")
-        else:
-            self.logger.info(f"Establishing an INSECURE connection to {host}:{port}")
-
-        addr_info = self._socket_pool.getaddrinfo(
-            host, port, 0, self._socket_pool.SOCK_STREAM
-        )[0]
-
-        try:
-            sock = self._socket_pool.socket(addr_info[0], addr_info[1])
-        except OSError as exc:
-            # Do not consider this for back-off.
-            self.logger.warning(
-                f"Failed to create socket for host {addr_info[0]} and port {addr_info[1]}"
-            )
-            raise TemporaryError from exc
-
-        connect_host = addr_info[-1][0]
-        if self._is_ssl:
-            sock = self._ssl_context.wrap_socket(sock, server_hostname=host)
-            connect_host = host
-        sock.settimeout(timeout)
-
-        try:
-            sock.connect((connect_host, port))
-        except MemoryError as exc:
-            sock.close()
-            self.logger.warning(f"Failed to allocate memory for connect: {exc}")
-            # Do not consider this for back-off.
-            raise TemporaryError from exc
-        except OSError as exc:
-            sock.close()
-            self.logger.warning(f"Failed to connect: {exc}")
-            # Do not consider this for back-off.
-            raise TemporaryError from exc
-
-        self._backwards_compatible_sock = not hasattr(sock, "recv_into")
-        return sock
 
     def __enter__(self):
         return self
@@ -538,8 +424,8 @@ class MQTT:
                 )
                 self._reset_reconnect_backoff()
                 return ret
-            except TemporaryError as e:
-                self.logger.warning(f"temporary error when connecting: {e}")
+            except RuntimeError as e:
+                self.logger.warning(f"Socket error when connecting: {e}")
                 backoff = False
             except MMQTTException as e:
                 last_exception = e
@@ -587,9 +473,15 @@ class MQTT:
             time.sleep(self._reconnect_timeout)
 
         # Get a new socket
-        self._sock = self._get_connect_socket(
-            self.broker, self.port, timeout=self._socket_timeout
+        self._sock = self._connection_manager.get_socket(
+            self.broker,
+            self.port,
+            proto="mqtt:",
+            timeout=self._socket_timeout,
+            is_ssl=self._is_ssl,
+            ssl_context=self._ssl_context,
         )
+        self._backwards_compatible_sock = not hasattr(self._sock, "recv_into")
 
         fixed_header = bytearray([0x10])
 
@@ -686,7 +578,7 @@ class MQTT:
         except RuntimeError as e:
             self.logger.warning(f"Unable to send DISCONNECT packet: {e}")
         self.logger.debug("Closing socket")
-        self._sock.close()
+        self._connection_manager.free_socket(self._sock)
         self._is_connected = False
         self._subscribed_topics = []
         self._last_msg_sent_timestamp = 0
