@@ -9,7 +9,6 @@ from digitalio import DigitalInOut
 import neopixel
 import adafruit_connection_manager
 from adafruit_esp32spi import adafruit_esp32spi
-import adafruit_esp32spi.adafruit_esp32spi_socket as pool
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
@@ -82,7 +81,8 @@ print("Connecting to WiFi...")
 esp.connect_AP(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
 print("Connected!")
 
-ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, esp)
+pool = adafruit_connection_manager.get_radio_socketpool(esp)
+ssl_context = adafruit_connection_manager.get_radio_ssl_context(esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(

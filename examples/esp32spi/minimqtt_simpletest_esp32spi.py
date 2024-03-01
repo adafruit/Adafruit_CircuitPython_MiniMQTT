@@ -7,7 +7,6 @@ import busio
 from digitalio import DigitalInOut
 import adafruit_connection_manager
 from adafruit_esp32spi import adafruit_esp32spi
-import adafruit_esp32spi.adafruit_esp32spi_socket as pool
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
@@ -86,7 +85,8 @@ def message(client, topic, message):
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, esp)
+pool = adafruit_connection_manager.get_radio_socketpool(esp)
+ssl_context = adafruit_connection_manager.get_radio_ssl_context(esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
