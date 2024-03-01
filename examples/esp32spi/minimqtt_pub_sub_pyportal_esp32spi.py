@@ -4,7 +4,6 @@
 import os
 import time
 import adafruit_connection_manager
-import adafruit_esp32spi.adafruit_esp32spi_socket as pool
 import adafruit_pyportal
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
@@ -52,8 +51,9 @@ pyportal.network.connect()
 print("Connected!")
 
 # pylint: disable=protected-access
-ssl_context = adafruit_connection_manager.create_fake_ssl_context(
-    pool, pyportal.network._wifi.esp
+pool = adafruit_connection_manager.get_radio_socketpool(pyportal.network._wifi.esp)
+ssl_context = adafruit_connection_manager.get_radio_ssl_context(
+    pyportal.network._wifi.esp
 )
 
 # Set up a MiniMQTT Client

@@ -8,7 +8,6 @@ import busio
 from digitalio import DigitalInOut
 import adafruit_connection_manager
 from adafruit_wiznet5k.adafruit_wiznet5k import WIZNET5K
-import adafruit_wiznet5k.adafruit_wiznet5k_socket as pool
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
@@ -56,7 +55,8 @@ def message(client, topic, message):
     print("New message on topic {0}: {1}".format(topic, message))
 
 
-ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, eth)
+pool = adafruit_connection_manager.get_radio_socketpool(eth)
+ssl_context = adafruit_connection_manager.get_radio_ssl_context(eth)
 
 # Set up a MiniMQTT Client
 # NOTE: We'll need to connect insecurely for ethernet configurations.
