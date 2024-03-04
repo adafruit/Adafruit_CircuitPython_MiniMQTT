@@ -578,7 +578,7 @@ class MQTT:
         except RuntimeError as e:
             self.logger.warning(f"Unable to send DISCONNECT packet: {e}")
         self.logger.debug("Closing socket")
-        self._connection_manager.free_socket(self._sock)
+        self._connection_manager.close_socket(self._sock)
         self._is_connected = False
         self._subscribed_topics = []
         self._last_msg_sent_timestamp = 0
