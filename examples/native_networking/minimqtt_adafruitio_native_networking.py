@@ -89,7 +89,7 @@ mqtt_client.connect()
 photocell_val = 0
 while True:
     # Poll the message queue
-    mqtt_client.loop()
+    mqtt_client.loop(timeout=1)
 
     # Send a new message
     print(f"Sending photocell value: {photocell_val}...")
