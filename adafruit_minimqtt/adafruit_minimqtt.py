@@ -220,7 +220,7 @@ class MQTT:
             self.client_id = client_id
         else:
             # assign a unique client_id
-            time_int = (self.get_monotonic_ns_time() % 10000000000) // 10000000
+            time_int = (self.get_monotonic_time() % 10000000000) // 10000000
             self.client_id = f"cpy{randint(0, time_int)}{randint(0, 99)}"
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id.encode("utf-8")) > 23 or not self.client_id:
@@ -244,7 +244,7 @@ class MQTT:
         self.on_subscribe = None
         self.on_unsubscribe = None
 
-    def get_monotonic_ns_time(self) -> float:
+    def get_monotonic_time(self) -> float:
         """
         Provide monotonic time in nanoseconds. Based on underlying implementation
         this might result in imprecise time, that will result in the library
@@ -261,7 +261,7 @@ class MQTT:
         Taking timestamp differences using nanosecond ints before dividing
         should maintain precision.
         """
-        return (self.get_monotonic_ns_time() - stamp_ns) / 1000000000
+        return (self.get_monotonic_time() - stamp_ns) / 1000000000
 
     def __enter__(self):
         return self
@@ -534,9 +534,9 @@ class MQTT:
         if self._username is not None:
             self._send_str(self._username)
             self._send_str(self._password)
-        self._last_msg_sent_timestamp_ns = self.get_monotonic_ns_time()
+        self._last_msg_sent_timestamp_ns = self.get_monotonic_time()
         self.logger.debug("Receiving CONNACK packet from broker")
-        stamp_ns = self.get_monotonic_ns_time()
+        stamp_ns = self.get_monotonic_time()
         while True:
             op = self._wait_for_msg()
             if op == 32:
@@ -602,7 +602,7 @@ class MQTT:
         self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
         ping_timeout = self.keep_alive
-        stamp_ns = self.get_monotonic_ns_time()
+        stamp_ns = self.get_monotonic_time()
         self._last_msg_sent_timestamp_ns = stamp_ns
         rc, rcs = None, []
         while rc != MQTT_PINGRESP:
@@ -678,11 +678,11 @@ class MQTT:
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
-        self._last_msg_sent_timestamp_ns = self.get_monotonic_ns_time()
+        self._last_msg_sent_timestamp_ns = self.get_monotonic_time()
         if qos == 0 and self.on_publish is not None:
             self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
-            stamp_ns = self.get_monotonic_ns_time()
+            stamp_ns = self.get_monotonic_time()
             while True:
                 op = self._wait_for_msg()
                 if op == 0x40:
@@ -755,7 +755,7 @@ class MQTT:
             self.logger.debug(f"SUBSCRIBING to topic {t} with QoS {q}")
         self.logger.debug(f"payload: {payload}")
         self._sock.send(payload)
-        stamp_ns = self.get_monotonic_ns_time()
+        stamp_ns = self.get_monotonic_time()
         self._last_msg_sent_timestamp_ns = stamp_ns
         while True:
             op = self._wait_for_msg()
@@ -832,10 +832,10 @@ class MQTT:
         for t in topics:
             self.logger.debug(f"UNSUBSCRIBING from topic {t}")
         self._sock.send(payload)
-        self._last_msg_sent_timestamp_ns = self.get_monotonic_ns_time()
+        self._last_msg_sent_timestamp_ns = self.get_monotonic_time()
         self.logger.debug("Waiting for UNSUBACK...")
         while True:
-            stamp_ns = self.get_monotonic_ns_time()
+            stamp_ns = self.get_monotonic_time()
             op = self._wait_for_msg()
             if op is None:
                 if self.diff_ns(stamp_ns) > self._recv_timeout:
@@ -938,7 +938,7 @@ class MQTT:
         self._connected()
         self.logger.debug(f"waiting for messages for {timeout} seconds")
 
-        stamp_ns = self.get_monotonic_ns_time()
+        stamp_ns = self.get_monotonic_time()
         rcs = []
 
         while True:
@@ -1063,7 +1063,7 @@ class MQTT:
         :param float timeout: timeout, in seconds. Defaults to keep_alive
         :return: byte array
         """
-        stamp_ns = self.get_monotonic_ns_time()
+        stamp_ns = self.get_monotonic_time()
         if not self._backwards_compatible_sock:
             # CPython/Socketpool Impl.
             rc = bytearray(bufsize)
