@@ -51,7 +51,7 @@ from micropython import const
 
 from .matcher import MQTTMatcher
 
-__version__ = "0.0.0+auto.0"
+__version__ = "7.6.3"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 # Client-specific variables
@@ -181,7 +181,7 @@ class MQTT:
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
-        self._last_msg_sent_timestamp: float = 0
+        self._last_msg_sent_timestamp: int = 0
         self.logger = NullLogger()
         """An optional logging attribute that can be set with with a Logger
         to enable debug logging."""
@@ -197,7 +197,8 @@ class MQTT:
         self._username = username
         self._password = password
         if (
-            self._password and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
+            self._password and len(password.encode(
+                "utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
         ):  # [MQTT-3.1.3.5]
             raise MMQTTException("Password length is too large.")
 
@@ -220,11 +221,12 @@ class MQTT:
             self.client_id = client_id
         else:
             # assign a unique client_id
-            time_int = int(self.get_monotonic_time() * 100) % 1000
+            time_int = (self.get_monotonic_time() % 10000000000) // 10000000
             self.client_id = f"cpy{randint(0, time_int)}{randint(0, 99)}"
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id.encode("utf-8")) > 23 or not self.client_id:
-                raise ValueError("MQTT Client ID must be between 1 and 23 bytes")
+                raise ValueError(
+                    "MQTT Client ID must be between 1 and 23 bytes")
 
         # LWT
         self._lw_topic = None
@@ -246,14 +248,22 @@ class MQTT:
 
     def get_monotonic_time(self) -> float:
         """
-        Provide monotonic time in seconds. Based on underlying implementation
+        Provide monotonic time in nanoseconds. Based on underlying implementation
         this might result in imprecise time, that will result in the library
         not being able to operate if running contiguously for more than 24 days or so.
+        Keeping timestamps in nanosecond ints from monotonic_ns should preserve precision.
         """
         if self.use_monotonic_ns:
-            return time.monotonic_ns() / 1000000000
+            return time.monotonic_ns()
 
-        return time.monotonic()
+        return int(time.monotonic() * 1000000000)
+
+    def diff_ns(self, stamp):
+        """
+        Taking timestamp differences using nanosecond ints before dividing
+        should maintain precision.
+        """
+        return (self.get_monotonic_time() - stamp)/1000000000
 
     def __enter__(self):
         return self
@@ -307,7 +317,8 @@ class MQTT:
         self.logger.debug("Setting last will properties")
         self._valid_qos(qos)
         if self._is_connected:
-            raise MMQTTException("Last Will should only be called before connect().")
+            raise MMQTTException(
+                "Last Will should only be called before connect().")
         if payload is None:
             payload = ""
         if isinstance(payload, (int, float, str)):
@@ -331,7 +342,8 @@ class MQTT:
         If a callback is called for the topic, then any "on_message" callback will not be called.
         """
         if mqtt_topic is None or callback_method is None:
-            raise ValueError("MQTT topic and callback method must both be defined.")
+            raise ValueError(
+                "MQTT topic and callback method must both be defined.")
         self._on_message_filtered[mqtt_topic] = callback_method
 
     def remove_topic_callback(self, mqtt_topic: str) -> None:
@@ -379,7 +391,8 @@ class MQTT:
 
         """
         if self._is_connected:
-            raise MMQTTException("This method must be called before connect().")
+            raise MMQTTException(
+                "This method must be called before connect().")
         self._username = username
         if password is not None:
             self._password = password
@@ -508,7 +521,8 @@ class MQTT:
             remaining_length += (
                 2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg)
             )
-            var_header[7] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
+            var_header[7] |= 0x4 | (self._lw_qos & 0x1) << 3 | (
+                self._lw_qos & 0x2) << 3
             var_header[7] |= self._lw_retain << 5
 
         self._encode_remaining_length(fixed_header, remaining_length)
@@ -544,7 +558,7 @@ class MQTT:
                 return result
 
             if op is None:
-                if self.get_monotonic_time() - stamp > self._recv_timeout:
+                if self.diff_ns(stamp) > self._recv_timeout:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
@@ -601,7 +615,7 @@ class MQTT:
             rc = self._wait_for_msg()
             if rc:
                 rcs.append(rc)
-            if self.get_monotonic_time() - stamp > ping_timeout:
+            if self.diff_ns(stamp) > ping_timeout:
                 raise MMQTTException("PINGRESP not returned from broker.")
         return rcs
 
@@ -637,7 +651,8 @@ class MQTT:
         else:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise MMQTTException(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
+            raise MMQTTException(
+                f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
         assert (
             0 <= qos <= 1
         ), "Quality of Service Level 2 is unsupported by this library."
@@ -684,11 +699,12 @@ class MQTT:
                     rcv_pid = rcv_pid_buf[0] << 0x08 | rcv_pid_buf[1]
                     if self._pid == rcv_pid:
                         if self.on_publish is not None:
-                            self.on_publish(self, self.user_data, topic, rcv_pid)
+                            self.on_publish(
+                                self, self.user_data, topic, rcv_pid)
                         return
 
                 if op is None:
-                    if self.get_monotonic_time() - stamp > self._recv_timeout:
+                    if self.diff_ns(stamp) > self._recv_timeout:
                         raise MMQTTException(
                             f"No data received from broker for {self._recv_timeout} seconds."
                         )
@@ -728,8 +744,10 @@ class MQTT:
         self.logger.debug("Sending SUBSCRIBE to broker...")
         fixed_header = bytearray([MQTT_SUB])
         packet_length = 2 + (2 * len(topics)) + (1 * len(topics))
-        packet_length += sum(len(topic.encode("utf-8")) for topic, qos in topics)
-        self._encode_remaining_length(fixed_header, remaining_length=packet_length)
+        packet_length += sum(len(topic.encode("utf-8"))
+                             for topic, qos in topics)
+        self._encode_remaining_length(
+            fixed_header, remaining_length=packet_length)
         self.logger.debug(f"Fixed Header: {fixed_header}")
         self._sock.send(fixed_header)
         self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
@@ -752,7 +770,7 @@ class MQTT:
         while True:
             op = self._wait_for_msg()
             if op is None:
-                if self.get_monotonic_time() - stamp > self._recv_timeout:
+                if self.diff_ns(stamp) > self._recv_timeout:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
@@ -809,7 +827,8 @@ class MQTT:
         fixed_header = bytearray([MQTT_UNSUB])
         packet_length = 2 + (2 * len(topics))
         packet_length += sum(len(topic.encode("utf-8")) for topic in topics)
-        self._encode_remaining_length(fixed_header, remaining_length=packet_length)
+        self._encode_remaining_length(
+            fixed_header, remaining_length=packet_length)
         self.logger.debug(f"Fixed Header: {fixed_header}")
         self._sock.send(fixed_header)
         self._pid = self._pid + 1 if self._pid < 0xFFFF else 1
@@ -830,7 +849,7 @@ class MQTT:
             stamp = self.get_monotonic_time()
             op = self._wait_for_msg()
             if op is None:
-                if self.get_monotonic_time() - stamp > self._recv_timeout:
+                if self.diff_ns(stamp) > self._recv_timeout:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
@@ -842,7 +861,8 @@ class MQTT:
                     assert rc[1] == packet_id_bytes[0] and rc[2] == packet_id_bytes[1]
                     for t in topics:
                         if self.on_unsubscribe is not None:
-                            self.on_unsubscribe(self, self.user_data, t, self._pid)
+                            self.on_unsubscribe(
+                                self, self.user_data, t, self._pid)
                         self._subscribed_topics.remove(t)
                     return
 
@@ -860,7 +880,8 @@ class MQTT:
         self._reconnect_timeout = 2**self._reconnect_attempt
         # pylint: disable=consider-using-f-string
         self.logger.debug(
-            "Reconnect timeout computed to {:.2f}".format(self._reconnect_timeout)
+            "Reconnect timeout computed to {:.2f}".format(
+                self._reconnect_timeout)
         )
 
         if self._reconnect_timeout > self._reconnect_maximum_backoff:
@@ -935,7 +956,7 @@ class MQTT:
 
         while True:
             if (
-                self.get_monotonic_time() - self._last_msg_sent_timestamp
+                self.diff_ns(self._last_msg_sent_timestamp)
                 >= self.keep_alive
             ):
                 # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
@@ -945,14 +966,15 @@ class MQTT:
                 rcs.extend(self.ping())
                 # ping() itself contains a _wait_for_msg() loop which might have taken a while,
                 # so check here as well.
-                if self.get_monotonic_time() - stamp > timeout:
-                    self.logger.debug(f"Loop timed out after {timeout} seconds")
+                if self.diff_ns(stamp) > timeout:
+                    self.logger.debug(
+                        f"Loop timed out after {timeout} seconds")
                     break
 
             rc = self._wait_for_msg()
             if rc is not None:
                 rcs.append(rc)
-            if self.get_monotonic_time() - stamp > timeout:
+            if self.diff_ns(stamp) > timeout:
                 self.logger.debug(f"Loop timed out after {timeout} seconds")
                 break
 
@@ -960,7 +982,6 @@ class MQTT:
 
     def _wait_for_msg(self, timeout: Optional[float] = None) -> Optional[int]:
         # pylint: disable = too-many-return-statements
-
         """Reads and processes network events.
         Return the packet type or None if there is nothing to be received.
 
@@ -985,12 +1006,14 @@ class MQTT:
             # If we get here, it means that there is nothing to be received
             return None
         pkt_type = res[0] & MQTT_PKT_TYPE_MASK
-        self.logger.debug(f"Got message type: {hex(pkt_type)} pkt: {hex(res[0])}")
+        self.logger.debug(
+            f"Got message type: {hex(pkt_type)} pkt: {hex(res[0])}")
         if pkt_type == MQTT_PINGRESP:
             self.logger.debug("Got PINGRESP")
             sz = self._sock_exact_recv(1)[0]
             if sz != 0x00:
-                raise MMQTTException(f"Unexpected PINGRESP returned from broker: {sz}.")
+                raise MMQTTException(
+                    f"Unexpected PINGRESP returned from broker: {sz}.")
             return pkt_type
 
         if pkt_type != MQTT_PUBLISH:
@@ -1019,7 +1042,8 @@ class MQTT:
         # read message contents
         raw_msg = self._sock_exact_recv(sz)
         msg = raw_msg if self._use_binary_mode else str(raw_msg, "utf-8")
-        self.logger.debug("Receiving PUBLISH \nTopic: %s\nMsg: %s\n", topic, raw_msg)
+        self.logger.debug(
+            "Receiving PUBLISH \nTopic: %s\nMsg: %s\n", topic, raw_msg)
         self._handle_on_message(topic, msg)
         if res[0] & 0x06 == 0x02:
             pkt = bytearray(b"\x40\x02\0\0")
@@ -1067,14 +1091,15 @@ class MQTT:
             recv_len = self._sock.recv_into(rc, bufsize)
             to_read = bufsize - recv_len
             if to_read < 0:
-                raise MMQTTException(f"negative number of bytes to read: {to_read}")
+                raise MMQTTException(
+                    f"negative number of bytes to read: {to_read}")
             read_timeout = timeout if timeout is not None else self.keep_alive
             mv = mv[recv_len:]
             while to_read > 0:
                 recv_len = self._sock.recv_into(mv, to_read)
                 to_read -= recv_len
                 mv = mv[recv_len:]
-                if self.get_monotonic_time() - stamp > read_timeout:
+                if self.diff_ns(stamp) > read_timeout:
                     raise MMQTTException(
                         f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
@@ -1094,7 +1119,7 @@ class MQTT:
                 recv = self._sock.recv(to_read)
                 to_read -= len(recv)
                 rc += recv
-                if self.get_monotonic_time() - stamp > read_timeout:
+                if self.diff_ns(stamp) > read_timeout:
                     raise MMQTTException(
                         f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
