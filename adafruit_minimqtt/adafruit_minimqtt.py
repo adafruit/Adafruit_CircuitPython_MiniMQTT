@@ -602,7 +602,7 @@ class MQTT:
             rc = self._wait_for_msg()
             if rc:
                 rcs.append(rc)
-            if ticks_diff(ticks_ms(), stamp):
+            if ticks_diff(ticks_ms(), stamp) > ping_timeout * 1000:
                 raise MMQTTException("PINGRESP not returned from broker.")
         return rcs
 
