@@ -36,6 +36,7 @@ import time
 from random import randint
 
 from adafruit_connection_manager import get_connection_manager
+from adafruit_ticks import ticks_ms, ticks_diff
 
 try:
     from typing import List, Optional, Tuple, Type, Union
@@ -51,7 +52,7 @@ from micropython import const
 
 from .matcher import MQTTMatcher
 
-__version__ = "0.0.0+auto.0"
+__version__ = "7.6.3"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MiniMQTT.git"
 
 # Client-specific variables
@@ -181,7 +182,7 @@ class MQTT:
         self._is_connected = False
         self._msg_size_lim = MQTT_MSG_SZ_LIM
         self._pid = 0
-        self._last_msg_sent_timestamp_ns: int = 0
+        self._last_msg_sent_timestamp: int = 0
         self.logger = NullLogger()
         """An optional logging attribute that can be set with with a Logger
         to enable debug logging."""
@@ -220,7 +221,7 @@ class MQTT:
             self.client_id = client_id
         else:
             # assign a unique client_id
-            time_int = (self.get_monotonic_time_ns() % 10000000000) // 10000000
+            time_int = int(ticks_ms() / 10) % 1000
             self.client_id = f"cpy{randint(0, time_int)}{randint(0, 99)}"
             # generated client_id's enforce spec.'s length rules
             if len(self.client_id.encode("utf-8")) > 23 or not self.client_id:
@@ -254,25 +255,6 @@ class MQTT:
             return time.monotonic_ns() / 1000000000
 
         return time.monotonic()
-
-    def get_monotonic_time_ns(self) -> int:
-        """
-        Provide monotonic time in nanoseconds. Based on underlying implementation
-        this might result in imprecise time, that will result in the library
-        not being able to operate if running contiguously for more than 24 days or so.
-        Keeping timestamps in nanosecond ints from monotonic_ns should preserve precision.
-        """
-        if self.use_monotonic_ns:
-            return time.monotonic_ns()
-
-        return int(time.monotonic() * 1000000000)
-
-    def diff_ns(self, stamp_ns) -> float:
-        """
-        Taking timestamp differences using nanosecond ints before dividing
-        should maintain precision. Returns time difference in seconds.
-        """
-        return (self.get_monotonic_time_ns() - stamp_ns) / 1000000000
 
     def __enter__(self):
         return self
@@ -545,9 +527,9 @@ class MQTT:
         if self._username is not None:
             self._send_str(self._username)
             self._send_str(self._password)
-        self._last_msg_sent_timestamp_ns = self.get_monotonic_time_ns()
+        self._last_msg_sent_timestamp = ticks_ms()
         self.logger.debug("Receiving CONNACK packet from broker")
-        stamp_ns = self.get_monotonic_time_ns()
+        stamp = ticks_ms()
         while True:
             op = self._wait_for_msg()
             if op == 32:
@@ -563,7 +545,7 @@ class MQTT:
                 return result
 
             if op is None:
-                if self.diff_ns(stamp_ns) > self._recv_timeout:
+                if ticks_diff(ticks_ms(), stamp) / 1000 > self._recv_timeout:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
@@ -600,7 +582,7 @@ class MQTT:
         self._connection_manager.close_socket(self._sock)
         self._is_connected = False
         self._subscribed_topics = []
-        self._last_msg_sent_timestamp_ns = 0
+        self._last_msg_sent_timestamp = 0
         if self.on_disconnect is not None:
             self.on_disconnect(self, self.user_data, 0)
 
@@ -613,14 +595,14 @@ class MQTT:
         self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
         ping_timeout = self.keep_alive
-        stamp_ns = self.get_monotonic_time_ns()
-        self._last_msg_sent_timestamp_ns = stamp_ns
+        stamp = ticks_ms()
+        self._last_msg_sent_timestamp = stamp
         rc, rcs = None, []
         while rc != MQTT_PINGRESP:
             rc = self._wait_for_msg()
             if rc:
                 rcs.append(rc)
-            if self.diff_ns(stamp_ns) > ping_timeout:
+            if ticks_diff(ticks_ms(), stamp):
                 raise MMQTTException("PINGRESP not returned from broker.")
         return rcs
 
@@ -689,11 +671,11 @@ class MQTT:
         self._sock.send(pub_hdr_fixed)
         self._sock.send(pub_hdr_var)
         self._sock.send(msg)
-        self._last_msg_sent_timestamp_ns = self.get_monotonic_time_ns()
+        self._last_msg_sent_timestamp = ticks_ms()
         if qos == 0 and self.on_publish is not None:
             self.on_publish(self, self.user_data, topic, self._pid)
         if qos == 1:
-            stamp_ns = self.get_monotonic_time_ns()
+            stamp = ticks_ms()
             while True:
                 op = self._wait_for_msg()
                 if op == 0x40:
@@ -707,7 +689,7 @@ class MQTT:
                         return
 
                 if op is None:
-                    if self.diff_ns(stamp_ns) > self._recv_timeout:
+                    if ticks_diff(ticks_ms(), stamp) / 1000 > self._recv_timeout:
                         raise MMQTTException(
                             f"No data received from broker for {self._recv_timeout} seconds."
                         )
@@ -766,12 +748,12 @@ class MQTT:
             self.logger.debug(f"SUBSCRIBING to topic {t} with QoS {q}")
         self.logger.debug(f"payload: {payload}")
         self._sock.send(payload)
-        stamp_ns = self.get_monotonic_time_ns()
-        self._last_msg_sent_timestamp_ns = stamp_ns
+        stamp = ticks_ms()
+        self._last_msg_sent_timestamp = stamp
         while True:
             op = self._wait_for_msg()
             if op is None:
-                if self.diff_ns(stamp_ns) > self._recv_timeout:
+                if ticks_diff(ticks_ms(), stamp) / 1000 > self._recv_timeout:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
@@ -843,13 +825,13 @@ class MQTT:
         for t in topics:
             self.logger.debug(f"UNSUBSCRIBING from topic {t}")
         self._sock.send(payload)
-        self._last_msg_sent_timestamp_ns = self.get_monotonic_time_ns()
+        self._last_msg_sent_timestamp = ticks_ms()
         self.logger.debug("Waiting for UNSUBACK...")
         while True:
-            stamp_ns = self.get_monotonic_time_ns()
+            stamp = ticks_ms()
             op = self._wait_for_msg()
             if op is None:
-                if self.diff_ns(stamp_ns) > self._recv_timeout:
+                if ticks_diff(ticks_ms(), stamp) / 1000 > self._recv_timeout:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
@@ -949,11 +931,14 @@ class MQTT:
         self._connected()
         self.logger.debug(f"waiting for messages for {timeout} seconds")
 
-        stamp_ns = self.get_monotonic_time_ns()
+        stamp = ticks_ms()
         rcs = []
 
         while True:
-            if self.diff_ns(self._last_msg_sent_timestamp_ns) >= self.keep_alive:
+            if (
+                ticks_diff(ticks_ms(), self._last_msg_sent_timestamp) / 1000
+                >= self.keep_alive
+            ):
                 # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
                 self.logger.debug(
                     "KeepAlive period elapsed - requesting a PINGRESP from the server..."
@@ -961,14 +946,14 @@ class MQTT:
                 rcs.extend(self.ping())
                 # ping() itself contains a _wait_for_msg() loop which might have taken a while,
                 # so check here as well.
-                if self.diff_ns(stamp_ns) > timeout:
+                if ticks_diff(ticks_ms(), stamp) / 1000 > timeout:
                     self.logger.debug(f"Loop timed out after {timeout} seconds")
                     break
 
             rc = self._wait_for_msg()
             if rc is not None:
                 rcs.append(rc)
-            if self.diff_ns(stamp_ns) > timeout:
+            if ticks_diff(ticks_ms(), stamp) / 1000 > timeout:
                 self.logger.debug(f"Loop timed out after {timeout} seconds")
                 break
 
@@ -1074,7 +1059,7 @@ class MQTT:
         :param float timeout: timeout, in seconds. Defaults to keep_alive
         :return: byte array
         """
-        stamp_ns = self.get_monotonic_time_ns()
+        stamp = ticks_ms()
         if not self._backwards_compatible_sock:
             # CPython/Socketpool Impl.
             rc = bytearray(bufsize)
@@ -1089,7 +1074,7 @@ class MQTT:
                 recv_len = self._sock.recv_into(mv, to_read)
                 to_read -= recv_len
                 mv = mv[recv_len:]
-                if self.diff_ns(stamp_ns) > read_timeout:
+                if ticks_diff(ticks_ms(), stamp) / 1000 > read_timeout:
                     raise MMQTTException(
                         f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
@@ -1109,7 +1094,7 @@ class MQTT:
                 recv = self._sock.recv(to_read)
                 to_read -= len(recv)
                 rc += recv
-                if self.diff_ns(stamp_ns) > read_timeout:
+                if ticks_diff(ticks_ms(), stamp) / 1000 > read_timeout:
                     raise MMQTTException(
                         f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
