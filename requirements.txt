@@ -4,3 +4,4 @@
 
 Adafruit-Blinka
 Adafruit-Circuitpython-ConnectionManager
+Adafruit-Ticks
