@@ -593,7 +593,7 @@ class MQTT:
         self._connected()
         self.logger.debug("Sending PINGREQ")
         self._sock.send(MQTT_PINGREQ)
-        ping_timeout = self.keep_alive
+        ping_timeout = self._recv_timeout
         stamp = self.get_monotonic_time()
         self._last_msg_sent_timestamp = stamp
         rc, rcs = None, []
@@ -602,7 +602,9 @@ class MQTT:
             if rc:
                 rcs.append(rc)
             if self.get_monotonic_time() - stamp > ping_timeout:
-                raise MMQTTException("PINGRESP not returned from broker.")
+                raise MMQTTException(
+                    f"PINGRESP not returned from broker within {ping_timeout} seconds."
+                )
         return rcs
 
     # pylint: disable=too-many-branches, too-many-statements
@@ -1068,7 +1070,7 @@ class MQTT:
             to_read = bufsize - recv_len
             if to_read < 0:
                 raise MMQTTException(f"negative number of bytes to read: {to_read}")
-            read_timeout = timeout if timeout is not None else self.keep_alive
+            read_timeout = timeout if timeout is not None else self._recv_timeout
             mv = mv[recv_len:]
             while to_read > 0:
                 recv_len = self._sock.recv_into(mv, to_read)
@@ -1079,7 +1081,7 @@ class MQTT:
                         f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
         else:  # ESP32SPI Impl.
-            # This will timeout with socket timeout (not keepalive timeout)
+            # This will time out with socket timeout (not receive timeout).
             rc = self._sock.recv(bufsize)
             if not rc:
                 self.logger.debug("_sock_exact_recv timeout")
@@ -1089,7 +1091,7 @@ class MQTT:
             # or raise exception if wait longer than read_timeout
             to_read = bufsize - len(rc)
             assert to_read >= 0
-            read_timeout = self.keep_alive
+            read_timeout = self._recv_timeout
             while to_read > 0:
                 recv = self._sock.recv(to_read)
                 to_read -= len(recv)
