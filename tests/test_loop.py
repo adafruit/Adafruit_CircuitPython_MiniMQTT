@@ -143,7 +143,7 @@ class TestLoop:
             timeout = random.randint(3, 8)
             # pylint: disable=protected-access
             # mqtt_client._last_msg_sent_timestamp = mqtt_client.get_monotonic_time()
-            mqtt_client._last_msg_sent_timestamp = time.monotonic()
+            mqtt_client._last_msg_sent_timestamp = mqtt_client.ticks_ms()
             rcs = mqtt_client.loop(timeout=timeout)
             time_after = time.monotonic()
 
