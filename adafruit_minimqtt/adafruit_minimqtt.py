@@ -124,8 +124,6 @@ class MQTT:
         This works with all callbacks but the "on_message" and those added via add_topic_callback();
         for those, to get access to the user_data use the 'user_data' member of the MQTT object
         passed as 1st argument.
-    :param bool use_imprecise_time: on boards without time.monotonic_ns() one has to set
-        this to True in order to operate correctly over more than 24 days or so
 
     """
 
@@ -147,7 +145,6 @@ class MQTT:
         socket_timeout: int = 1,
         connect_retries: int = 5,
         user_data=None,
-        use_imprecise_time: Optional[bool] = None,
     ) -> None:
         self._connection_manager = get_connection_manager(socket_pool)
         self._socket_pool = socket_pool
@@ -155,20 +152,6 @@ class MQTT:
         self._sock = None
         self._backwards_compatible_sock = False
         self._use_binary_mode = use_binary_mode
-
-        self.use_monotonic_ns = False
-        try:
-            time.monotonic_ns()
-            self.use_monotonic_ns = True
-        except AttributeError:
-            if use_imprecise_time:
-                self.use_monotonic_ns = False
-            else:
-                raise MMQTTException(  # pylint: disable=raise-missing-from
-                    "time.monotonic_ns() is not available. "
-                    "Will use imprecise time however only if the"
-                    "use_imprecise_time argument is set to True."
-                )
 
         if recv_timeout <= socket_timeout:
             raise MMQTTException(
@@ -244,17 +227,6 @@ class MQTT:
         self.on_publish = None
         self.on_subscribe = None
         self.on_unsubscribe = None
-
-    def get_monotonic_time(self) -> float:
-        """
-        Provide monotonic time in seconds. Based on underlying implementation
-        this might result in imprecise time, that will result in the library
-        not being able to operate if running contiguously for more than 24 days or so.
-        """
-        if self.use_monotonic_ns:
-            return time.monotonic_ns() / 1000000000
-
-        return time.monotonic()
 
     def __enter__(self):
         return self
