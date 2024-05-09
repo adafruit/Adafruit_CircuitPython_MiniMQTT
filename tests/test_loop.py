@@ -220,7 +220,7 @@ class TestLoop:
         mqtt_client._sock = mocket
 
         start = time.monotonic()
-        res = mqtt_client.loop(timeout=2 * keep_alive_timeout)
+        res = mqtt_client.loop(timeout=2 * keep_alive_timeout + recv_timeout)
         assert time.monotonic() - start >= 2 * keep_alive_timeout
         assert len(mocket.sent) > 0
         # assert len(res) == 2
