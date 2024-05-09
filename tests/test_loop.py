@@ -223,8 +223,7 @@ class TestLoop:
         res = mqtt_client.loop(timeout=2 * keep_alive_timeout + recv_timeout)
         assert time.monotonic() - start >= 2 * keep_alive_timeout
         assert len(mocket.sent) > 0
-        # assert len(res) == 2
-        assert len(res) == 3  # not sure if 3 is ok
+        assert len(res) == 3
         assert set(res) == {int(0xD0)}
 
     # pylint: disable=no-self-use
