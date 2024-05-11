@@ -424,7 +424,7 @@ class MQTT:
                 )
                 self._reset_reconnect_backoff()
                 return ret
-            except RuntimeError as e:
+            except (MemoryError, OSError, RuntimeError) as e:
                 self.logger.warning(f"Socket error when connecting: {e}")
                 backoff = False
             except MMQTTException as e:
