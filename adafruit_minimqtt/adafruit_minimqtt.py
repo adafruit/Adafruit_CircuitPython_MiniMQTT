@@ -575,7 +575,9 @@ class MQTT:
             if rc:
                 rcs.append(rc)
             if ticks_diff(ticks_ms(), stamp) / 1000 > ping_timeout:
-                raise MMQTTException(f"PINGRESP not returned from broker within {ping_timeout} seconds.")
+                raise MMQTTException(
+                    f"PINGRESP not returned from broker within {ping_timeout} seconds."
+                )
         return rcs
 
     # pylint: disable=too-many-branches, too-many-statements
