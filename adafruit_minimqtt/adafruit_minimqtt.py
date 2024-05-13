@@ -72,12 +72,18 @@ MQTT_DISCONNECT = b"\xe0\0"
 MQTT_PKT_TYPE_MASK = const(0xF0)
 
 
+CONNACK_ERROR_INCORRECT_PROTOCOL = const(0x01)
+CONNACK_ERROR_ID_REJECTED = const(0x02)
+CONNACK_ERROR_SERVER_UNAVAILABLE = const(0x03)
+CONNACK_ERROR_INCORECT_USERNAME_PASSWORD = const(0x04)
+CONNACK_ERROR_UNAUTHORIZED = const(0x05)
+
 CONNACK_ERRORS = {
-    const(0x01): "Connection Refused - Incorrect Protocol Version",
-    const(0x02): "Connection Refused - ID Rejected",
-    const(0x03): "Connection Refused - Server unavailable",
-    const(0x04): "Connection Refused - Incorrect username/password",
-    const(0x05): "Connection Refused - Unauthorized",
+    CONNACK_ERROR_INCORRECT_PROTOCOL: "Connection Refused - Incorrect Protocol Version",
+    CONNACK_ERROR_ID_REJECTED: "Connection Refused - ID Rejected",
+    CONNACK_ERROR_SERVER_UNAVAILABLE: "Connection Refused - Server unavailable",
+    CONNACK_ERROR_INCORECT_USERNAME_PASSWORD: "Connection Refused - Incorrect username/password",
+    CONNACK_ERROR_UNAUTHORIZED: "Connection Refused - Unauthorized",
 }
 
 _default_sock = None  # pylint: disable=invalid-name
@@ -86,6 +92,10 @@ _fake_context = None  # pylint: disable=invalid-name
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
+
+    def __init__(self, error, code=None):
+        super().__init__(error, code)
+        self.code = code
 
 
 class NullLogger:
@@ -428,8 +438,14 @@ class MQTT:
                 self.logger.warning(f"Socket error when connecting: {e}")
                 backoff = False
             except MMQTTException as e:
-                last_exception = e
                 self.logger.info(f"MMQT error: {e}")
+                if e.code in [
+                    CONNACK_ERROR_INCORECT_USERNAME_PASSWORD,
+                    CONNACK_ERROR_UNAUTHORIZED,
+                ]:
+                    # No sense trying these again, re-raise
+                    raise
+                last_exception = e
                 backoff = True
 
         if self._reconnect_attempts_max > 1:
@@ -535,7 +551,7 @@ class MQTT:
                 rc = self._sock_exact_recv(3)
                 assert rc[0] == 0x02
                 if rc[2] != 0x00:
-                    raise MMQTTException(CONNACK_ERRORS[rc[2]])
+                    raise MMQTTException(CONNACK_ERRORS[rc[2]], code=rc[2])
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
