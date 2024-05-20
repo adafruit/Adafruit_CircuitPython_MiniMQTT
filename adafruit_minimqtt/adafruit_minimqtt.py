@@ -438,6 +438,7 @@ class MQTT:
                 self.logger.warning(f"Socket error when connecting: {e}")
                 backoff = False
             except MMQTTException as e:
+                self._close_socket()
                 self.logger.info(f"MMQT error: {e}")
                 if e.code in [
                     CONNACK_ERROR_INCORECT_USERNAME_PASSWORD,
@@ -452,9 +453,9 @@ class MQTT:
             exc_msg = "Repeated connect failures"
         else:
             exc_msg = "Connect failure"
+
         if last_exception:
             raise MMQTTException(exc_msg) from last_exception
-
         raise MMQTTException(exc_msg)
 
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
@@ -565,6 +566,12 @@ class MQTT:
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
 
+    def _close_socket(self):
+        if self._sock:
+            self.logger.debug("Closing socket")
+            self._connection_manager.close_socket(self._sock)
+            self._sock = None
+
     # pylint: disable=no-self-use
     def _encode_remaining_length(
         self, fixed_header: bytearray, remaining_length: int
@@ -593,8 +600,7 @@ class MQTT:
             self._sock.send(MQTT_DISCONNECT)
         except RuntimeError as e:
             self.logger.warning(f"Unable to send DISCONNECT packet: {e}")
-        self.logger.debug("Closing socket")
-        self._connection_manager.close_socket(self._sock)
+        self._close_socket()
         self._is_connected = False
         self._subscribed_topics = []
         self._last_msg_sent_timestamp = 0

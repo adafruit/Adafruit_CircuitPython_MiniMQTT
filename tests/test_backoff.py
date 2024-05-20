@@ -51,6 +51,7 @@ class TestExpBackOff:
             print("connecting")
             with pytest.raises(MQTT.MMQTTException) as context:
                 mqtt_client.connect()
+                assert mqtt_client._sock is None
             assert "Repeated connect failures" in str(context)
 
             mock_method.assert_called()
@@ -86,6 +87,7 @@ class TestExpBackOff:
             print("connecting")
             with pytest.raises(MQTT.MMQTTException) as context:
                 mqtt_client.connect()
+                assert mqtt_client._sock is None
             assert "Connection Refused - Unauthorized" in str(context)
 
             mock_method.assert_called()
