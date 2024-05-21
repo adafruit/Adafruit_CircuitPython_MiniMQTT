@@ -996,7 +996,7 @@ class MQTT:
                 res = self._sock_exact_recv(1)
             except self._socket_pool.timeout:
                 return None
-        else:  # socketpool, esp32spi
+        else:  # socketpool, esp32spi, wiznet5k
             try:
                 res = self._sock_exact_recv(1, timeout=timeout)
             except OSError as error:
@@ -1085,7 +1085,7 @@ class MQTT:
         """
         stamp = self.get_monotonic_time()
         if not self._backwards_compatible_sock:
-            # CPython/Socketpool Impl.
+            # CPython, socketpool, esp32spi, wiznet5k
             rc = bytearray(bufsize)
             mv = memoryview(rc)
             recv_len = self._sock.recv_into(rc, bufsize)
@@ -1102,7 +1102,7 @@ class MQTT:
                     raise MMQTTException(
                         f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
-        else:  # ESP32SPI Impl.
+        else:  # Legacy: fona, esp_atcontrol
             # This will time out with socket timeout (not receive timeout).
             rc = self._sock.recv(bufsize)
             if not rc:
