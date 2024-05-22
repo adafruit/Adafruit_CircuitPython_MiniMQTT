@@ -435,7 +435,10 @@ class MQTT:
                 self._reset_reconnect_backoff()
                 return ret
             except (MemoryError, OSError, RuntimeError) as e:
+                if isinstance(e, RuntimeError) and e.args == ("pystack exhausted",):
+                    raise
                 self.logger.warning(f"Socket error when connecting: {e}")
+                last_exception = e
                 backoff = False
             except MMQTTException as e:
                 self._close_socket()
