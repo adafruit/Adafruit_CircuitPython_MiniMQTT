@@ -120,6 +120,6 @@ class TestPortSslSetup:
             connect_retries=1,
         )
 
-        with pytest.raises(AttributeError) as context:
+        with pytest.raises(ValueError) as context:
             mqtt_client.connect()
-        assert "ssl_context must be set" in str(context)
+        assert "ssl_context must be provided if using ssl" in str(context)

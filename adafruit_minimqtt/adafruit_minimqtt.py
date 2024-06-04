@@ -73,12 +73,18 @@ MQTT_DISCONNECT = b"\xe0\0"
 MQTT_PKT_TYPE_MASK = const(0xF0)
 
 
+CONNACK_ERROR_INCORRECT_PROTOCOL = const(0x01)
+CONNACK_ERROR_ID_REJECTED = const(0x02)
+CONNACK_ERROR_SERVER_UNAVAILABLE = const(0x03)
+CONNACK_ERROR_INCORECT_USERNAME_PASSWORD = const(0x04)
+CONNACK_ERROR_UNAUTHORIZED = const(0x05)
+
 CONNACK_ERRORS = {
-    const(0x01): "Connection Refused - Incorrect Protocol Version",
-    const(0x02): "Connection Refused - ID Rejected",
-    const(0x03): "Connection Refused - Server unavailable",
-    const(0x04): "Connection Refused - Incorrect username/password",
-    const(0x05): "Connection Refused - Unauthorized",
+    CONNACK_ERROR_INCORRECT_PROTOCOL: "Connection Refused - Incorrect Protocol Version",
+    CONNACK_ERROR_ID_REJECTED: "Connection Refused - ID Rejected",
+    CONNACK_ERROR_SERVER_UNAVAILABLE: "Connection Refused - Server unavailable",
+    CONNACK_ERROR_INCORECT_USERNAME_PASSWORD: "Connection Refused - Incorrect username/password",
+    CONNACK_ERROR_UNAUTHORIZED: "Connection Refused - Unauthorized",
 }
 
 _default_sock = None  # pylint: disable=invalid-name
@@ -87,6 +93,10 @@ _fake_context = None  # pylint: disable=invalid-name
 
 class MMQTTException(Exception):
     """MiniMQTT Exception class."""
+
+    def __init__(self, error, code=None):
+        super().__init__(error, code)
+        self.code = code
 
 
 class NullLogger:
@@ -397,21 +407,31 @@ class MQTT:
                 )
                 self._reset_reconnect_backoff()
                 return ret
-            except RuntimeError as e:
+            except (MemoryError, OSError, RuntimeError) as e:
+                if isinstance(e, RuntimeError) and e.args == ("pystack exhausted",):
+                    raise
                 self.logger.warning(f"Socket error when connecting: {e}")
+                last_exception = e
                 backoff = False
             except MMQTTException as e:
-                last_exception = e
+                self._close_socket()
                 self.logger.info(f"MMQT error: {e}")
+                if e.code in [
+                    CONNACK_ERROR_INCORECT_USERNAME_PASSWORD,
+                    CONNACK_ERROR_UNAUTHORIZED,
+                ]:
+                    # No sense trying these again, re-raise
+                    raise
+                last_exception = e
                 backoff = True
 
         if self._reconnect_attempts_max > 1:
             exc_msg = "Repeated connect failures"
         else:
             exc_msg = "Connect failure"
+
         if last_exception:
             raise MMQTTException(exc_msg) from last_exception
-
         raise MMQTTException(exc_msg)
 
     # pylint: disable=too-many-branches, too-many-statements, too-many-locals
@@ -508,7 +528,7 @@ class MQTT:
                 rc = self._sock_exact_recv(3)
                 assert rc[0] == 0x02
                 if rc[2] != 0x00:
-                    raise MMQTTException(CONNACK_ERRORS[rc[2]])
+                    raise MMQTTException(CONNACK_ERRORS[rc[2]], code=rc[2])
                 self._is_connected = True
                 result = rc[0] & 1
                 if self.on_connect is not None:
@@ -521,6 +541,12 @@ class MQTT:
                     raise MMQTTException(
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
+
+    def _close_socket(self):
+        if self._sock:
+            self.logger.debug("Closing socket")
+            self._connection_manager.close_socket(self._sock)
+            self._sock = None
 
     # pylint: disable=no-self-use
     def _encode_remaining_length(
@@ -550,8 +576,7 @@ class MQTT:
             self._sock.send(MQTT_DISCONNECT)
         except RuntimeError as e:
             self.logger.warning(f"Unable to send DISCONNECT packet: {e}")
-        self.logger.debug("Closing socket")
-        self._connection_manager.close_socket(self._sock)
+        self._close_socket()
         self._is_connected = False
         self._subscribed_topics = []
         self._last_msg_sent_timestamp = 0
@@ -568,6 +593,7 @@ class MQTT:
         self._sock.send(MQTT_PINGREQ)
         ping_timeout = self.keep_alive
         stamp = ticks_ms()
+
         self._last_msg_sent_timestamp = stamp
         rc, rcs = None, []
         while rc != MQTT_PINGRESP:
@@ -946,7 +972,7 @@ class MQTT:
                 res = self._sock_exact_recv(1)
             except self._socket_pool.timeout:
                 return None
-        else:  # socketpool, esp32spi
+        else:  # socketpool, esp32spi, wiznet5k
             try:
                 res = self._sock_exact_recv(1, timeout=timeout)
             except OSError as error:
@@ -1035,14 +1061,14 @@ class MQTT:
         """
         stamp = ticks_ms()
         if not self._backwards_compatible_sock:
-            # CPython/Socketpool Impl.
+            # CPython, socketpool, esp32spi, wiznet5k
             rc = bytearray(bufsize)
             mv = memoryview(rc)
             recv_len = self._sock.recv_into(rc, bufsize)
             to_read = bufsize - recv_len
             if to_read < 0:
                 raise MMQTTException(f"negative number of bytes to read: {to_read}")
-            read_timeout = timeout if timeout is not None else self.keep_alive
+            read_timeout = timeout if timeout is not None else self._recv_timeout
             mv = mv[recv_len:]
             while to_read > 0:
                 recv_len = self._sock.recv_into(mv, to_read)
@@ -1052,8 +1078,8 @@ class MQTT:
                     raise MMQTTException(
                         f"Unable to receive {to_read} bytes within {read_timeout} seconds."
                     )
-        else:  # ESP32SPI Impl.
-            # This will timeout with socket timeout (not keepalive timeout)
+        else:  # Legacy: fona, esp_atcontrol
+            # This will time out with socket timeout (not receive timeout).
             rc = self._sock.recv(bufsize)
             if not rc:
                 self.logger.debug("_sock_exact_recv timeout")
@@ -1063,7 +1089,7 @@ class MQTT:
             # or raise exception if wait longer than read_timeout
             to_read = bufsize - len(rc)
             assert to_read >= 0
-            read_timeout = self.keep_alive
+            read_timeout = self._recv_timeout
             while to_read > 0:
                 recv = self._sock.recv(to_read)
                 to_read -= len(recv)
