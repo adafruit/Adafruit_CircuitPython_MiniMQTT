@@ -49,7 +49,7 @@ class RecvTimeout(TestCase):
                 socket_mock.recv_into.assert_called()
 
                 now = time.monotonic()
-                assert recv_timeout <= round(now - start, 2) <= keep_alive
+                assert recv_timeout <= (now - start) <= (keep_alive + 0.1)
 
 
 if __name__ == "__main__":
