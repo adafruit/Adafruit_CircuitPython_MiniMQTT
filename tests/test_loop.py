@@ -142,7 +142,7 @@ class TestLoop:
             time_before = time.monotonic()
             timeout = random.randint(3, 8)
             # pylint: disable=protected-access
-            mqtt_client._last_msg_sent_timestamp = mqtt_client.get_monotonic_time()
+            mqtt_client._last_msg_sent_timestamp = MQTT.ticks_ms()
             rcs = mqtt_client.loop(timeout=timeout)
             time_after = time.monotonic()
 
@@ -220,10 +220,10 @@ class TestLoop:
         mqtt_client._sock = mocket
 
         start = time.monotonic()
-        res = mqtt_client.loop(timeout=2 * keep_alive_timeout)
+        res = mqtt_client.loop(timeout=2 * keep_alive_timeout + recv_timeout)
         assert time.monotonic() - start >= 2 * keep_alive_timeout
         assert len(mocket.sent) > 0
-        assert len(res) == 2
+        assert len(res) == 3
         assert set(res) == {int(0xD0)}
 
     # pylint: disable=no-self-use
