@@ -88,11 +88,9 @@ class MQTTMatcher:
             else:
                 part = lst[i]
                 if part in node.children:
-                    for content in rec(node.children[part], i + 1):
-                        yield content
+                    yield from rec(node.children[part], i + 1)
                 if "+" in node.children and (normal or i > 0):
-                    for content in rec(node.children["+"], i + 1):
-                        yield content
+                    yield from rec(node.children["+"], i + 1)
             if "#" in node.children and (normal or i > 0):
                 content = node.children["#"].content
                 if content is not None:
