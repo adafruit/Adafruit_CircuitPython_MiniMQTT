@@ -267,6 +267,7 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self._msg_size_lim = msg_size
 
+    # pylint: disable=too-many-branches, too-many-statements
     def will_set(
         self,
         topic: str,
@@ -336,7 +337,6 @@ class MQTT:
         self._lw_msg = msg
         self._lw_retain = retain
         self.logger.debug("Last will properties successfully set")
-
 
     def add_topic_callback(self, mqtt_topic: str, callback_method) -> None:
         """Registers a callback_method for a specific MQTT topic.
