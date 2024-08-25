@@ -4,21 +4,21 @@
 
 repos:
   - repo: https://github.com/python/black
-    rev: 24.4.2
+    rev: 24.2.0
     hooks:
       - id: black
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v4.0.3
+    rev: v1.1.2
     hooks:
       - id: reuse
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v4.4.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: https://github.com/pycqa/pylint
-    rev: v3.2.6
+    rev: v2.17.4
     hooks:
       - id: pylint
         name: pylint (library code)
