@@ -2,10 +2,10 @@
 #
 # SPDX-License-Identifier: Unlicense
 
-""" PyTest Setup """
+"""PyTest Setup"""
 
-import pytest
 import adafruit_connection_manager
+import pytest
 
 
 @pytest.fixture(autouse=True)

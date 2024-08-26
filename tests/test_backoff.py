@@ -4,13 +4,13 @@
 
 """exponential back-off tests"""
 
-
 import socket
 import ssl
 import time
 from unittest.mock import call, patch
 
 import pytest
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
@@ -20,7 +20,6 @@ class TestExpBackOff:
     connect_times = []
     raise_exception = None
 
-    # pylint: disable=unused-argument
     def fake_connect(self, arg):
         """connect() replacement that records the call times and always raises OSError"""
         self.connect_times.append(time.monotonic())
@@ -33,9 +32,7 @@ class TestExpBackOff:
         port = 1883
         self.connect_times = []
         error_code = MQTT.CONNACK_ERROR_SERVER_UNAVAILABLE
-        self.raise_exception = MQTT.MMQTTException(
-            MQTT.CONNACK_ERRORS[error_code], code=error_code
-        )
+        self.raise_exception = MQTT.MMQTTException(MQTT.CONNACK_ERRORS[error_code], code=error_code)
 
         with patch.object(socket.socket, "connect") as mock_method:
             mock_method.side_effect = self.fake_connect
@@ -69,9 +66,7 @@ class TestExpBackOff:
         port = 1883
         self.connect_times = []
         error_code = MQTT.CONNACK_ERROR_UNAUTHORIZED
-        self.raise_exception = MQTT.MMQTTException(
-            MQTT.CONNACK_ERRORS[error_code], code=error_code
-        )
+        self.raise_exception = MQTT.MMQTTException(MQTT.CONNACK_ERRORS[error_code], code=error_code)
 
         with patch.object(socket.socket, "connect") as mock_method:
             mock_method.side_effect = self.fake_connect

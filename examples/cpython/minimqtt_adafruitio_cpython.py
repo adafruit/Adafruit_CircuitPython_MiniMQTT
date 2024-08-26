@@ -28,7 +28,6 @@ onoff_feed = aio_username + "/feeds/onoff"
 
 
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
@@ -45,7 +44,7 @@ def disconnected(client, userdata, rc):
 def message(client, topic, message):
     # This method is called when a topic the client is subscribed to
     # has a new message.
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Set up a MiniMQTT Client

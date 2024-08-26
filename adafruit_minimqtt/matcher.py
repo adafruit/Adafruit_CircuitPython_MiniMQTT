@@ -26,7 +26,6 @@ class MQTTMatcher:
     some topic name.
     """
 
-    # pylint: disable=too-few-public-methods
     class Node:
         """Individual node on the MQTT prefix tree."""
 

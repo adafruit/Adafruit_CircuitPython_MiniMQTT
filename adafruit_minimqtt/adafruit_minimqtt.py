@@ -6,8 +6,6 @@
 # Modified Work Copyright (c) 2019 Bradley Beach, esp32spi_mqtt
 # Modified Work Copyright (c) 2012-2019 Roger Light and others, Paho MQTT Python
 
-# pylint: disable=too-many-lines
-
 """
 `adafruit_minimqtt`
 ================================================================================
@@ -30,13 +28,14 @@ Adapted from https://github.com/micropython/micropython-lib/tree/master/umqtt.si
   https://github.com/adafruit/Adafruit_CircuitPython_ConnectionManager
 
 """
+
 import errno
 import struct
 import time
 from random import randint
 
 from adafruit_connection_manager import get_connection_manager
-from adafruit_ticks import ticks_ms, ticks_diff
+from adafruit_ticks import ticks_diff, ticks_ms
 
 try:
     from typing import List, Optional, Tuple, Type, Union
@@ -87,8 +86,8 @@ CONNACK_ERRORS = {
     CONNACK_ERROR_UNAUTHORIZED: "Connection Refused - Unauthorized",
 }
 
-_default_sock = None  # pylint: disable=invalid-name
-_fake_context = None  # pylint: disable=invalid-name
+_default_sock = None
+_fake_context = None
 
 
 class MMQTTException(Exception):
@@ -102,7 +101,6 @@ class MMQTTException(Exception):
 class NullLogger:
     """Fake logger class that does not do anything"""
 
-    # pylint: disable=unused-argument
     def nothing(self, msg: str, *args) -> None:
         """no action"""
 
@@ -137,8 +135,7 @@ class MQTT:
 
     """
 
-    # pylint: disable=too-many-arguments,too-many-instance-attributes,too-many-statements,not-callable,invalid-name,no-member,too-many-locals
-    def __init__(
+    def __init__(  # noqa: PLR0915, PLR0913, Too many statements, Too many arguments
         self,
         *,
         broker: str,
@@ -164,9 +161,7 @@ class MQTT:
         self._use_binary_mode = use_binary_mode
 
         if recv_timeout <= socket_timeout:
-            raise MMQTTException(
-                "recv_timeout must be strictly greater than socket_timeout"
-            )
+            raise MMQTTException("recv_timeout must be strictly greater than socket_timeout")
         self._socket_timeout = socket_timeout
         self._recv_timeout = recv_timeout
 
@@ -267,7 +262,6 @@ class MQTT:
         if msg_size < MQTT_MSG_MAX_SZ:
             self._msg_size_lim = msg_size
 
-    # pylint: disable=too-many-branches, too-many-statements
     def will_set(
         self,
         topic: str,
@@ -311,9 +305,7 @@ class MQTT:
             raise MMQTTException(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
 
         self._valid_qos(qos)
-        assert (
-            0 <= qos <= 1
-        ), "Quality of Service Level 2 is unsupported by this library."
+        assert 0 <= qos <= 1, "Quality of Service Level 2 is unsupported by this library."
 
         # fixed header. [3.3.1.2], [3.3.1.3]
         pub_hdr_fixed = bytearray([MQTT_PUBLISH | retain | qos << 1])
@@ -363,9 +355,7 @@ class MQTT:
         try:
             del self._on_message_filtered[mqtt_topic]
         except KeyError:
-            raise KeyError(
-                "MQTT topic callback not added with add_topic_callback."
-            ) from None
+            raise KeyError("MQTT topic callback not added with add_topic_callback.") from None
 
     @property
     def on_message(self):
@@ -470,8 +460,7 @@ class MQTT:
             raise MMQTTException(exc_msg) from last_exception
         raise MMQTTException(exc_msg)
 
-    # pylint: disable=too-many-branches, too-many-statements, too-many-locals
-    def _connect(
+    def _connect(  # noqa: PLR0912, PLR0915, Too many branches, Too many statements
         self,
         clean_session: bool = True,
         host: Optional[str] = None,
@@ -523,10 +512,7 @@ class MQTT:
         remaining_length = 12 + len(self.client_id.encode("utf-8"))
         if self._username is not None:
             remaining_length += (
-                2
-                + len(self._username.encode("utf-8"))
-                + 2
-                + len(self._password.encode("utf-8"))
+                2 + len(self._username.encode("utf-8")) + 2 + len(self._password.encode("utf-8"))
             )
             var_header[7] |= 0xC0
         if self.keep_alive:
@@ -534,9 +520,7 @@ class MQTT:
             var_header[8] |= self.keep_alive >> 8
             var_header[9] |= self.keep_alive & 0x00FF
         if self._lw_topic:
-            remaining_length += (
-                2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg)
-            )
+            remaining_length += 2 + len(self._lw_topic.encode("utf-8")) + 2 + len(self._lw_msg)
             var_header[7] |= 0x4 | (self._lw_qos & 0x1) << 3 | (self._lw_qos & 0x2) << 3
             var_header[7] |= self._lw_retain << 5
 
@@ -584,10 +568,7 @@ class MQTT:
             self._connection_manager.close_socket(self._sock)
             self._sock = None
 
-    # pylint: disable=no-self-use
-    def _encode_remaining_length(
-        self, fixed_header: bytearray, remaining_length: int
-    ) -> None:
+    def _encode_remaining_length(self, fixed_header: bytearray, remaining_length: int) -> None:
         """Encode Remaining Length [2.2.3]"""
         if remaining_length > 268_435_455:
             raise MMQTTException("invalid remaining length")
@@ -642,8 +623,7 @@ class MQTT:
                 )
         return rcs
 
-    # pylint: disable=too-many-branches, too-many-statements
-    def publish(
+    def publish(  # noqa:  PLR0912, Too many branches
         self,
         topic: str,
         msg: Union[str, int, float, bytes],
@@ -675,9 +655,7 @@ class MQTT:
             raise MMQTTException("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
             raise MMQTTException(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
-        assert (
-            0 <= qos <= 1
-        ), "Quality of Service Level 2 is unsupported by this library."
+        assert 0 <= qos <= 1, "Quality of Service Level 2 is unsupported by this library."
 
         # fixed header. [3.3.1.2], [3.3.1.3]
         pub_hdr_fixed = bytearray([MQTT_PUBLISH | retain | qos << 1])
@@ -730,7 +708,9 @@ class MQTT:
                             f"No data received from broker for {self._recv_timeout} seconds."
                         )
 
-    def subscribe(self, topic: Optional[Union[tuple, str, list]], qos: int = 0) -> None:
+    def subscribe(  # noqa: PLR0912, PLR0915, Too many branches, Too many statements
+        self, topic: Optional[Union[tuple, str, list]], qos: int = 0
+    ) -> None:
         """Subscribes to a topic on the MQTT Broker.
         This method can subscribe to one topic or multiple topics.
 
@@ -775,7 +755,7 @@ class MQTT:
         self.logger.debug(f"Variable Header: {var_header}")
         self._sock.send(var_header)
         # attaching topic and QOS level to the packet
-        payload = bytes()
+        payload = b""
         for t, q in topics:
             topic_size = len(t.encode("utf-8")).to_bytes(2, "big")
             qos_byte = q.to_bytes(1, "big")
@@ -821,7 +801,9 @@ class MQTT:
                         f"invalid message received as response to SUBSCRIBE: {hex(op)}"
                     )
 
-    def unsubscribe(self, topic: Optional[Union[str, list]]) -> None:
+    def unsubscribe(  # noqa: PLR0912, Too many branches
+        self, topic: Optional[Union[str, list]]
+    ) -> None:
         """Unsubscribes from a MQTT topic.
 
         :param str|list topic: Unique MQTT topic identifier string or list.
@@ -835,12 +817,10 @@ class MQTT:
             topics = []
             for t in topic:
                 self._valid_topic(t)
-                topics.append((t))
+                topics.append(t)
         for t in topics:
             if t not in self._subscribed_topics:
-                raise MMQTTException(
-                    "Topic must be subscribed to before attempting unsubscribe."
-                )
+                raise MMQTTException("Topic must be subscribed to before attempting unsubscribe.")
         # Assemble packet
         self.logger.debug("Sending UNSUBSCRIBE to broker...")
         fixed_header = bytearray([MQTT_UNSUB])
@@ -854,7 +834,7 @@ class MQTT:
         var_header = packet_id_bytes
         self.logger.debug(f"Variable Header: {var_header}")
         self._sock.send(var_header)
-        payload = bytes()
+        payload = b""
         for t in topics:
             topic_size = len(t.encode("utf-8")).to_bytes(2, "big")
             payload += topic_size + t.encode()
@@ -895,10 +875,7 @@ class MQTT:
         """
         self._reconnect_attempt = self._reconnect_attempt + 1
         self._reconnect_timeout = 2**self._reconnect_attempt
-        # pylint: disable=consider-using-f-string
-        self.logger.debug(
-            "Reconnect timeout computed to {:.2f}".format(self._reconnect_timeout)
-        )
+        self.logger.debug(f"Reconnect timeout computed to {self._reconnect_timeout:.2f}")
 
         if self._reconnect_timeout > self._reconnect_maximum_backoff:
             self.logger.debug(
@@ -909,12 +886,7 @@ class MQTT:
         # Add a sub-second jitter.
         # Even truncated timeout should have jitter added to it. This is why it is added here.
         jitter = randint(0, 1000) / 1000
-        # pylint: disable=consider-using-f-string
-        self.logger.debug(
-            "adding jitter {:.2f} to {:.2f} seconds".format(
-                jitter, self._reconnect_timeout
-            )
-        )
+        self.logger.debug(f"adding jitter {jitter:.2f} to {self._reconnect_timeout:.2f} seconds")
         self._reconnect_timeout += jitter
 
     def _reset_reconnect_backoff(self) -> None:
@@ -939,9 +911,7 @@ class MQTT:
         ret = self.connect()
         self.logger.debug("Reconnected with broker")
         if resub_topics:
-            self.logger.debug(
-                "Attempting to resubscribe to previously subscribed topics."
-            )
+            self.logger.debug("Attempting to resubscribe to previously subscribed topics.")
             subscribed_topics = self._subscribed_topics.copy()
             self._subscribed_topics = []
             while subscribed_topics:
@@ -959,9 +929,8 @@ class MQTT:
         """
         if timeout < self._socket_timeout:
             raise MMQTTException(
-                # pylint: disable=consider-using-f-string
-                "loop timeout ({}) must be bigger ".format(timeout)
-                + "than socket timeout ({}))".format(self._socket_timeout)
+                f"loop timeout ({timeout}) must be bigger "
+                + f"than socket timeout ({self._socket_timeout}))"
             )
 
         self._connected()
@@ -971,10 +940,7 @@ class MQTT:
         rcs = []
 
         while True:
-            if (
-                ticks_diff(ticks_ms(), self._last_msg_sent_timestamp) / 1000
-                >= self.keep_alive
-            ):
+            if ticks_diff(ticks_ms(), self._last_msg_sent_timestamp) / 1000 >= self.keep_alive:
                 # Handle KeepAlive by expecting a PINGREQ/PINGRESP from the server
                 self.logger.debug(
                     "KeepAlive period elapsed - requesting a PINGRESP from the server..."
@@ -995,8 +961,9 @@ class MQTT:
 
         return rcs if rcs else None
 
-    def _wait_for_msg(self, timeout: Optional[float] = None) -> Optional[int]:
-        # pylint: disable = too-many-return-statements
+    def _wait_for_msg(  # noqa: PLR0912, Too many branches
+        self, timeout: Optional[float] = None
+    ) -> Optional[int]:
         """Reads and processes network events.
         Return the packet type or None if there is nothing to be received.
 
@@ -1079,9 +1046,7 @@ class MQTT:
                 return n
             sh += 7
 
-    def _sock_exact_recv(
-        self, bufsize: int, timeout: Optional[float] = None
-    ) -> bytearray:
+    def _sock_exact_recv(self, bufsize: int, timeout: Optional[float] = None) -> bytearray:
         """Reads _exact_ number of bytes from the connected socket. Will only return
         bytearray with the exact number of bytes requested.
 
@@ -1203,7 +1168,6 @@ class MQTT:
         :return logger object
 
         """
-        # pylint: disable=attribute-defined-outside-init
         self.logger = log_pkg.getLogger(logger_name)
         self.logger.setLevel(log_level)
 

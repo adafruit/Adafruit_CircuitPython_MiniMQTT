@@ -1,13 +1,12 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+import adafruit_connection_manager
 import board
 import busio
-from digitalio import DigitalInOut
 import neopixel
-import adafruit_connection_manager
-from adafruit_esp32spi import adafruit_esp32spi
-from adafruit_esp32spi import adafruit_esp32spi_wifimanager
+from adafruit_esp32spi import adafruit_esp32spi, adafruit_esp32spi_wifimanager
+from digitalio import DigitalInOut
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
@@ -33,9 +32,7 @@ esp32_reset = DigitalInOut(board.ESP_RESET)
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 """Use below for Most Boards"""
-status_light = neopixel.NeoPixel(
-    board.NEOPIXEL, 1, brightness=0.2
-)  # Uncomment for Most Boards
+status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2)  # Uncomment for Most Boards
 """Uncomment below for ItsyBitsy M4"""
 # status_light = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
 # Uncomment below for an externally defined RGB LED
@@ -61,12 +58,11 @@ mqtt_topic = "test/topic"
 
 
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument, redefined-outer-name
 def connect(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
     print("Connected to MQTT Broker!")
-    print("Flags: {0}\n RC: {1}".format(flags, rc))
+    print(f"Flags: {flags}\n RC: {rc}")
 
 
 def disconnect(client, userdata, rc):
@@ -77,26 +73,24 @@ def disconnect(client, userdata, rc):
 
 def subscribe(client, userdata, topic, granted_qos):
     # This method is called when the client subscribes to a new feed.
-    print("Subscribed to {0} with QOS level {1}".format(topic, granted_qos))
+    print(f"Subscribed to {topic} with QOS level {granted_qos}")
 
 
 def unsubscribe(client, userdata, topic, pid):
     # This method is called when the client unsubscribes from a feed.
-    print("Unsubscribed from {0} with PID {1}".format(topic, pid))
+    print(f"Unsubscribed from {topic} with PID {pid}")
 
 
 def publish(client, userdata, topic, pid):
     # This method is called when the client publishes data to a feed.
-    print("Published to {0} with PID {1}".format(topic, pid))
+    print(f"Published to {topic} with PID {pid}")
 
 
 # Get certificate and private key from a certificates.py file
 try:
     from certificates import DEVICE_CERT, DEVICE_KEY
 except ImportError:
-    print(
-        "Certificate and private key data is kept in certificates.py, please add them there!"
-    )
+    print("Certificate and private key data is kept in certificates.py, please add them there!")
     raise
 
 # Set Device Certificate

@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: MIT
 
 import os
+
+import adafruit_connection_manager
 import board
 import busio
-from digitalio import DigitalInOut
-import adafruit_connection_manager
 from adafruit_esp32spi import adafruit_esp32spi
+from digitalio import DigitalInOut
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
@@ -32,9 +34,7 @@ esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 print("Connecting to AP...")
 while not esp.is_connected:
     try:
-        esp.connect_AP(
-            os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
-        )
+        esp.connect_AP(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
     except RuntimeError as e:
         print("could not connect to AP, retrying: ", e)
         continue
@@ -55,12 +55,11 @@ mqtt_topic = aio_username + "/feeds/temperature"
 
 
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument, redefined-outer-name
 def connect(mqtt_client, userdata, flags, rc):
     # This function will be called when the mqtt_client is connected
     # successfully to the broker.
     print("Connected to MQTT Broker!")
-    print("Flags: {0}\n RC: {1}".format(flags, rc))
+    print(f"Flags: {flags}\n RC: {rc}")
 
 
 def disconnect(mqtt_client, userdata, rc):
@@ -71,21 +70,21 @@ def disconnect(mqtt_client, userdata, rc):
 
 def subscribe(mqtt_client, userdata, topic, granted_qos):
     # This method is called when the mqtt_client subscribes to a new feed.
-    print("Subscribed to {0} with QOS level {1}".format(topic, granted_qos))
+    print(f"Subscribed to {topic} with QOS level {granted_qos}")
 
 
 def unsubscribe(mqtt_client, userdata, topic, pid):
     # This method is called when the mqtt_client unsubscribes from a feed.
-    print("Unsubscribed from {0} with PID {1}".format(topic, pid))
+    print(f"Unsubscribed from {topic} with PID {pid}")
 
 
 def publish(mqtt_client, userdata, topic, pid):
     # This method is called when the mqtt_client publishes data to a feed.
-    print("Published to {0} with PID {1}".format(topic, pid))
+    print(f"Published to {topic} with PID {pid}")
 
 
 def message(client, topic, message):
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 pool = adafruit_connection_manager.get_radio_socketpool(esp)

@@ -13,7 +13,6 @@ from mocket import Mocket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
-# pylint: disable=unused-argument
 def handle_subscribe(client, user_data, topic, qos):
     """
     Record topics into user data.
@@ -210,12 +209,10 @@ def test_subscribe(topic, to_send, exp_recv) -> None:
     # patch is_connected() to avoid CONNECT/CONNACK handling.
     mqtt_client.is_connected = lambda: True
     mocket = Mocket(to_send)
-    # pylint: disable=protected-access
     mqtt_client._sock = mocket
 
     mqtt_client.logger = logger
 
-    # pylint: disable=logging-fstring-interpolation
     logger.info(f"subscribing to {topic}")
     mqtt_client.subscribe(topic)
 

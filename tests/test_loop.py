@@ -4,16 +4,16 @@
 
 """loop() tests"""
 
+import errno
 import random
 import socket
 import ssl
 import time
-import errno
-
-from unittest.mock import patch
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
@@ -39,7 +39,6 @@ class Nulltet:
         return len(bytes_to_send)
 
     # MiniMQTT checks for the presence of "recv_into" and switches behavior based on that.
-    # pylint: disable=unused-argument,no-self-use
     def recv_into(self, retbuf, bufsize):
         """Always raise timeout exception."""
         exc = OSError()
@@ -131,9 +130,7 @@ class TestLoop:
             ssl_context=ssl.create_default_context(),
         )
 
-        with patch.object(
-            mqtt_client, "_wait_for_msg"
-        ) as wait_for_msg_mock, patch.object(
+        with patch.object(mqtt_client, "_wait_for_msg") as wait_for_msg_mock, patch.object(
             mqtt_client, "is_connected"
         ) as is_connected_mock:
             wait_for_msg_mock.side_effect = self.fake_wait_for_msg
@@ -141,7 +138,6 @@ class TestLoop:
 
             time_before = time.monotonic()
             timeout = random.randint(3, 8)
-            # pylint: disable=protected-access
             mqtt_client._last_msg_sent_timestamp = MQTT.ticks_ms()
             rcs = mqtt_client.loop(timeout=timeout)
             time_after = time.monotonic()
@@ -153,13 +149,10 @@ class TestLoop:
             assert rcs is not None
             assert len(rcs) >= 1
             expected_rc = self.INITIAL_RCS_VAL
-            # pylint: disable=not-an-iterable
             for ret_code in rcs:
                 assert ret_code == expected_rc
                 expected_rc += 1
 
-    # pylint: disable=no-self-use
-    # pylint: disable=invalid-name
     def test_loop_timeout_vs_socket_timeout(self):
         """
         loop() should throw MMQTTException if the timeout argument
@@ -179,7 +172,6 @@ class TestLoop:
 
         assert "loop timeout" in str(context)
 
-    # pylint: disable=no-self-use
     def test_loop_is_connected(self):
         """
         loop() should throw MMQTTException if not connected
@@ -196,7 +188,6 @@ class TestLoop:
 
         assert "not connected" in str(context)
 
-    # pylint: disable=no-self-use
     def test_loop_ping_timeout(self):
         """Verify that ping will be sent even with loop timeout bigger than keep alive timeout
         and no outgoing messages are sent."""
@@ -216,7 +207,6 @@ class TestLoop:
         # patch is_connected() to avoid CONNECT/CONNACK handling.
         mqtt_client.is_connected = lambda: True
         mocket = Pingtet()
-        # pylint: disable=protected-access
         mqtt_client._sock = mocket
 
         start = time.monotonic()
@@ -224,9 +214,8 @@ class TestLoop:
         assert time.monotonic() - start >= 2 * keep_alive_timeout
         assert len(mocket.sent) > 0
         assert len(res) == 3
-        assert set(res) == {int(0xD0)}
+        assert set(res) == {0xD0}
 
-    # pylint: disable=no-self-use
     def test_loop_ping_vs_msgs_sent(self):
         """Verify that ping will not be sent unnecessarily."""
 
@@ -247,7 +236,6 @@ class TestLoop:
 
         # With QoS=0 no PUBACK message is sent, so Nulltet can be used.
         mocket = Nulltet()
-        # pylint: disable=protected-access
         mqtt_client._sock = mocket
 
         i = 0

@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: MIT
 
 import os
-import time
 import ssl
+import time
+
 import socketpool
 import wifi
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
@@ -19,16 +21,13 @@ aio_username = os.getenv("aio_username")
 aio_key = os.getenv("aio_key")
 
 print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
-wifi.radio.connect(
-    os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
-)
+wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
 print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
 
 ### Code ###
 
 
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
@@ -42,24 +41,24 @@ def disconnected(client, userdata, rc):
 
 def subscribe(client, userdata, topic, granted_qos):
     # This method is called when the client subscribes to a new feed.
-    print("Subscribed to {0} with QOS level {1}".format(topic, granted_qos))
+    print(f"Subscribed to {topic} with QOS level {granted_qos}")
 
 
 def unsubscribe(client, userdata, topic, pid):
     # This method is called when the client unsubscribes from a feed.
-    print("Unsubscribed from {0} with PID {1}".format(topic, pid))
+    print(f"Unsubscribed from {topic} with PID {pid}")
 
 
 def on_battery_msg(client, topic, message):
     # Method called when device/batteryLife has a new value
-    print("Battery level: {}v".format(message))
+    print(f"Battery level: {message}v")
 
     # client.remove_topic_callback(aio_username + "/feeds/device.batterylevel")
 
 
 def on_message(client, topic, message):
     # Method callled when a client's subscribed feed has a new value.
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Create a socket pool

@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2023 Vladimír Kotal
 # SPDX-License-Identifier: Unlicense
 
-# pylint: disable=logging-fstring-interpolation
 
 """
 Demonstrate on how to use user_data for various callbacks.
@@ -15,7 +14,6 @@ import sys
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
-# pylint: disable=unused-argument
 def on_connect(mqtt_client, user_data, flags, ret_code):
     """
     connect callback
@@ -25,7 +23,6 @@ def on_connect(mqtt_client, user_data, flags, ret_code):
     logger.debug(f"Flags: {flags}\n RC: {ret_code}")
 
 
-# pylint: disable=unused-argument
 def on_subscribe(mqtt_client, user_data, topic, granted_qos):
     """
     subscribe callback
@@ -47,7 +44,6 @@ def on_message(client, topic, message):
     messages[topic].append(message)
 
 
-# pylint: disable=too-many-statements,too-many-locals
 def main():
     """
     Main loop.
