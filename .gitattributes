@@ -2,4 +2,10 @@
 #
 # SPDX-License-Identifier: Unlicense
 
-* text eol=lf
+.py text eol=lf
+.rst text eol=lf
+.txt text eol=lf
+.yaml text eol=lf
+.toml text eol=lf
+.license text eol=lf
+.md text eol=lf
