@@ -3,13 +3,14 @@
 
 import os
 import time
+
+import adafruit_connection_manager
+import adafruit_fona.adafruit_fona_network as network
+import adafruit_fona.adafruit_fona_socket as pool
 import board
 import busio
 import digitalio
-import adafruit_connection_manager
 from adafruit_fona.adafruit_fona import FONA
-import adafruit_fona.adafruit_fona_network as network
-import adafruit_fona.adafruit_fona_socket as pool
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
@@ -40,7 +41,6 @@ onoff_feed = aio_username + "/feeds/onoff"
 
 
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
@@ -57,7 +57,7 @@ def disconnected(client, userdata, rc):
 def message(client, topic, message):
     # This method is called when a topic the client is subscribed to
     # has a new message.
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Initialize cellular data network

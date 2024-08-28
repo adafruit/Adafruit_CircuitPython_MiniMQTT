@@ -36,7 +36,6 @@ class RecvTimeout(TestCase):
                 # Create a mock socket that will accept anything and return nothing.
                 socket_mock = Mock()
                 socket_mock.recv_into = Mock(side_effect=side_effect)
-                # pylint: disable=protected-access
                 mqtt_client._sock = socket_mock
 
                 mqtt_client._connected = lambda: True

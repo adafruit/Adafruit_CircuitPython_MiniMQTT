@@ -9,6 +9,7 @@ import ssl
 from unittest.mock import Mock, call, patch
 
 import pytest
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
@@ -17,7 +18,6 @@ class TestPortSslSetup:
     These tests assume that there is no MQTT broker running on the hosts/ports they connect to.
     """
 
-    # pylint: disable=no-self-use
     def test_default_port(self) -> None:
         """verify default port value and that TLS is not used"""
         host = "127.0.0.1"
@@ -45,7 +45,6 @@ class TestPortSslSetup:
             # Assuming the repeated calls will have the same arguments.
             connect_mock.assert_has_calls([call((host, expected_port))])
 
-    # pylint: disable=no-self-use
     def test_connect_override(self):
         """Test that connect() can override host and port."""
         host = "127.0.0.1"
@@ -71,7 +70,6 @@ class TestPortSslSetup:
             # Assuming the repeated calls will have the same arguments.
             connect_mock.assert_has_calls([call((expected_host, expected_port))])
 
-    # pylint: disable=no-self-use
     @pytest.mark.parametrize("port", (None, 8883))
     def test_tls_port(self, port) -> None:
         """verify that when is_ssl=True is set, the default port is 8883
@@ -107,7 +105,6 @@ class TestPortSslSetup:
         # Assuming the repeated calls will have the same arguments.
         connect_mock.assert_has_calls([call((host, expected_port))])
 
-    # pylint: disable=no-self-use
     def test_tls_without_ssl_context(self) -> None:
         """verify that when is_ssl=True is set, the code will check that ssl_context is not None"""
         host = "127.0.0.1"

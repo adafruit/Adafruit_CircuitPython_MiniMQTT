@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: MIT
 
 import os
-import time
 import ssl
+import time
+
 import socketpool
 import wifi
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
@@ -19,9 +21,7 @@ aio_username = os.getenv("aio_username")
 aio_key = os.getenv("aio_key")
 
 print("Connecting to %s" % os.getenv("CIRCUITPY_WIFI_SSID"))
-wifi.radio.connect(
-    os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD")
-)
+wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
 print("Connected to %s!" % os.getenv("CIRCUITPY_WIFI_SSID"))
 
 ### Adafruit IO Setup ###
@@ -32,7 +32,6 @@ default_topic = aio_username + "/feeds/testfeed"
 
 ### Code ###
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.

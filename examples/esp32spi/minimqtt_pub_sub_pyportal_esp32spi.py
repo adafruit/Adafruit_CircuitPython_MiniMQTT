@@ -3,6 +3,7 @@
 
 import os
 import time
+
 import adafruit_connection_manager
 import adafruit_pyportal
 
@@ -23,7 +24,6 @@ mqtt_topic = "test/topic"
 
 ### Code ###
 # Define callback methods which are called when events occur
-# pylint: disable=unused-argument, redefined-outer-name
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
@@ -42,7 +42,7 @@ def message(client, topic, message):
     :param str topic: The topic of the feed with a new value.
     :param str message: The new value
     """
-    print("New message on topic {0}: {1}".format(topic, message))
+    print(f"New message on topic {topic}: {message}")
 
 
 # Connect to WiFi
@@ -50,11 +50,8 @@ print("Connecting to WiFi...")
 pyportal.network.connect()
 print("Connected!")
 
-# pylint: disable=protected-access
 pool = adafruit_connection_manager.get_radio_socketpool(pyportal.network._wifi.esp)
-ssl_context = adafruit_connection_manager.get_radio_ssl_context(
-    pyportal.network._wifi.esp
-)
+ssl_context = adafruit_connection_manager.get_radio_ssl_context(pyportal.network._wifi.esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(

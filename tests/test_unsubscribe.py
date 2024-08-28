@@ -13,7 +13,6 @@ from mocket import Mocket
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
-# pylint: disable=unused-argument
 def handle_unsubscribe(client, user_data, topic, pid):
     """
     Record topics into user data.
@@ -85,10 +84,7 @@ testdata = [
                 0x01,
             ]
             + sum(
-                [
-                    [0x00, 0x0B] + list(f"foo/bar{x:04}".encode("ascii"))
-                    for x in range(1, 1000)
-                ],
+                [[0x00, 0x0B] + list(f"foo/bar{x:04}".encode("ascii")) for x in range(1, 1000)],
                 [],
             )
         ),
@@ -129,18 +125,15 @@ def test_unsubscribe(topic, to_send, exp_recv) -> None:
     # patch is_connected() to avoid CONNECT/CONNACK handling.
     mqtt_client.is_connected = lambda: True
     mocket = Mocket(to_send)
-    # pylint: disable=protected-access
     mqtt_client._sock = mocket
 
     mqtt_client.logger = logger
 
-    # pylint: disable=protected-access
     if isinstance(topic, str):
         mqtt_client._subscribed_topics = [topic]
     elif isinstance(topic, list):
         mqtt_client._subscribed_topics = topic
 
-    # pylint: disable=logging-fstring-interpolation
     logger.info(f"unsubscribing from {topic}")
     mqtt_client.unsubscribe(topic)
 
