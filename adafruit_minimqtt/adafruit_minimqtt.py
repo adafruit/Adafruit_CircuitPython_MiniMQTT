@@ -436,6 +436,7 @@ class MQTT:
             except (MemoryError, OSError, RuntimeError) as e:
                 if isinstance(e, RuntimeError) and e.args == ("pystack exhausted",):
                     raise
+                self._close_socket()
                 self.logger.warning(f"Socket error when connecting: {e}")
                 last_exception = e
                 backoff = False
@@ -591,7 +592,7 @@ class MQTT:
         self.logger.debug("Sending DISCONNECT packet to broker")
         try:
             self._sock.send(MQTT_DISCONNECT)
-        except RuntimeError as e:
+        except (MemoryError, OSError, RuntimeError) as e:
             self.logger.warning(f"Unable to send DISCONNECT packet: {e}")
         self._close_socket()
         self._is_connected = False
