@@ -66,7 +66,9 @@ MQTT_PINGREQ = b"\xc0\0"
 MQTT_PINGRESP = const(0xD0)
 MQTT_PUBLISH = const(0x30)
 MQTT_SUB = const(0x82)
+MQTT_SUBACK = const(0x90)
 MQTT_UNSUB = const(0xA2)
+MQTT_UNSUBACK = const(0xB0)
 MQTT_DISCONNECT = b"\xe0\0"
 
 MQTT_PKT_TYPE_MASK = const(0xF0)
@@ -774,7 +776,7 @@ class MQTT:
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
             else:
-                if op == 0x90:
+                if op == MQTT_SUBACK:
                     remaining_len = self._decode_remaining_length()
                     assert remaining_len > 0
                     rc = self._sock_exact_recv(2)
@@ -852,7 +854,7 @@ class MQTT:
                         f"No data received from broker for {self._recv_timeout} seconds."
                     )
             else:
-                if op == 176:
+                if op == MQTT_UNSUBACK:
                     rc = self._sock_exact_recv(3)
                     assert rc[0] == 0x02
                     # [MQTT-3.32]
@@ -862,10 +864,10 @@ class MQTT:
                             self.on_unsubscribe(self, self.user_data, t, self._pid)
                         self._subscribed_topics.remove(t)
                     return
-
-                raise MMQTTException(
-                    f"invalid message received as response to UNSUBSCRIBE: {hex(op)}"
-                )
+                if op != MQTT_PUBLISH:
+                    raise MMQTTException(
+                        f"invalid message received as response to UNSUBSCRIBE: {hex(op)}"
+                    )
 
     def _recompute_reconnect_backoff(self) -> None:
         """
