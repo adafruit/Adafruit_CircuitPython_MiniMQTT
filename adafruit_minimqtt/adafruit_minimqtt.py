@@ -393,7 +393,7 @@ class MQTT:
         if password is not None:
             self._password = password
 
-    def connect(
+    def connect(  # noqa: PLR0913, too many arguments in function definition
         self,
         clean_session: bool = True,
         host: Optional[str] = None,
@@ -464,7 +464,7 @@ class MQTT:
             raise MMQTTException(exc_msg) from last_exception
         raise MMQTTException(exc_msg)
 
-    def _connect(  # noqa: PLR0912, PLR0915, Too many branches, Too many statements
+    def _connect(  # noqa: PLR0912, PLR0913, PLR0915, Too many branches, Too many arguments, Too many statements
         self,
         clean_session: bool = True,
         host: Optional[str] = None,
