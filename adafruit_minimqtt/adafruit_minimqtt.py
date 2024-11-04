@@ -432,7 +432,7 @@ class MQTT:
                     host=host,
                     port=port,
                     keep_alive=keep_alive,
-                    session_id=session_id
+                    session_id=session_id,
                 )
                 self._reset_reconnect_backoff()
                 return ret
