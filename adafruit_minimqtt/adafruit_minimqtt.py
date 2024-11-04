@@ -399,6 +399,7 @@ class MQTT:
         host: Optional[str] = None,
         port: Optional[int] = None,
         keep_alive: Optional[int] = None,
+        session_id: Optional[str] = None,
     ) -> int:
         """Initiates connection with the MQTT Broker. Will perform exponential back-off
         on connect failures.
@@ -408,7 +409,8 @@ class MQTT:
         :param int port: Network port of the remote broker.
         :param int keep_alive: Maximum period allowed for communication
             within single connection attempt, in seconds.
-
+        :param str session_id: unique session ID,
+            used for multiple simultaneous connections to the same host
         """
 
         last_exception = None
@@ -430,6 +432,7 @@ class MQTT:
                     host=host,
                     port=port,
                     keep_alive=keep_alive,
+                    session_id=session_id
                 )
                 self._reset_reconnect_backoff()
                 return ret
@@ -482,6 +485,7 @@ class MQTT:
         host: Optional[str] = None,
         port: Optional[int] = None,
         keep_alive: Optional[int] = None,
+        session_id: Optional[str] = None,
     ) -> int:
         """Initiates connection with the MQTT Broker.
 
@@ -489,6 +493,8 @@ class MQTT:
         :param str host: Hostname or IP address of the remote broker.
         :param int port: Network port of the remote broker.
         :param int keep_alive: Maximum period allowed for communication, in seconds.
+        :param str session_id: unique session ID,
+            used for multiple simultaneous connections to the same host
 
         """
         if host:
@@ -511,6 +517,7 @@ class MQTT:
             self.broker,
             self.port,
             proto="mqtt:",
+            session_id=session_id,
             timeout=self._socket_timeout,
             is_ssl=self._is_ssl,
             ssl_context=self._ssl_context,
