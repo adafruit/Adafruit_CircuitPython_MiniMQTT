@@ -865,6 +865,8 @@ class MQTT:
                         self._subscribed_topics.remove(t)
                     return
                 if op != MQTT_PUBLISH:
+                    # [3.10.4] The Server may continue to deliver existing messages buffered for delivery
+                    # to the client prior to sending the UNSUBACK Packet.
                     raise MMQTTException(
                         f"invalid message received as response to UNSUBSCRIBE: {hex(op)}"
                     )
