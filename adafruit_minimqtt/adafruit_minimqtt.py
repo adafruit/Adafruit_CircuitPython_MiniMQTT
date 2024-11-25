@@ -921,7 +921,7 @@ class MQTT:
 
         return ret
 
-    def loop(self, timeout: float = 0) -> Optional[list[int]]:
+    def loop(self, timeout: float = 1.0) -> Optional[list[int]]:
         """Non-blocking message loop. Use this method to check for incoming messages.
         Returns list of packet types of any messages received or None.
 
@@ -930,8 +930,8 @@ class MQTT:
         """
         if timeout < self._socket_timeout:
             raise MMQTTException(
-                f"loop timeout ({timeout}) must be bigger "
-                + f"than socket timeout ({self._socket_timeout}))"
+                f"loop timeout ({timeout}) must be >= "
+                + f"socket timeout ({self._socket_timeout}))"
             )
 
         self._connected()
