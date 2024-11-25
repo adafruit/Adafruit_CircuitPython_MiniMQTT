@@ -930,7 +930,7 @@ class MQTT:
         """
         if timeout < self._socket_timeout:
             raise MMQTTException(
-                f"loop timeout ({timeout}) must be bigger "
+                f"loop timeout ({timeout}) must be >= "
                 + f"than socket timeout ({self._socket_timeout}))"
             )
 
