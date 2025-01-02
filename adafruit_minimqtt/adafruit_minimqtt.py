@@ -475,7 +475,7 @@ class MQTT:
             try:
                 bytes_sent += self._sock.send(view[bytes_sent:])
             except OSError as exc:
-                if exc.errno == EAGAIN:
+                if exc.errno == errno.EAGAIN:
                     continue
                 raise
 
