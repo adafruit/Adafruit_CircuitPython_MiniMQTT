@@ -26,10 +26,10 @@ print(f"Connected to {os.getenv('CIRCUITPY_WIFI_SSID')}!")
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = aio_username + "/feeds/photocell"
+photocell_feed = "photocell"
 
 # Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = aio_username + "/feeds/onoff"
+onoff_feed = "onoff"
 
 ### Code ###
 
