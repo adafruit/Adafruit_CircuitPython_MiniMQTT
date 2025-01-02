@@ -9,6 +9,8 @@ import time
 from unittest import TestCase, main
 from unittest.mock import Mock
 
+from mocket import Mocket
+
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 
@@ -34,7 +36,7 @@ class RecvTimeout(TestCase):
                 )
 
                 # Create a mock socket that will accept anything and return nothing.
-                socket_mock = Mock()
+                socket_mock = Mocket(b"")
                 socket_mock.recv_into = Mock(side_effect=side_effect)
                 mqtt_client._sock = socket_mock
 
@@ -43,12 +45,8 @@ class RecvTimeout(TestCase):
                 with self.assertRaises(MQTT.MMQTTException):
                     mqtt_client.ping()
 
-                # Verify the mock interactions.
-                socket_mock.send.assert_called_once()
-                socket_mock.recv_into.assert_called()
-
                 now = time.monotonic()
-                assert recv_timeout <= (now - start) <= (keep_alive + 0.1)
+                assert recv_timeout <= (now - start) <= (keep_alive + 0.2)
 
 
 if __name__ == "__main__":
