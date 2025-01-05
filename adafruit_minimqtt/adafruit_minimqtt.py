@@ -473,7 +473,11 @@ class MQTT:
         view = memoryview(buffer)
         while bytes_sent < bytes_to_send:
             try:
-                bytes_sent += self._sock.send(view[bytes_sent:])
+                sent_now = self._sock.send(view[bytes_sent:])
+                # Some versions of `Socket.send()` do not return the number of bytes sent.
+                if not isinstance(sent_now, int):
+                    return
+                bytes_sent += sent_now
             except OSError as exc:
                 if exc.errno == errno.EAGAIN:
                     continue
