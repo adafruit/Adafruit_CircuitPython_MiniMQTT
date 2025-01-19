@@ -1015,7 +1015,7 @@ class MQTT:
                     return None
                 raise MMQTTException from error
 
-        if res in [None, b"", b"\x00"]:
+        if res in [None, b""]:
             # If we get here, it means that there is nothing to be received
             return None
         pkt_type = res[0] & MQTT_PKT_TYPE_MASK
