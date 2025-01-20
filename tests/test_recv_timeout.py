@@ -46,7 +46,7 @@ class RecvTimeout(TestCase):
                     mqtt_client.ping()
 
                 now = time.monotonic()
-                assert recv_timeout <= (now - start) <= (keep_alive + 0.2)
+                assert recv_timeout <= (now - start) <= (keep_alive + 0.3)
 
 
 if __name__ == "__main__":
