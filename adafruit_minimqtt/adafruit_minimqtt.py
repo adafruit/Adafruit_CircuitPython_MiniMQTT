@@ -93,11 +93,24 @@ _fake_context = None
 
 
 class MMQTTException(Exception):
-    """MiniMQTT Exception class."""
+    """
+    MiniMQTT Exception class.
+
+    Raised for various mostly protocol or network/system level errors.
+    In general, the robust way to recover is to call reconnect().
+    """
 
     def __init__(self, error, code=None):
         super().__init__(error, code)
         self.code = code
+
+
+class MMQTTStateError(MMQTTException):
+    """
+    MiniMQTT invalid state error.
+
+    Raised e.g. if a function is called in unexpected state.
+    """
 
 
 class NullLogger:
@@ -163,7 +176,7 @@ class MQTT:
         self._use_binary_mode = use_binary_mode
 
         if recv_timeout <= socket_timeout:
-            raise MMQTTException("recv_timeout must be strictly greater than socket_timeout")
+            raise ValueError("recv_timeout must be strictly greater than socket_timeout")
         self._socket_timeout = socket_timeout
         self._recv_timeout = recv_timeout
 
@@ -181,7 +194,7 @@ class MQTT:
         self._reconnect_timeout = float(0)
         self._reconnect_maximum_backoff = 32
         if connect_retries <= 0:
-            raise MMQTTException("connect_retries must be positive")
+            raise ValueError("connect_retries must be positive")
         self._reconnect_attempts_max = connect_retries
 
         self.broker = broker
@@ -190,7 +203,7 @@ class MQTT:
         if (
             self._password and len(password.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT
         ):  # [MQTT-3.1.3.5]
-            raise MMQTTException("Password length is too large.")
+            raise ValueError("Password length is too large.")
 
         # The connection will be insecure unless is_ssl is set to True.
         # If the port is not specified, the security will be set based on the is_ssl parameter.
@@ -286,15 +299,15 @@ class MQTT:
         """
         self.logger.debug("Setting last will properties")
         if self._is_connected:
-            raise MMQTTException("Last Will should only be called before connect().")
+            raise MMQTTStateError("Last Will should only be called before connect().")
 
         # check topic/msg/qos kwargs
         self._valid_topic(topic)
         if "+" in topic or "#" in topic:
-            raise MMQTTException("Publish topic can not contain wildcards.")
+            raise ValueError("Publish topic can not contain wildcards.")
 
         if msg is None:
-            raise MMQTTException("Message can not be None.")
+            raise ValueError("Message can not be None.")
         if isinstance(msg, (int, float)):
             msg = str(msg).encode("ascii")
         elif isinstance(msg, str):
@@ -302,12 +315,11 @@ class MQTT:
         elif isinstance(msg, bytes):
             pass
         else:
-            raise MMQTTException("Invalid message data type.")
+            raise ValueError("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise MMQTTException(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
+            raise ValueError(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
 
         self._valid_qos(qos)
-        assert 0 <= qos <= 1, "Quality of Service Level 2 is unsupported by this library."
 
         # fixed header. [3.3.1.2], [3.3.1.3]
         pub_hdr_fixed = bytearray([MQTT_PUBLISH | retain | qos << 1])
@@ -390,7 +402,7 @@ class MQTT:
 
         """
         if self._is_connected:
-            raise MMQTTException("This method must be called before connect().")
+            raise MMQTTStateError("This method must be called before connect().")
         self._username = username
         if password is not None:
             self._password = password
@@ -670,10 +682,10 @@ class MQTT:
         self._connected()
         self._valid_topic(topic)
         if "+" in topic or "#" in topic:
-            raise MMQTTException("Publish topic can not contain wildcards.")
+            raise ValueError("Publish topic can not contain wildcards.")
         # check msg/qos kwargs
         if msg is None:
-            raise MMQTTException("Message can not be None.")
+            raise ValueError("Message can not be None.")
         if isinstance(msg, (int, float)):
             msg = str(msg).encode("ascii")
         elif isinstance(msg, str):
@@ -681,10 +693,11 @@ class MQTT:
         elif isinstance(msg, bytes):
             pass
         else:
-            raise MMQTTException("Invalid message data type.")
+            raise ValueError("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise MMQTTException(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
-        assert 0 <= qos <= 1, "Quality of Service Level 2 is unsupported by this library."
+            raise ValueError(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
+
+        self._valid_qos(qos)
 
         # fixed header. [3.3.1.2], [3.3.1.3]
         pub_hdr_fixed = bytearray([MQTT_PUBLISH | retain | qos << 1])
@@ -849,7 +862,7 @@ class MQTT:
                 topics.append(t)
         for t in topics:
             if t not in self._subscribed_topics:
-                raise MMQTTException("Topic must be subscribed to before attempting unsubscribe.")
+                raise MMQTTStateError("Topic must be subscribed to before attempting unsubscribe.")
         # Assemble packet
         self.logger.debug("Sending UNSUBSCRIBE to broker...")
         fixed_header = bytearray([MQTT_UNSUB])
@@ -959,7 +972,7 @@ class MQTT:
 
         """
         if timeout < self._socket_timeout:
-            raise MMQTTException(
+            raise ValueError(
                 f"loop timeout ({timeout}) must be >= "
                 + f"socket timeout ({self._socket_timeout}))"
             )
@@ -1153,13 +1166,13 @@ class MQTT:
 
         """
         if topic is None:
-            raise MMQTTException("Topic may not be NoneType")
+            raise ValueError("Topic may not be NoneType")
         # [MQTT-4.7.3-1]
         if not topic:
-            raise MMQTTException("Topic may not be empty.")
+            raise ValueError("Topic may not be empty.")
         # [MQTT-4.7.3-3]
         if len(topic.encode("utf-8")) > MQTT_TOPIC_LENGTH_LIMIT:
-            raise MMQTTException("Topic length is too large.")
+            raise ValueError(f"Encoded topic length is larger than {MQTT_TOPIC_LENGTH_LIMIT}")
 
     @staticmethod
     def _valid_qos(qos_level: int) -> None:
@@ -1170,16 +1183,16 @@ class MQTT:
         """
         if isinstance(qos_level, int):
             if qos_level < 0 or qos_level > 2:
-                raise MMQTTException("QoS must be between 1 and 2.")
+                raise NotImplementedError("QoS must be between 1 and 2.")
         else:
-            raise MMQTTException("QoS must be an integer.")
+            raise ValueError("QoS must be an integer.")
 
     def _connected(self) -> None:
         """Returns MQTT client session status as True if connected, raises
-        a `MMQTTException` if `False`.
+        a `MMQTTStateError exception` if `False`.
         """
         if not self.is_connected():
-            raise MMQTTException("MiniMQTT is not connected")
+            raise MMQTTStateError("MiniMQTT is not connected")
 
     def is_connected(self) -> bool:
         """Returns MQTT client session status as True if connected, False
