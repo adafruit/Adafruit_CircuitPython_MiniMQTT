@@ -155,7 +155,7 @@ class TestLoop:
 
     def test_loop_timeout_vs_socket_timeout(self):
         """
-        loop() should throw MMQTTException if the timeout argument
+        loop() should throw ValueError if the timeout argument
         is bigger than the socket timeout.
         """
         mqtt_client = MQTT.MQTT(
@@ -167,14 +167,14 @@ class TestLoop:
         )
 
         mqtt_client.is_connected = lambda: True
-        with pytest.raises(MQTT.MMQTTException) as context:
+        with pytest.raises(ValueError) as context:
             mqtt_client.loop(timeout=0.5)
 
         assert "loop timeout" in str(context)
 
     def test_loop_is_connected(self):
         """
-        loop() should throw MMQTTException if not connected
+        loop() should throw MMQTTStateError if not connected
         """
         mqtt_client = MQTT.MQTT(
             broker="127.0.0.1",
@@ -183,7 +183,7 @@ class TestLoop:
             ssl_context=ssl.create_default_context(),
         )
 
-        with pytest.raises(MQTT.MMQTTException) as context:
+        with pytest.raises(MQTT.MMQTTStateError) as context:
             mqtt_client.loop(timeout=1)
 
         assert "not connected" in str(context)
