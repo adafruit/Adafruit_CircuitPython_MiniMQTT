@@ -939,11 +939,18 @@ class MQTT:
         """
 
         self.logger.debug("Attempting to reconnect with MQTT broker")
+        subscribed_topics = []
+        if self.is_connected():
+            # disconnect() will reset subscribed topics so stash them now.
+            if resub_topics:
+                subscribed_topics = self._subscribed_topics.copy()
+            self.disconnect()
+
         ret = self.connect()
         self.logger.debug("Reconnected with broker")
-        if resub_topics:
+
+        if resub_topics and subscribed_topics:
             self.logger.debug("Attempting to resubscribe to previously subscribed topics.")
-            subscribed_topics = self._subscribed_topics.copy()
             self._subscribed_topics = []
             while subscribed_topics:
                 feed = subscribed_topics.pop()
