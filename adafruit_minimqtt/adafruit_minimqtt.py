@@ -204,6 +204,8 @@ class MQTT:
         if port:
             self.port = port
 
+        self.session_id = None
+
         # define client identifier
         if client_id:
             # user-defined client_id MAY allow client_id's > 23 bytes or
@@ -528,6 +530,7 @@ class MQTT:
             is_ssl=self._is_ssl,
             ssl_context=self._ssl_context,
         )
+        self.session_id = session_id
         self._backwards_compatible_sock = not hasattr(self._sock, "recv_into")
 
         fixed_header = bytearray([0x10])
@@ -946,7 +949,7 @@ class MQTT:
                 subscribed_topics = self._subscribed_topics.copy()
             self.disconnect()
 
-        ret = self.connect()
+        ret = self.connect(session_id=self.session_id)
         self.logger.debug("Reconnected with broker")
 
         if resub_topics and subscribed_topics:
