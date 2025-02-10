@@ -205,3 +205,43 @@ def test_reconnect(topics, to_send) -> None:
     assert user_data.get("disconnect") == True
     assert mqtt_client._connection_manager.close_cnt == 1
     assert set(user_data.get("topics")) == set([t[0] for t in topics])
+
+
+def test_reconnect_not_connected() -> None:
+    """
+    Test reconnect() handling not connected.
+    """
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
+    host = "localhost"
+    port = 1883
+
+    user_data = {"topics": [], "disconnect": False}
+    mqtt_client = MQTT.MQTT(
+        broker=host,
+        port=port,
+        ssl_context=ssl.create_default_context(),
+        connect_retries=1,
+        user_data=user_data,
+    )
+
+    mocket = Mocket(
+        bytearray(
+            [
+                0x20,  # CONNACK
+                0x02,
+                0x00,
+                0x00,
+            ]
+        )
+    )
+    mqtt_client._connection_manager = FakeConnectionManager(mocket)
+
+    mqtt_client.logger = logger
+    mqtt_client.on_disconnect = handle_disconnect
+    mqtt_client.reconnect()
+
+    assert user_data.get("disconnect") == False
+    assert mqtt_client._connection_manager.close_cnt == 0
