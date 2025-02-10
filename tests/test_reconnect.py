@@ -29,6 +29,7 @@ class FakeConnectionManager:
 
     def __init__(self, socket):
         self._socket = socket
+        self.close_cnt = 0
 
     def get_socket(  # noqa: PLR0913, Too many arguments
         self,
@@ -47,7 +48,7 @@ class FakeConnectionManager:
         return self._socket
 
     def close_socket(self, socket) -> None:
-        pass
+        self.close_cnt += 1
 
 
 def handle_subscribe(client, user_data, topic, qos):
@@ -202,4 +203,5 @@ def test_reconnect(topics, to_send) -> None:
     mqtt_client.reconnect()
 
     assert user_data.get("disconnect") == True
+    assert mqtt_client._connection_manager.close_cnt == 1
     assert set(user_data.get("topics")) == set([t[0] for t in topics])
