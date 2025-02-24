@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
 import time
+from os import getenv
 
 import adafruit_connection_manager
 import adafruit_fona.adafruit_fona_network as network
@@ -14,12 +14,13 @@ from adafruit_fona.adafruit_fona import FONA
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
-# with your GPRS credentials. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
-
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+# Get FONA details and Adafruit IO keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+apn = getenv("apn")
+apn_username = getenv("apn_username")
+apn_password = getenv("apn_password")
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
 
 # Create a serial connection for the FONA connection
 uart = busio.UART(board.TX, board.RX)
@@ -70,9 +71,7 @@ def publish(client, userdata, topic, pid):
 
 
 # Initialize cellular data network
-network = network.CELLULAR(
-    fona, (os.getenv("apn"), os.getenv("apn_username"), os.getenv("apn_password"))
-)
+network = network.CELLULAR(fona, (apn, apn_username, apn_password))
 
 while not network.is_attached:
     print("Attaching to network...")
@@ -89,9 +88,9 @@ ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, fona)
 
 # Set up a MiniMQTT Client
 client = MQTT.MQTT(
-    broker=os.getenv("broker"),
-    username=os.getenv("username"),
-    password=os.getenv("password"),
+    broker="io.adafruit.com",
+    username=aio_username,
+    password=aio_key,
     is_ssl=False,
     socket_pool=pool,
     ssl_context=ssl_context,
@@ -104,17 +103,17 @@ client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_publish = publish
 
-print("Attempting to connect to %s" % client.broker)
+print(f"Attempting to connect to {client.broker}")
 client.connect()
 
-print("Subscribing to %s" % mqtt_topic)
+print(f"Subscribing to {mqtt_topic}")
 client.subscribe(mqtt_topic)
 
-print("Publishing to %s" % mqtt_topic)
+print(f"Publishing to {mqtt_topic}")
 client.publish(mqtt_topic, "Hello Broker!")
 
-print("Unsubscribing from %s" % mqtt_topic)
+print(f"Unsubscribing from {mqtt_topic}")
 client.unsubscribe(mqtt_topic)
 
-print("Disconnecting from %s" % client.broker)
+print(f"Disconnecting from {client.broker}")
 client.disconnect()

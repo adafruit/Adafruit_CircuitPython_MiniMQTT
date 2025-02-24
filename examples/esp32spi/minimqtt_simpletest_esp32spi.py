@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
+from os import getenv
 
 import adafruit_connection_manager
 import board
@@ -11,12 +11,12 @@ from digitalio import DigitalInOut
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
-# with your WiFi credentials. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
-
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+# Get WiFi details and Adafruit IO keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+ssid = getenv("CIRCUITPY_WIFI_SSID")
+password = getenv("CIRCUITPY_WIFI_PASSWORD")
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
 
 # If you are using a board with pre-defined ESP32 Pins:
 esp32_cs = DigitalInOut(board.ESP_CS)
@@ -34,7 +34,7 @@ esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 print("Connecting to AP...")
 while not esp.is_connected:
     try:
-        esp.connect_AP(os.getenv("ssid"), os.getenv("password"))
+        esp.connect_AP(ssid, password)
     except RuntimeError as e:
         print("could not connect to AP, retrying: ", e)
         continue
@@ -91,10 +91,9 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=os.getenv("broker"),
-    port=os.getenv("port"),
-    username=os.getenv("username"),
-    password=os.getenv("password"),
+    broker="io.adafruit.com",
+    username=aio_username,
+    password=aio_key,
     socket_pool=pool,
     ssl_context=ssl_context,
 )
@@ -107,17 +106,17 @@ mqtt_client.on_unsubscribe = unsubscribe
 mqtt_client.on_publish = publish
 mqtt_client.on_message = message
 
-print("Attempting to connect to %s" % mqtt_client.broker)
+print(f"Attempting to connect to {mqtt_client.broker}")
 mqtt_client.connect()
 
-print("Subscribing to %s" % mqtt_topic)
+print(f"Subscribing to {mqtt_topic}")
 mqtt_client.subscribe(mqtt_topic)
 
-print("Publishing to %s" % mqtt_topic)
+print(f"Publishing to {mqtt_topic}")
 mqtt_client.publish(mqtt_topic, "Hello Broker!")
 
-print("Unsubscribing from %s" % mqtt_topic)
+print(f"Unsubscribing from {mqtt_topic}")
 mqtt_client.unsubscribe(mqtt_topic)
 
-print("Disconnecting from %s" % mqtt_client.broker)
+print(f"Disconnecting from {mqtt_client.broker}")
 mqtt_client.disconnect()

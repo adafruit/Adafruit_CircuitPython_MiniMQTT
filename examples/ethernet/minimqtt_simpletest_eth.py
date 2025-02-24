@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
+from os import getenv
 
 import adafruit_connection_manager
 import board
@@ -11,11 +11,10 @@ from digitalio import DigitalInOut
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add settings.toml to your filesystem. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
-
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+# Get Adafruit IO keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
 
 cs = DigitalInOut(board.D10)
 spi_bus = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
@@ -70,9 +69,9 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(eth)
 # Set up a MiniMQTT Client
 # NOTE: We'll need to connect insecurely for ethernet configurations.
 client = MQTT.MQTT(
-    broker=os.getenv("broker"),
-    username=os.getenv("username"),
-    password=os.getenv("password"),
+    broker="io.adafruit.com",
+    username=aio_username,
+    password=aio_key,
     is_ssl=False,
     socket_pool=pool,
     ssl_context=ssl_context,
@@ -85,17 +84,17 @@ client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_publish = publish
 
-print("Attempting to connect to %s" % client.broker)
+print(f"Attempting to connect to {client.broker}")
 client.connect()
 
-print("Subscribing to %s" % mqtt_topic)
+print(f"Subscribing to {mqtt_topic}")
 client.subscribe(mqtt_topic)
 
-print("Publishing to %s" % mqtt_topic)
+print(f"Publishing to {mqtt_topic}")
 client.publish(mqtt_topic, "Hello Broker!")
 
-print("Unsubscribing from %s" % mqtt_topic)
+print(f"Unsubscribing from {mqtt_topic}")
 client.unsubscribe(mqtt_topic)
 
-print("Disconnecting from %s" % client.broker)
+print(f"Disconnecting from {client.broker}")
 client.disconnect()

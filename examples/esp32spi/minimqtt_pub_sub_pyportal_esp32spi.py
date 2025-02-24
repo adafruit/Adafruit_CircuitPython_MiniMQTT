@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
 import time
+from os import getenv
 
 import adafruit_connection_manager
 import adafruit_pyportal
@@ -11,12 +11,10 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 pyportal = adafruit_pyportal.PyPortal()
 
-# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
-# with your WiFi credentials. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
-
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+# Get Adafruit IO keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
 
 # ------------- MQTT Topic Setup ------------- #
 mqtt_topic = "test/topic"
@@ -27,7 +25,7 @@ mqtt_topic = "test/topic"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Subscribing to %s" % (mqtt_topic))
+    print(f"Subscribing to {mqtt_topic}")
     client.subscribe(mqtt_topic)
 
 
@@ -55,9 +53,9 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(pyportal.network
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=os.getenv("broker"),
-    username=os.getenv("username"),
-    password=os.getenv("password"),
+    broker="io.adafruit.com",
+    username=aio_username,
+    password=aio_key,
     is_ssl=False,
     socket_pool=pool,
     ssl_context=ssl_context,
@@ -77,7 +75,7 @@ while True:
     mqtt_client.loop()
 
     # Send a new message
-    print("Sending photocell value: %d" % photocell_val)
+    print(f"Sending photocell value: {photocell_val}")
     mqtt_client.publish(mqtt_topic, photocell_val)
     photocell_val += 1
     time.sleep(1)

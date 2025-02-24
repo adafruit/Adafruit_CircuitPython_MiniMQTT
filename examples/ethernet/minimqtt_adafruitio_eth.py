@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
 import time
+from os import getenv
 
 import adafruit_connection_manager
 import board
@@ -12,11 +12,10 @@ from digitalio import DigitalInOut
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add settings.toml to your filesystem. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
-
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+# Get Adafruit IO keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
 
 cs = DigitalInOut(board.D10)
 spi_bus = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
@@ -39,7 +38,7 @@ onoff_feed = aio_username + "/feeds/onoff"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to Adafruit IO! Listening for topic changes on %s" % onoff_feed)
+    print(f"Connected to Adafruit IO! Listening for topic changes on {onoff_feed}")
     # Subscribe to all changes on the onoff_feed.
     client.subscribe(onoff_feed)
 
@@ -84,7 +83,7 @@ while True:
     mqtt_client.loop()
 
     # Send a new message
-    print("Sending photocell value: %d..." % photocell_val)
+    print(f"Sending photocell value: {photocell_val}...")
     mqtt_client.publish(photocell_feed, photocell_val)
     print("Sent!")
     photocell_val += 1
