@@ -49,7 +49,7 @@ def on_battery_msg(client, topic, message):
     # Method called when device/batteryLife has a new value
     print(f"Battery level: {message}v")
 
-    # client.remove_topic_callback(aio_username + "/feeds/device.batterylevel")
+    # client.remove_topic_callback(f"{aio_username}/feeds/device.batterylevel")
 
 
 def on_message(client, topic, message):
@@ -72,7 +72,6 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
 # Set up a MiniMQTT Client
 client = MQTT.MQTT(
     broker="io.adafruit.com",
-    port=1883,
     username=aio_username,
     password=aio_key,
     socket_pool=pool,
@@ -85,14 +84,14 @@ client.on_disconnect = disconnected
 client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_message = on_message
-client.add_topic_callback(aio_username + "/feeds/device.batterylevel", on_battery_msg)
+client.add_topic_callback(f"{aio_username}/feeds/device.batterylevel", on_battery_msg)
 
 # Connect the client to the MQTT broker.
 print("Connecting to MQTT broker...")
 client.connect()
 
 # Subscribe to all notifications on the device group
-client.subscribe(aio_username + "/groups/device", 1)
+client.subscribe(f"{aio_username}/groups/device", 1)
 
 # Start a blocking message loop...
 # NOTE: NO code below this loop will execute

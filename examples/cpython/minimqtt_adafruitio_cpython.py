@@ -21,10 +21,10 @@ aio_key = getenv("ADAFRUIT_AIO_KEY")
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = aio_username + "/feeds/photocell"
+photocell_feed = f"{aio_username}/feeds/photocell"
 
 # Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = aio_username + "/feeds/onoff"
+onoff_feed = f"{aio_username}/feeds/onoff"
 
 ### Code ###
 

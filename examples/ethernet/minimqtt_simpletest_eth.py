@@ -15,6 +15,7 @@ import adafruit_minimqtt.adafruit_minimqtt as MQTT
 # (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
 aio_username = getenv("ADAFRUIT_AIO_USERNAME")
 aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
 
 cs = DigitalInOut(board.D10)
 spi_bus = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
@@ -69,7 +70,7 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(eth)
 # Set up a MiniMQTT Client
 # NOTE: We'll need to connect insecurely for ethernet configurations.
 client = MQTT.MQTT(
-    broker="io.adafruit.com",
+    broker=broker,
     username=aio_username,
     password=aio_key,
     is_ssl=False,

@@ -17,6 +17,7 @@ ssid = getenv("CIRCUITPY_WIFI_SSID")
 password = getenv("CIRCUITPY_WIFI_PASSWORD")
 aio_username = getenv("ADAFRUIT_AIO_USERNAME")
 aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
 
 # If you are using a board with pre-defined ESP32 Pins:
 esp32_cs = DigitalInOut(board.ESP_CS)
@@ -38,7 +39,7 @@ while not esp.is_connected:
     except RuntimeError as e:
         print("could not connect to AP, retrying: ", e)
         continue
-print("Connected to", str(esp.ssid, "utf-8"), "\tRSSI:", esp.rssi)
+print("Connected to", esp.ap_info.ssid, "\tRSSI:", esp.ap_info.rssi)
 
 ### Topic Setup ###
 
@@ -48,7 +49,7 @@ mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = aio_username + '/feeds/temperature'
+# mqtt_topic = f"{aio_username}/feeds/temperature"
 
 ### Code ###
 
@@ -91,7 +92,7 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(esp)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker="io.adafruit.com",
+    broker=broker,
     username=aio_username,
     password=aio_key,
     socket_pool=pool,

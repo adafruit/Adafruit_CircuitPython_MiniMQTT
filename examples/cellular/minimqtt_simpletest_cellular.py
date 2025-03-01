@@ -21,6 +21,7 @@ apn_username = getenv("apn_username")
 apn_password = getenv("apn_password")
 aio_username = getenv("ADAFRUIT_AIO_USERNAME")
 aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
 
 # Create a serial connection for the FONA connection
 uart = busio.UART(board.TX, board.RX)
@@ -88,7 +89,7 @@ ssl_context = adafruit_connection_manager.create_fake_ssl_context(pool, fona)
 
 # Set up a MiniMQTT Client
 client = MQTT.MQTT(
-    broker="io.adafruit.com",
+    broker=broker,
     username=aio_username,
     password=aio_key,
     is_ssl=False,

@@ -27,7 +27,7 @@ print(f"Connected to {ssid}!")
 ### Adafruit IO Setup ###
 
 # Setup a feed named `testfeed` for publishing.
-default_topic = aio_username + "/feeds/testfeed"
+default_topic = f"{aio_username}/feeds/testfeed"
 
 
 ### Code ###
@@ -69,7 +69,6 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
     broker="io.adafruit.com",
-    port=1883,
     username=aio_username,
     password=aio_key,
     socket_pool=pool,

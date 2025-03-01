@@ -14,10 +14,13 @@ from digitalio import DigitalInOut
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
 # Get WiFi details and broker keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
 ssid = getenv("CIRCUITPY_WIFI_SSID")
 password = getenv("CIRCUITPY_WIFI_PASSWORD")
-broker = getenv("broker")
-broker_port = getenv("broker_port")
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
+broker_port = int(getenv("broker_port", "8883"))  # Port 1883 insecure, 8883 secure
 
 ### WiFi ###
 
@@ -75,7 +78,7 @@ def on_battery_msg(client, topic, message):
     # Method called when device/batteryLife has a new value
     print(f"Battery level: {message}v")
 
-    # client.remove_topic_callback(aio_username + "/feeds/device.batterylevel")
+    # client.remove_topic_callback(f"{aio_username}/feeds/device.batterylevel")
 
 
 def on_message(client, topic, message):
@@ -95,6 +98,8 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(esp)
 client = MQTT.MQTT(
     broker=broker,
     port=broker_port,
+    username=aio_username,
+    password=aio_key,
     socket_pool=pool,
     ssl_context=ssl_context,
 )
@@ -105,14 +110,14 @@ client.on_disconnect = disconnected
 client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_message = on_message
-client.add_topic_callback(aio_username + "/feeds/device.batterylevel", on_battery_msg)
+client.add_topic_callback(f"{aio_username}/feeds/device.batterylevel", on_battery_msg)
 
 # Connect the client to the MQTT broker.
 print("Connecting to MQTT broker...")
 client.connect()
 
 # Subscribe to all notifications on the device group
-client.subscribe(aio_username + "/groups/device", 1)
+client.subscribe(f"{aio_username}/groups/device", 1)
 
 # Start a blocking message loop...
 # NOTE: NO code below this loop will execute

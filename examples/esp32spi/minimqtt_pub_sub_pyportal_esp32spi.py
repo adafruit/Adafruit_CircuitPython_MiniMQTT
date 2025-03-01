@@ -15,6 +15,7 @@ pyportal = adafruit_pyportal.PyPortal()
 # (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
 aio_username = getenv("ADAFRUIT_AIO_USERNAME")
 aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
 
 # ------------- MQTT Topic Setup ------------- #
 mqtt_topic = "test/topic"
@@ -53,7 +54,7 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(pyportal.network
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker="io.adafruit.com",
+    broker=broker,
     username=aio_username,
     password=aio_key,
     is_ssl=False,

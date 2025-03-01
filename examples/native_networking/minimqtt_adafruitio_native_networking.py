@@ -15,6 +15,7 @@ ssid = getenv("CIRCUITPY_WIFI_SSID")
 password = getenv("CIRCUITPY_WIFI_PASSWORD")
 aio_username = getenv("ADAFRUIT_AIO_USERNAME")
 aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
 
 print(f"Connecting to {ssid}")
 wifi.radio.connect(ssid, password)
@@ -64,8 +65,7 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker="io.adafruit.com",
-    port=1883,
+    broker=broker,
     username=aio_username,
     password=aio_key,
     socket_pool=pool,

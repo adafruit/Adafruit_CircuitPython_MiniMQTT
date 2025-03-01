@@ -47,7 +47,7 @@ status_pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2)  # Uncomment
 ### Adafruit IO Setup ###
 
 # Setup a feed named `testfeed` for publishing.
-default_topic = aio_username + "/feeds/testfeed"
+default_topic = f"{aio_username}/feeds/testfeed"
 
 
 ### Code ###

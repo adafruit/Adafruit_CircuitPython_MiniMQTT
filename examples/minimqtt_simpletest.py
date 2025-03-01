@@ -38,7 +38,7 @@ while not esp.is_connected:
     except RuntimeError as e:
         print("could not connect to AP, retrying: ", e)
         continue
-print("Connected to", str(esp.ssid, "utf-8"), "\tRSSI:", esp.rssi)
+print("Connected to", esp.ap_info.ssid, "\tRSSI:", esp.ap_info.rssi)
 
 ### Topic Setup ###
 
@@ -48,7 +48,7 @@ print("Connected to", str(esp.ssid, "utf-8"), "\tRSSI:", esp.rssi)
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-mqtt_topic = aio_username + "/feeds/temperature"
+mqtt_topic = f"{aio_username}/feeds/temperature"
 
 
 ### Code ###
