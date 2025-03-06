@@ -5,6 +5,9 @@
 target-version = "py38"
 line-length = 100
 
+# Enable preview features.
+preview = true
+
 [lint]
 select = ["I", "PL", "UP"]
 
