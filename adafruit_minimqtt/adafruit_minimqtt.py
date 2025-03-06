@@ -111,7 +111,7 @@ class NullLogger:
             setattr(NullLogger, log_level, self.nothing)
 
 
-class MQTT: # noqa: PLR0904  # too-many-public-methods
+class MQTT:  # noqa: PLR0904  # too-many-public-methods
     """MQTT Client for CircuitPython.
 
     :param str broker: MQTT Broker URL or IP Address.
