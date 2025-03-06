@@ -32,23 +32,21 @@ testdata = [
     (
         "foo/bar",
         bytearray([0xB0, 0x02, 0x00, 0x01]),
-        bytearray(
-            [
-                0xA2,  # fixed header
-                0x0B,  # remaining length
-                0x00,  # message ID
-                0x01,
-                0x00,  # topic length
-                0x07,
-                0x66,  # topic
-                0x6F,
-                0x6F,
-                0x2F,
-                0x62,
-                0x61,
-                0x72,
-            ]
-        ),
+        bytearray([
+            0xA2,  # fixed header
+            0x0B,  # remaining length
+            0x00,  # message ID
+            0x01,
+            0x00,  # topic length
+            0x07,
+            0x66,  # topic
+            0x6F,
+            0x6F,
+            0x2F,
+            0x62,
+            0x61,
+            0x72,
+        ]),
     ),
     # remaining length is encoded as 2 bytes due to long topic name.
     (
@@ -71,45 +69,41 @@ testdata = [
     # UNSUBSCRIBE responded to by PUBLISH followed by UNSUBACK
     (
         "foo/bar",
-        bytearray(
-            [
-                0x30,  # PUBLISH
-                0x0C,
-                0x00,
-                0x07,
-                0x66,
-                0x6F,
-                0x6F,
-                0x2F,
-                0x62,
-                0x61,
-                0x72,
-                0x66,
-                0x6F,
-                0x6F,
-                0xB0,  # UNSUBACK
-                0x02,
-                0x00,
-                0x01,
-            ]
-        ),
-        bytearray(
-            [
-                0xA2,  # fixed header
-                0x0B,  # remaining length
-                0x00,
-                0x01,  # message ID
-                0x00,
-                0x07,  # topic length
-                0x66,  # topic
-                0x6F,
-                0x6F,
-                0x2F,
-                0x62,
-                0x61,
-                0x72,
-            ]
-        ),
+        bytearray([
+            0x30,  # PUBLISH
+            0x0C,
+            0x00,
+            0x07,
+            0x66,
+            0x6F,
+            0x6F,
+            0x2F,
+            0x62,
+            0x61,
+            0x72,
+            0x66,
+            0x6F,
+            0x6F,
+            0xB0,  # UNSUBACK
+            0x02,
+            0x00,
+            0x01,
+        ]),
+        bytearray([
+            0xA2,  # fixed header
+            0x0B,  # remaining length
+            0x00,
+            0x01,  # message ID
+            0x00,
+            0x07,  # topic length
+            0x66,  # topic
+            0x6F,
+            0x6F,
+            0x2F,
+            0x62,
+            0x61,
+            0x72,
+        ]),
     ),
     # use list of topics for more coverage. If the range was (1, 10000), that would be
     # long enough to use 3 bytes for remaining length, however that would make the test

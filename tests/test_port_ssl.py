@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: Unlicense
 
+# ruff: noqa: PLR6301 no-self-use
+
 """tests that verify the connect behavior w.r.t. port number and TLS"""
 
 import socket

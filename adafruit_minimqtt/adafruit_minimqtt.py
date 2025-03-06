@@ -29,6 +29,8 @@ Adapted from https://github.com/micropython/micropython-lib/tree/master/umqtt.si
 
 """
 
+# ruff: noqa: PLR6104,PLR6201,PLR6301 non-augmented-assignment,literal-membership,no-self-use
+
 import errno
 import struct
 import time

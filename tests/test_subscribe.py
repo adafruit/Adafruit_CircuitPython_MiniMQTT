@@ -29,47 +29,43 @@ testdata = [
     (
         "foo/bar",
         bytearray([0x90, 0x03, 0x00, 0x01, 0x00]),  # SUBACK
-        bytearray(
-            [
-                0x82,  # fixed header
-                0x0C,  # remaining length
-                0x00,
-                0x01,  # message ID
-                0x00,
-                0x07,  # topic length
-                0x66,  # topic
-                0x6F,
-                0x6F,
-                0x2F,
-                0x62,
-                0x61,
-                0x72,
-                0x00,  # QoS
-            ]
-        ),
+        bytearray([
+            0x82,  # fixed header
+            0x0C,  # remaining length
+            0x00,
+            0x01,  # message ID
+            0x00,
+            0x07,  # topic length
+            0x66,  # topic
+            0x6F,
+            0x6F,
+            0x2F,
+            0x62,
+            0x61,
+            0x72,
+            0x00,  # QoS
+        ]),
     ),
     # same as before but with tuple
     (
         ("foo/bar", 0),
         bytearray([0x90, 0x03, 0x00, 0x01, 0x00]),  # SUBACK
-        bytearray(
-            [
-                0x82,  # fixed header
-                0x0C,  # remaining length
-                0x00,
-                0x01,  # message ID
-                0x00,
-                0x07,  # topic length
-                0x66,  # topic
-                0x6F,
-                0x6F,
-                0x2F,
-                0x62,
-                0x61,
-                0x72,
-                0x00,  # QoS
-            ]
-        ),
+        bytearray([
+            0x82,  # fixed header
+            0x0C,  # remaining length
+            0x00,
+            0x01,  # message ID
+            0x00,
+            0x07,  # topic length
+            0x66,  # topic
+            0x6F,
+            0x6F,
+            0x2F,
+            0x62,
+            0x61,
+            0x72,
+            0x00,  # QoS
+        ]),
     ),
     # remaining length is encoded as 2 bytes due to long topic name.
     (
@@ -93,47 +89,43 @@ testdata = [
     # SUBSCRIBE responded to by PUBLISH followed by SUBACK
     (
         "foo/bar",
-        bytearray(
-            [
-                0x30,  # PUBLISH
-                0x0C,
-                0x00,
-                0x07,
-                0x66,
-                0x6F,
-                0x6F,
-                0x2F,
-                0x62,
-                0x61,
-                0x72,
-                0x66,
-                0x6F,
-                0x6F,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x01,
-                0x00,
-            ]
-        ),
-        bytearray(
-            [
-                0x82,  # fixed header
-                0x0C,  # remaining length
-                0x00,
-                0x01,  # message ID
-                0x00,
-                0x07,  # topic length
-                0x66,  # topic
-                0x6F,
-                0x6F,
-                0x2F,
-                0x62,
-                0x61,
-                0x72,
-                0x00,  # QoS
-            ]
-        ),
+        bytearray([
+            0x30,  # PUBLISH
+            0x0C,
+            0x00,
+            0x07,
+            0x66,
+            0x6F,
+            0x6F,
+            0x2F,
+            0x62,
+            0x61,
+            0x72,
+            0x66,
+            0x6F,
+            0x6F,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x01,
+            0x00,
+        ]),
+        bytearray([
+            0x82,  # fixed header
+            0x0C,  # remaining length
+            0x00,
+            0x01,  # message ID
+            0x00,
+            0x07,  # topic length
+            0x66,  # topic
+            0x6F,
+            0x6F,
+            0x2F,
+            0x62,
+            0x61,
+            0x72,
+            0x00,  # QoS
+        ]),
     ),
     # use list of topics for more coverage. If the range was (1, 10000), that would be
     # long enough to use 3 bytes for remaining length, however that would make the test
