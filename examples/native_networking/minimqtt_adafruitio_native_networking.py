@@ -1,28 +1,25 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
-import ssl
 import time
+from os import getenv
 
-import socketpool
+import adafruit_connection_manager
 import wifi
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
-# with your WiFi credentials. DO NOT share that file or commit it into Git or other
-# source control.
+# Get WiFi details and Adafruit IO keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+ssid = getenv("CIRCUITPY_WIFI_SSID")
+password = getenv("CIRCUITPY_WIFI_PASSWORD")
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
 
-# Set your Adafruit IO Username, Key and Port in settings.toml
-# (visit io.adafruit.com if you need to create an account,
-# or if you need your Adafruit IO key.)
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
-
-print(f"Connecting to {os.getenv('CIRCUITPY_WIFI_SSID')}")
-wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
-print(f"Connected to {os.getenv('CIRCUITPY_WIFI_SSID')}!")
+print(f"Connecting to {ssid}")
+wifi.radio.connect(ssid, password)
+print(f"Connected to {ssid}!")
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
@@ -54,22 +51,21 @@ def message(client, topic, message):
     print(f"New message on topic {topic}: {message}")
 
 
-# Create a socket pool
-pool = socketpool.SocketPool(wifi.radio)
-ssl_context = ssl.create_default_context()
+# Create a socket pool and ssl_context
+pool = adafruit_connection_manager.get_radio_socketpool(wifi.radio)
+ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
 
 # If you need to use certificate/key pair authentication (e.g. X.509), you can load them in the
 # ssl context by uncommenting the lines below and adding the following keys to your settings.toml:
 # "device_cert_path" - Path to the Device Certificate
 # "device_key_path" - Path to the RSA Private Key
 # ssl_context.load_cert_chain(
-#     certfile=os.getenv("device_cert_path"), keyfile=os.getenv("device_key_path")
+#     certfile=getenv("device_cert_path"), keyfile=getenv("device_key_path")
 # )
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker="io.adafruit.com",
-    port=1883,
+    broker=broker,
     username=aio_username,
     password=aio_key,
     socket_pool=pool,

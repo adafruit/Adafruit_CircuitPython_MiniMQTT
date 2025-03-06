@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: Unlicense
 
+# ruff: noqa: PLR6301 no-self-use
+
 """loop() tests"""
 
 import errno

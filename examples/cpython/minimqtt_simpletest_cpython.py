@@ -1,17 +1,22 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
 import socket
 import ssl
+from os import getenv
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add settings.toml to your filesystems. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
+# Add your Adafruit IO username and key to your env.
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+# example:
+# export ADAFRUIT_AIO_USERNAME=your-aio-username
+# export ADAFRUIT_AIO_KEY=your-aio-key
+# export broker=io.adafruit.com
 
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
+broker = getenv("broker", "io.adafruit.com")
 
 ### Topic Setup ###
 
@@ -21,7 +26,7 @@ mqtt_topic = "test/topic"
 
 # Adafruit IO-style Topic
 # Use this topic if you'd like to connect to io.adafruit.com
-# mqtt_topic = aio_username + "/feeds/temperature"
+# mqtt_topic = f"{aio_username}/feeds/temperature"
 
 
 ### Code ###
@@ -61,7 +66,7 @@ def message(client, topic, message):
 
 # Set up a MiniMQTT Client
 mqtt_client = MQTT.MQTT(
-    broker=os.getenv("broker"),
+    broker=broker,
     username=aio_username,
     password=aio_key,
     socket_pool=socket,
@@ -76,17 +81,17 @@ mqtt_client.on_unsubscribe = unsubscribe
 mqtt_client.on_publish = publish
 mqtt_client.on_message = message
 
-print("Attempting to connect to %s" % mqtt_client.broker)
+print(f"Attempting to connect to {mqtt_client.broker}")
 mqtt_client.connect()
 
-print("Subscribing to %s" % mqtt_topic)
+print(f"Subscribing to {mqtt_topic}")
 mqtt_client.subscribe(mqtt_topic)
 
-print("Publishing to %s" % mqtt_topic)
+print(f"Publishing to {mqtt_topic}")
 mqtt_client.publish(mqtt_topic, "Hello Broker!")
 
-print("Unsubscribing from %s" % mqtt_topic)
+print(f"Unsubscribing from {mqtt_topic}")
 mqtt_client.unsubscribe(mqtt_topic)
 
-print("Disconnecting from %s" % mqtt_client.broker)
+print(f"Disconnecting from {mqtt_client.broker}")
 mqtt_client.disconnect()

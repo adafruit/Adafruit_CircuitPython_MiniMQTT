@@ -29,6 +29,8 @@ Adapted from https://github.com/micropython/micropython-lib/tree/master/umqtt.si
 
 """
 
+# ruff: noqa: PLR6104,PLR6201,PLR6301 non-augmented-assignment,literal-membership,no-self-use
+
 import errno
 import struct
 import time
@@ -111,7 +113,7 @@ class NullLogger:
             setattr(NullLogger, log_level, self.nothing)
 
 
-class MQTT:
+class MQTT:  # noqa: PLR0904  # too-many-public-methods
     """MQTT Client for CircuitPython.
 
     :param str broker: MQTT Broker URL or IP Address.

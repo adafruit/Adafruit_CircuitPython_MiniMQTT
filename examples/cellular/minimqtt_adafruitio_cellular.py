@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
 import time
+from os import getenv
 
 import adafruit_connection_manager
 import adafruit_fona.adafruit_fona_network as network
@@ -14,12 +14,13 @@ from adafruit_fona.adafruit_fona import FONA
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-# Add settings.toml to your filesystem CIRCUITPY_WIFI_SSID and CIRCUITPY_WIFI_PASSWORD keys
-# with your GPRS credentials. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
-
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+# Get FONA details and Adafruit IO keys, ensure these are setup in settings.toml
+# (visit io.adafruit.com if you need to create an account, or if you need your Adafruit IO key.)
+apn = getenv("apn")
+apn_username = getenv("apn_username")
+apn_password = getenv("apn_password")
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
 
 ### Cellular ###
 
@@ -32,10 +33,10 @@ fona = FONA(uart, rst)
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = aio_username + "/feeds/photocell"
+photocell_feed = f"{aio_username}/feeds/photocell"
 
 # Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = aio_username + "/feeds/onoff"
+onoff_feed = f"{aio_username}/feeds/onoff"
 
 ### Code ###
 
@@ -44,7 +45,7 @@ onoff_feed = aio_username + "/feeds/onoff"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to Adafruit IO! Listening for topic changes on %s" % onoff_feed)
+    print(f"Connected to Adafruit IO! Listening for topic changes on {onoff_feed}")
     # Subscribe to all changes on the onoff_feed.
     client.subscribe(onoff_feed)
 
@@ -61,9 +62,7 @@ def message(client, topic, message):
 
 
 # Initialize cellular data network
-network = network.CELLULAR(
-    fona, (os.getenv("apn"), os.getenv("apn_username"), os.getenv("apn_password"))
-)
+network = network.CELLULAR(fona, (apn, apn_username, apn_password))
 
 while not network.is_attached:
     print("Attaching to network...")
@@ -105,7 +104,7 @@ while True:
     mqtt_client.loop()
 
     # Send a new message
-    print("Sending photocell value: %d..." % photocell_val)
+    print(f"Sending photocell value: {photocell_val}...")
     mqtt_client.publish(photocell_feed, photocell_val)
     print("Sent!")
     photocell_val += 1

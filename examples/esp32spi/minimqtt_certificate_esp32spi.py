@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
+from os import getenv
+
 import adafruit_connection_manager
 import board
 import busio
@@ -10,14 +12,14 @@ from digitalio import DigitalInOut
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### WiFi ###
+# Get WiFi details and MQTT keys, ensure these are setup in settings.toml
+ssid = getenv("CIRCUITPY_WIFI_SSID")
+password = getenv("CIRCUITPY_WIFI_PASSWORD")
+broker = getenv("broker")
+username = getenv("username")
+paswword = getenv("paswword")
 
-# Get wifi details and more from a secrets.py file
-try:
-    from secrets import secrets
-except ImportError:
-    print("WiFi secrets are kept in secrets.py, please add them there!")
-    raise
+### WiFi ###
 
 # If you are using a board with pre-defined ESP32 Pins:
 esp32_cs = DigitalInOut(board.ESP_CS)
@@ -32,17 +34,17 @@ esp32_reset = DigitalInOut(board.ESP_RESET)
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 """Use below for Most Boards"""
-status_light = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2)  # Uncomment for Most Boards
+status_pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2)  # Uncomment for Most Boards
 """Uncomment below for ItsyBitsy M4"""
-# status_light = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
+# status_pixel = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
 # Uncomment below for an externally defined RGB LED
 # import adafruit_rgbled
 # from adafruit_esp32spi import PWMOut
 # RED_LED = PWMOut.PWMOut(esp, 26)
 # GREEN_LED = PWMOut.PWMOut(esp, 27)
 # BLUE_LED = PWMOut.PWMOut(esp, 25)
-# status_light = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
-wifi = adafruit_esp32spi_wifimanager.ESPSPI_WiFiManager(esp, secrets, status_light)
+# status_pixel = adafruit_rgbled.RGBLED(RED_LED, BLUE_LED, GREEN_LED)
+wifi = adafruit_esp32spi_wifimanager.WiFiManager(esp, ssid, password, status_pixel=status_pixel)
 
 ### Topic Setup ###
 
@@ -109,9 +111,9 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(esp)
 
 # Set up a MiniMQTT Client
 client = MQTT.MQTT(
-    broker=secrets["broker"],
-    username=secrets["user"],
-    password=secrets["pass"],
+    broker=broker,
+    username=username,
+    password=password,
     socket_pool=pool,
     ssl_context=ssl_context,
 )
@@ -123,17 +125,17 @@ client.on_subscribe = subscribe
 client.on_unsubscribe = unsubscribe
 client.on_publish = publish
 
-print("Attempting to connect to %s" % client.broker)
+print(f"Attempting to connect to {client.broker}")
 client.connect()
 
-print("Subscribing to %s" % mqtt_topic)
+print(f"Subscribing to {mqtt_topic}")
 client.subscribe(mqtt_topic)
 
-print("Publishing to %s" % mqtt_topic)
+print(f"Publishing to {mqtt_topic}")
 client.publish(mqtt_topic, "Hello Broker!")
 
-print("Unsubscribing from %s" % mqtt_topic)
+print(f"Unsubscribing from {mqtt_topic}")
 client.unsubscribe(mqtt_topic)
 
-print("Disconnecting from %s" % client.broker)
+print(f"Disconnecting from {client.broker}")
 client.disconnect()

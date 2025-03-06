@@ -1,28 +1,30 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-import os
 import socket
 import ssl
 import time
+from os import getenv
 
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 
-### Secrets File Setup ###
+### Key Setup ###
 
-# Add settings.toml to your filesystem. Add your Adafruit IO username and key as well.
-# DO NOT share that file or commit it into Git or other source control.
+# Add your Adafruit IO username and key to your env.
+# example:
+# export ADAFRUIT_AIO_USERNAME=your-aio-username
+# export ADAFRUIT_AIO_KEY=your-aio-key
 
-aio_username = os.getenv("aio_username")
-aio_key = os.getenv("aio_key")
+aio_username = getenv("ADAFRUIT_AIO_USERNAME")
+aio_key = getenv("ADAFRUIT_AIO_KEY")
 
 ### Feeds ###
 
 # Setup a feed named 'photocell' for publishing to a feed
-photocell_feed = aio_username + "/feeds/photocell"
+photocell_feed = f"{aio_username}/feeds/photocell"
 
 # Setup a feed named 'onoff' for subscribing to changes
-onoff_feed = aio_username + "/feeds/onoff"
+onoff_feed = f"{aio_username}/feeds/onoff"
 
 ### Code ###
 
@@ -31,7 +33,7 @@ onoff_feed = aio_username + "/feeds/onoff"
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to Adafruit IO! Listening for topic changes on %s" % onoff_feed)
+    print(f"Connected to Adafruit IO! Listening for topic changes on {onoff_feed}")
     # Subscribe to all changes on the onoff_feed.
     client.subscribe(onoff_feed)
 
@@ -72,7 +74,7 @@ while True:
     mqtt_client.loop()
 
     # Send a new message
-    print("Sending photocell value: %d..." % photocell_val)
+    print(f"Sending photocell value: {photocell_val}...")
     mqtt_client.publish(photocell_feed, photocell_val)
     print("Sent!")
     photocell_val += 1
