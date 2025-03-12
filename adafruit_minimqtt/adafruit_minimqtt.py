@@ -219,6 +219,8 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         if port:
             self.port = port
 
+        self.session_id = None
+
         # define client identifier
         if client_id:
             # user-defined client_id MAY allow client_id's > 23 bytes or
@@ -542,6 +544,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
             is_ssl=self._is_ssl,
             ssl_context=self._ssl_context,
         )
+        self.session_id = session_id
         self._backwards_compatible_sock = not hasattr(self._sock, "recv_into")
 
         fixed_header = bytearray([0x10])
@@ -954,11 +957,18 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         """
 
         self.logger.debug("Attempting to reconnect with MQTT broker")
-        ret = self.connect()
+        subscribed_topics = []
+        if self.is_connected():
+            # disconnect() will reset subscribed topics so stash them now.
+            if resub_topics:
+                subscribed_topics = self._subscribed_topics.copy()
+            self.disconnect()
+
+        ret = self.connect(session_id=self.session_id)
         self.logger.debug("Reconnected with broker")
-        if resub_topics:
+
+        if resub_topics and subscribed_topics:
             self.logger.debug("Attempting to resubscribe to previously subscribed topics.")
-            subscribed_topics = self._subscribed_topics.copy()
             self._subscribed_topics = []
             while subscribed_topics:
                 feed = subscribed_topics.pop()
