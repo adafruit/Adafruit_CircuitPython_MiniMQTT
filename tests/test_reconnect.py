@@ -74,84 +74,78 @@ def handle_disconnect(client, user_data, zero):
 testdata = [
     (
         [],
-        bytearray(
-            [
-                0x20,  # CONNACK
-                0x02,
-                0x00,
-                0x00,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x01,
-                0x00,
-                0x20,  # CONNACK
-                0x02,
-                0x00,
-                0x00,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x02,
-                0x00,
-            ]
-        ),
+        bytearray([
+            0x20,  # CONNACK
+            0x02,
+            0x00,
+            0x00,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x01,
+            0x00,
+            0x20,  # CONNACK
+            0x02,
+            0x00,
+            0x00,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x02,
+            0x00,
+        ]),
     ),
     (
         [("foo/bar", 0)],
-        bytearray(
-            [
-                0x20,  # CONNACK
-                0x02,
-                0x00,
-                0x00,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x01,
-                0x00,
-                0x20,  # CONNACK
-                0x02,
-                0x00,
-                0x00,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x02,
-                0x00,
-            ]
-        ),
+        bytearray([
+            0x20,  # CONNACK
+            0x02,
+            0x00,
+            0x00,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x01,
+            0x00,
+            0x20,  # CONNACK
+            0x02,
+            0x00,
+            0x00,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x02,
+            0x00,
+        ]),
     ),
     (
         [("foo/bar", 0), ("bah", 0)],
-        bytearray(
-            [
-                0x20,  # CONNACK
-                0x02,
-                0x00,
-                0x00,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x01,
-                0x00,
-                0x00,
-                0x20,  # CONNACK
-                0x02,
-                0x00,
-                0x00,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x02,
-                0x00,
-                0x90,  # SUBACK
-                0x03,
-                0x00,
-                0x03,
-                0x00,
-            ]
-        ),
+        bytearray([
+            0x20,  # CONNACK
+            0x02,
+            0x00,
+            0x00,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x20,  # CONNACK
+            0x02,
+            0x00,
+            0x00,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x02,
+            0x00,
+            0x90,  # SUBACK
+            0x03,
+            0x00,
+            0x03,
+            0x00,
+        ]),
     ),
 ]
 
@@ -228,14 +222,12 @@ def test_reconnect_not_connected() -> None:
     )
 
     mocket = Mocket(
-        bytearray(
-            [
-                0x20,  # CONNACK
-                0x02,
-                0x00,
-                0x00,
-            ]
-        )
+        bytearray([
+            0x20,  # CONNACK
+            0x02,
+            0x00,
+            0x00,
+        ])
     )
     mqtt_client._connection_manager = FakeConnectionManager(mocket)
 
