@@ -1038,7 +1038,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                 if error.errno in (errno.ETIMEDOUT, errno.EAGAIN):
                     # raised by a socket timeout if 0 bytes were present
                     return None
-                raise MMQTTException from error
+                raise MMQTTException("Unexpected error while waiting for messages") from error
 
         if res in [None, b""]:
             # If we get here, it means that there is nothing to be received
