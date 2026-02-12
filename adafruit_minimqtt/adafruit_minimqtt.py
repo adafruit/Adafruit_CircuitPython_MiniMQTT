@@ -241,7 +241,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         self._lw_retain = False
 
         # List of subscribed topics, used for tracking
-        self._subscribed_topics: List[str] = []
+        self._subscribed_topics: List[tuple[str, int]] = []
         self._on_message_filtered = MQTTMatcher()
 
         # Default topic callback methods
@@ -837,7 +837,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                     for t, q in topics:
                         if self.on_subscribe is not None:
                             self.on_subscribe(self, self.user_data, t, q)
-                        self._subscribed_topics.append(t)
+                        self._subscribed_topics.append((t, q))
 
                     return
 
@@ -866,7 +866,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                 self._valid_topic(t)
                 topics.append(t)
         for t in topics:
-            if t not in self._subscribed_topics:
+            if t not in [_t for _t, _ in self._subscribed_topics]:
                 raise MMQTTStateError("Topic must be subscribed to before attempting unsubscribe.")
         # Assemble packet
         self.logger.debug("Sending UNSUBSCRIBE to broker...")
@@ -907,7 +907,8 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                     for t in topics:
                         if self.on_unsubscribe is not None:
                             self.on_unsubscribe(self, self.user_data, t, self._pid)
-                        self._subscribed_topics.remove(t)
+                        _, q = [(_t, _q) for _t, _q in self._subscribed_topics if _t == t][0]
+                        self._subscribed_topics.remove((t, q))
                     return
                 if op != MQTT_PUBLISH:
                     # [3.10.4] The Server may continue to deliver existing messages buffered
@@ -958,21 +959,31 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
 
         self.logger.debug("Attempting to reconnect with MQTT broker")
         subscribed_topics = []
-        if self.is_connected():
-            # disconnect() will reset subscribed topics so stash them now.
-            if resub_topics:
-                subscribed_topics = self._subscribed_topics.copy()
-            self.disconnect()
 
-        ret = self.connect(session_id=self.session_id)
-        self.logger.debug("Reconnected with broker")
+        # disconnect() will reset subscribed topics, so stash them now.
+        if resub_topics:
+            subscribed_topics = self._subscribed_topics.copy()
 
-        if resub_topics and subscribed_topics:
-            self.logger.debug("Attempting to resubscribe to previously subscribed topics.")
-            self._subscribed_topics = []
-            while subscribed_topics:
-                feed = subscribed_topics.pop()
-                self.subscribe(feed)
+        try:
+            if self.is_connected():
+                self.disconnect()
+
+            ret = self.connect(session_id=self.session_id)
+            self.logger.debug("Reconnected with broker")
+
+            if resub_topics and subscribed_topics:
+                self.logger.debug("Attempting to resubscribe to previously subscribed topics.")
+                self._subscribed_topics = []
+                while subscribed_topics:
+                    feed = subscribed_topics.pop()
+                    self.subscribe(*feed)
+        except Exception:
+            # Overly-broad exception to address #253; if we're about to fail, make sure that we
+            # leave a full list of subscribed topics in our class so that we'll properly resub
+            # on the next retry.
+            if sorted(self._subscribed_topics) != sorted(subscribed_topics):
+                self._subscribed_topics = subscribed_topics
+            raise
 
         return ret
 
