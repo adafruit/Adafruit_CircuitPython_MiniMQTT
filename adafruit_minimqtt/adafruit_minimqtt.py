@@ -240,7 +240,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         self._lw_msg = None
         self._lw_retain = False
 
-        # List of subscribed topics, used for tracking
+        # List of subscribed topics and the QoS for each, used for tracking
         self._subscribed_topics: List[tuple[str, int]] = []
         self._on_message_filtered = MQTTMatcher()
 
@@ -1196,7 +1196,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         """
         if isinstance(qos_level, int):
             if qos_level < 0 or qos_level > 2:
-                raise NotImplementedError("QoS must be between 1 and 2.")
+                raise NotImplementedError("QoS must be between 0 and 2.")
         else:
             raise ValueError("QoS must be an integer.")
 
