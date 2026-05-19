@@ -669,7 +669,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                 )
         return rcs
 
-    def publish(  # noqa:  PLR0912, Too many branches
+    def publish(  # noqa:  PLR0912, PLR0915, Too many branches, Too many statements
         self,
         topic: str,
         msg: Union[str, int, float, bytes],
@@ -700,7 +700,11 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         else:
             raise ValueError("Invalid message data type.")
         if len(msg) > MQTT_MSG_MAX_SZ:
-            raise ValueError(f"Message size larger than {MQTT_MSG_MAX_SZ} bytes.")
+            raise ValueError(f"Message size larger than protocol max {MQTT_MSG_MAX_SZ} bytes.")
+        if len(msg) > self._msg_size_lim:
+            raise ValueError(
+                f"Message size larger than configured limit {self._msg_size_lim} bytes."
+            )
 
         self._valid_qos(qos)
 
