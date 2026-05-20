@@ -167,9 +167,12 @@ def test_unsubscribe(topic, to_send, exp_recv) -> None:
     mqtt_client.logger = logger
 
     if isinstance(topic, str):
-        mqtt_client._subscribed_topics = [topic]
+        mqtt_client._subscribed_topics = [(topic, 1)]
     elif isinstance(topic, list):
-        mqtt_client._subscribed_topics = topic
+        if topic and isinstance(topic[0], tuple):
+            mqtt_client._subscribed_topics = topic
+        else:
+            mqtt_client._subscribed_topics = [(t, 1) for t in topic]
 
     logger.info(f"unsubscribing from {topic}")
     mqtt_client.unsubscribe(topic)
