@@ -240,8 +240,8 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         self._lw_msg = None
         self._lw_retain = False
 
-        # List of subscribed topics, used for tracking
-        self._subscribed_topics: List[str] = []
+        # List of subscribed topics and the QoS for each, used for tracking
+        self._subscribed_topics: List[tuple[str, int]] = []
         self._on_message_filtered = MQTTMatcher()
 
         # Default topic callback methods
@@ -841,7 +841,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                     for t, q in topics:
                         if self.on_subscribe is not None:
                             self.on_subscribe(self, self.user_data, t, q)
-                        self._subscribed_topics.append(t)
+                        self._subscribed_topics.append((t, q))
 
                     return
 
@@ -870,7 +870,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                 self._valid_topic(t)
                 topics.append(t)
         for t in topics:
-            if t not in self._subscribed_topics:
+            if t not in [_t for _t, _ in self._subscribed_topics]:
                 raise MMQTTStateError("Topic must be subscribed to before attempting unsubscribe.")
         # Assemble packet
         self.logger.debug("Sending UNSUBSCRIBE to broker...")
@@ -911,7 +911,8 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
                     for t in topics:
                         if self.on_unsubscribe is not None:
                             self.on_unsubscribe(self, self.user_data, t, self._pid)
-                        self._subscribed_topics.remove(t)
+                        _, q = [(_t, _q) for _t, _q in self._subscribed_topics if _t == t][0]
+                        self._subscribed_topics.remove((t, q))
                     return
                 if op != MQTT_PUBLISH:
                     # [3.10.4] The Server may continue to deliver existing messages buffered
@@ -976,7 +977,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
             self._subscribed_topics = []
             while subscribed_topics:
                 feed = subscribed_topics.pop()
-                self.subscribe(feed)
+                self.subscribe(*feed)
 
         return ret
 
@@ -1199,7 +1200,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         """
         if isinstance(qos_level, int):
             if qos_level < 0 or qos_level > 2:
-                raise NotImplementedError("QoS must be between 1 and 2.")
+                raise NotImplementedError("QoS must be between 0 and 2.")
         else:
             raise ValueError("QoS must be an integer.")
 
