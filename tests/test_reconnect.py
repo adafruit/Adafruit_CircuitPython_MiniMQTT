@@ -7,6 +7,7 @@
 import logging
 import ssl
 import sys
+from unittest import mock
 
 import pytest
 from mocket import Mocket
@@ -30,6 +31,7 @@ class FakeConnectionManager:
     def __init__(self, socket):
         self._socket = socket
         self.close_cnt = 0
+        self.closed_sockets = []
 
     def get_socket(  # noqa: PLR0913, Too many arguments
         self,
@@ -49,6 +51,7 @@ class FakeConnectionManager:
 
     def close_socket(self, socket) -> None:
         self.close_cnt += 1
+        self.closed_sockets.append(socket)
 
 
 def handle_subscribe(client, user_data, topic, qos):
@@ -184,6 +187,9 @@ def test_reconnect(topics, to_send) -> None:
     mocket = Mocket(to_send)
     mqtt_client._connection_manager = FakeConnectionManager(mocket)
     mqtt_client.connect()
+    poller = mock.Mock()
+    mqtt_client._socket_poller = poller
+    mqtt_client._poll_socket = mock.Mock()
 
     mqtt_client.logger = logger
 
@@ -198,6 +204,10 @@ def test_reconnect(topics, to_send) -> None:
 
     assert user_data.get("disconnect") == True
     assert mqtt_client._connection_manager.close_cnt == 1
+    assert mqtt_client._connection_manager.closed_sockets == [mocket]
+    poller.unregister.assert_called_once_with(mocket)
+    assert mqtt_client._socket_poller is None
+    assert mqtt_client._poll_socket is None
     assert set(user_data.get("topics")) == set([t[0] for t in topics])
 
 
