@@ -166,7 +166,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         socket_pool=None,
         ssl_context=None,
         use_binary_mode: bool = False,
-        socket_timeout: int = 1,
+        socket_timeout: float | int = 1,
         connect_retries: int = 5,
         user_data=None,
     ) -> None:
