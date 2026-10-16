@@ -415,7 +415,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         self,
         clean_session: bool = True,
         host: Optional[str] = None,
-        port: Optional[int] = None,
+        port: Optional[Union[int, str]] = None,
         keep_alive: Optional[int] = None,
         session_id: Optional[str] = None,
     ) -> int:
@@ -424,7 +424,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
 
         :param bool clean_session: Establishes a persistent session.
         :param str host: Hostname or IP address of the remote broker.
-        :param int port: Network port of the remote broker.
+        :param int|str port: Network port of the remote broker.
         :param int keep_alive: Maximum period allowed for communication
             within single connection attempt, in seconds.
         :param str session_id: unique session ID,
@@ -443,6 +443,9 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
             self.logger.debug(
                 f"Attempting to connect to MQTT broker (attempt #{self._reconnect_attempt})"
             )
+
+            if type(port) == str:
+                port = int(port)
 
             try:
                 ret = self._connect(
