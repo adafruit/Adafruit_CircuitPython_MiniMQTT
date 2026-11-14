@@ -47,6 +47,25 @@ class TestPortSslSetup:
             # Assuming the repeated calls will have the same arguments.
             connect_mock.assert_has_calls([call((host, expected_port))])
 
+    def test_string_port_from_constructor(self) -> None:
+        """convert a port loaded from string-valued settings"""
+        host = "127.0.0.1"
+        expected_port = 1883
+
+        with patch.object(socket.socket, "connect") as connect_mock:
+            connect_mock.side_effect = OSError("artificial error")
+            mqtt_client = MQTT.MQTT(
+                broker=host,
+                port=str(expected_port),
+                socket_pool=socket,
+                connect_retries=1,
+            )
+
+            with pytest.raises(MQTT.MMQTTException):
+                mqtt_client.connect()
+
+            connect_mock.assert_has_calls([call((host, expected_port))])
+
     def test_connect_override(self):
         """Test that connect() can override host and port."""
         host = "127.0.0.1"
@@ -63,14 +82,14 @@ class TestPortSslSetup:
 
             with pytest.raises(MQTT.MMQTTException):
                 expected_host = "127.0.0.2"
-                expected_port = 1884
-                assert expected_port != port  # port override should differ
+                expected_port = "1884"
+                assert int(expected_port) != port  # port override should differ
                 assert expected_host != host  # host override should differ
                 mqtt_client.connect(host=expected_host, port=expected_port)
 
             connect_mock.assert_called()
             # Assuming the repeated calls will have the same arguments.
-            connect_mock.assert_has_calls([call((expected_host, expected_port))])
+            connect_mock.assert_has_calls([call((expected_host, int(expected_port)))])
 
     @pytest.mark.parametrize("port", (None, 8883))
     def test_tls_port(self, port) -> None:

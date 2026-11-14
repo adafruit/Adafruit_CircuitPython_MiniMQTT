@@ -217,7 +217,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         if self._is_ssl:
             self.port = MQTT_TLS_PORT
         if port:
-            self.port = port
+            self.port = int(port)
 
         self.session_id = None
 
@@ -522,7 +522,7 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
         if host:
             self.broker = host
         if port:
-            self.port = port
+            self.port = int(port)
         if keep_alive:
             self.keep_alive = keep_alive
 
