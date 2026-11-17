@@ -733,9 +733,15 @@ class MQTT:  # noqa: PLR0904  # too-many-public-methods
             qos,
             retain,
         )
-        self._send_bytes(pub_hdr_fixed)
-        self._send_bytes(pub_hdr_var)
-        self._send_bytes(msg)
+        # One send for the packet (a small message included): separate sends make Nagle
+        # wait for the broker's delayed ACK and cost a co-processor transfer each.
+        pub_hdr_fixed.extend(pub_hdr_var)
+        if len(msg) <= 1024:
+            pub_hdr_fixed.extend(msg)
+            self._send_bytes(pub_hdr_fixed)
+        else:
+            self._send_bytes(pub_hdr_fixed)
+            self._send_bytes(msg)
         self._last_msg_sent_timestamp = ticks_ms()
         if qos == 0 and self.on_publish is not None:
             self.on_publish(self, self.user_data, topic, self._pid)
